@@ -495,7 +495,7 @@ private fun headline(category: Category, s: AreaSummary): String {
     return when (category) {
         Category.SOUND -> "Average ${mean.roundToInt()} dB · $levelName"
         Category.LIGHT -> "Average ${mean.roundToInt()} lux · $levelName (${s.sampleCount} measured places)"
-        Category.CROWD -> "About ${mean.roundToInt()} people on average · $levelName (${s.sampleCount} places)"
+        Category.CROWD -> "$levelName · about ${mean.roundToInt()} nearby devices on average (${s.sampleCount} places)"
         Category.PERSONAL -> "Average predicted overwhelm ${(mean * 100).roundToInt()}% · ${s.sampleCount} places"
         // An average of yes/limited/no reads badly ("mostly limited" at 65% yes), so state the share instead.
         Category.ACCESS -> {

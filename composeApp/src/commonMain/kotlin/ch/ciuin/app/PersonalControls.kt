@@ -45,6 +45,7 @@ internal val Place.personalFeatures: FeatureVector?
             luxMean = readings.luxMean ?: estimates.luxMean,
             flickerIndex = readings.flickerIndex ?: estimates.flickerIndex,
             peopleCount = readings.peopleCount ?: estimates.peopleCount,
+            nearbyDevices = readings.nearbyDevices ?: estimates.nearbyDevices,
         )
     }
 

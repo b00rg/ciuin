@@ -305,7 +305,7 @@ HEATMAP_CELL_M = 50
 # 50 m in degrees at Lausanne's latitude (46.5° N); used to bin measurements into heatmap cells
 CELL_DLAT = HEATMAP_CELL_M / 111_320
 CELL_DLON = HEATMAP_CELL_M / (111_320 * math.cos(math.radians(46.5)))
-MEASURED_DIMS = {"light": "lux_mean", "flicker": "flicker_index", "crowd": "people_count"}
+MEASURED_DIMS = {"light": "lux_mean", "flicker": "flicker_index", "crowd": "nearby_devices"}
 _noise_grid_cache: dict[str, object] = {}
 
 
@@ -336,7 +336,7 @@ def heatmap(
     * `dim=noise`: outdoor road+rail noise in dB(A) from sonBASE (`source: "sonbase"`), day or night.
       Lausanne only (data/processed/heatmap_lausanne_noise.geojson).
     * `dim=light|flicker|crowd`: mean of the **measurements** in each cell (`source: "measured"`, plus `n`):
-      lux, flicker index, people count. Empty until phones measure; works anywhere, not just Lausanne.
+      lux, flicker index, nearby Bluetooth devices. Empty until phones measure; works anywhere, not just Lausanne.
     """
     min_lon, min_lat, max_lon, max_lat = parse_bbox(bbox)
     inside = lambda lon, lat: min_lon <= lon <= max_lon and min_lat <= lat <= max_lat  # noqa: E731

@@ -67,11 +67,12 @@ enum class Category(
             return "$lux · $flicker"
         }
     },
-    CROWD("Crowd", "people", Triple("Quiet", "Busy", "Crowded"), 3.5, 10.5) {
-        override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.peopleCount?.toDouble()
+    // Crowd = nearby Bluetooth devices (a busyness proxy, not a head count): shown as levels.
+    CROWD("Crowd", "devices", Triple("Quiet", "Busy", "Crowded"), CROWD_QUIET_DEVICES - 0.5, CROWD_BUSY_DEVICES - 0.5) {
+        override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.nearbyDevices?.toDouble()
 
         override fun detail(p: Place): String =
-            p.measured?.features?.peopleCount?.let { "~$it people" } ?: "Not measured yet"
+            p.measured?.features?.nearbyDevices?.let { "$it nearby devices" } ?: "Not measured yet"
     },
     ACCESS("Access", "", Triple("Accessible", "Limited", "Not accessible"), 0.5, 1.5) {
         // OSM wheelchair=* tag as 0 (yes) / 1 (limited) / 2 (no), so an area average stays meaningful.
@@ -112,3 +113,7 @@ enum class Category(
 
 internal fun Double.fmt1(): String = ((this * 10).toInt() / 10.0).toString()
 internal fun Double.fmt2(): String = ((this * 100).toInt() / 100.0).toString()
+
+/** Crowd bands in nearby Bluetooth devices (~2 per person): Quiet < 7, Busy < 21, else Crowded. Tune in the field. */
+internal const val CROWD_QUIET_DEVICES = 7
+internal const val CROWD_BUSY_DEVICES = 21

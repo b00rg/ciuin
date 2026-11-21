@@ -36,7 +36,8 @@ class FeatureVector(Strict):
     sound_classes: dict[str, float] | None = None
     lux_mean: FiniteFloat | None = None
     flicker_index: FiniteFloat | None = None
-    people_count: int | None = Field(default=None, ge=0)
+    people_count: int | None = Field(default=None, ge=0)  # legacy / estimates; phones send null
+    nearby_devices: int | None = Field(default=None, ge=0)  # crowd proxy: nearby Bluetooth LE devices
 
     @field_validator("sound_classes")
     @classmethod
@@ -61,7 +62,8 @@ EXAMPLE_FEATURES = {
     },
     "lux_mean": 340,
     "flicker_index": 0.04,
-    "people_count": 7,
+    "people_count": None,
+    "nearby_devices": 12,
 }
 
 

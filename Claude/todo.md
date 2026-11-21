@@ -43,7 +43,8 @@ Defined once in `commonMain` as a Kotlin data class:
   "db_mean": 62.4, "db_peak": 78.1,
   "sound_classes": {"speech_crowd": 0.71, "music": 0.12, "traffic": 0.08, "siren": 0.0, "construction": 0.0, "alarm_beep": 0.0, "dog": 0.0, "machinery_hum": 0.03, "other": 0.06},
   "lux_mean": 340, "flicker_index": 0.04,
-  "people_count": 7
+  "people_count": null,
+  "nearby_devices": 12
 }
 ```
 `null` means a reading was unavailable. A measured zero is a value. When classification is available, `sound_classes` includes all **9 classes** from B1 in model output order (`SoundClass` in `commonMain`). The foreground flow averages class scores across captured windows and uses scores of zero for windows the audio pipeline identified as quiet.
@@ -117,7 +118,7 @@ Log time spent in each stage; this is the battery/frugality evidence.
 - `POST /measurements` → stores one Measurement, recomputes that place's aggregates. **201** `{"stored": true, "place": Place | null}` (`place` is the updated place; null if `place_id` isn't a known place: the measurement is still stored and counted). **422** on any field not in the contract (privacy guard) or if every reading is missing or a present `sound_classes` map lacks the exact nine labels. Retry a capture with the same optional `measurement_id` and payload. Reusing that ID with different data returns **409**.
 - `GET /heatmap?bbox=...&dim=noise&period=day` → GeoJSON FeatureCollection of 50 m cells: Point features at cell centres (draw 50 m cells), top-level `"res_m": 50` (also `cell_m`). Every feature has `properties.value` and `properties.source` (`"sonbase"` | `"measured"`, plus `n` for measured).
   - `dim=noise`: sonBASE outdoor noise in dB(A), `period=day` (06–22) or `night` (22–06), Lausanne only (~10.8k cells). Road and rail kept separate so the app can show the road-vs-rail breakdown (Christine): `{"value": 62.9, "road_db": 62.1, "rail_db": 55.0, "source": "sonbase"}`, `value` = energetic sum, `null` where a source has no data.
-  - `dim=light | flicker | crowd`: mean of the **measurements** in each cell (lux, flicker index, people count). Empty until phones measure; works anywhere
+  - `dim=light | flicker | crowd`: mean of the **measurements** in each cell (lux, flicker index, nearby Bluetooth devices). Empty until phones measure; works anywhere
 - `GET /places/nearby?lat=..&lon=..&radius=300[&at=…][&open_only=true]` → places sorted by distance, with mean features (radius in m, max 5000). `open_only` drops places known to be closed (unknown hours stay)
 - `GET /stats` → `{"places_mapped": n, "measurements_taken": n, "sensory_friendly_tags": n}`
 - `GET /health` → `{"status": "ok"}`. Interactive API docs at `/docs`
@@ -270,7 +271,7 @@ Handoff 1 Student S has an int8 export, held-out accuracy and macro-F1 results, 
 
 - [x] Brightness uses Android `TYPE_LIGHT` when present. iOS shows lux as unavailable because [SensorKit's ambient light readings require Apple's approved-research entitlement](https://developer.apple.com/documentation/sensorkit/configuring-your-project-for-sensor-reading).
 - [x] Flicker uses timestamped frame luminance and locks exposure when supported. The app requests up to 60 fps and shows the FFT peak, flicker index and range supported by the measured frame rate. A 60 fps sample stream reports a practical upper limit of 27 Hz. Higher frequencies can alias into that range.
-- [x] Crowd uses the median of per-frame person counts. Android uses quantized COCO SSD MobileNet V1 (class 0, up to ten detections per frame). iOS uses the system Vision human detector. Frame data stays in memory through processing and only counts enter the measurement. See [REUSED.md](../REUSED.md).
+- [x] ~~Crowd from camera person counts~~ (dropped: inaccurate and privacy-heavy). Crowd is now `nearby_devices`: distinct Bluetooth LE devices heard at ≥ −80 dBm during the 30 s measurement (idea from Emma's [side-eye](https://github.com/b00rg/side-eye)). Android only for now; iOS sends null. No device addresses are stored or sent, only the count. Shown as Quiet / Busy / Crowded (< 7, < 21, else). The personal model reads devices ÷ 2 into its crowd slot, so no retraining. `people_count` stays in the contract for priors and older data. Cut-off and bands are first guesses: **calibrate on campus**. See [REUSED.md](../REUSED.md).
 - [ ] Benchmark the camera, light sensor and crowd detector on physical phones.
 - [x] Checked local history, remote branches and repository PRs for D's vision work. No teammate detector was found in the project repository.
 

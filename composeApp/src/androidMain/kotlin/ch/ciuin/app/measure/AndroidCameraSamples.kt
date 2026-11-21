@@ -24,81 +24,25 @@ import android.util.Range
 import android.util.Size
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.abs
-import kotlin.time.TimeSource
 
 private const val TAG = "AndroidMeasurement"
-private const val DETECTION_INTERVAL_NS = 1_000_000_000L
 private const val MIN_AE_WARMUP_NS = 500_000_000L
 private const val MAX_AE_WARMUP_NS = 1_500_000_000L
 
 internal fun cameraSamples(context: Context, displayRotation: Int): Flow<CameraSample> = callbackFlow {
-    val detectorReady = AtomicBoolean(false)
-    val detectorBusy = AtomicBoolean(false)
-    val modelFrames = Channel<ByteArray>(capacity = 1, onUndeliveredElement = { it.fill(0) })
-    val detection = launch(Dispatchers.Default) {
-        var samples = 0
-        var totalMs = 0.0
-        var peakMs = 0.0
-        try {
-            AndroidPersonDetector(context).use { model ->
-                detectorReady.set(true)
-                for (rgb in modelFrames) {
-                    try {
-                        val started = TimeSource.Monotonic.markNow()
-                        val people = model.count(rgb)
-                        val elapsedMs = started.elapsedNow().inWholeNanoseconds / 1e6
-                        samples++
-                        totalMs += elapsedMs
-                        peakMs = maxOf(peakMs, elapsedMs)
-                        trySend(CameraSample.People(people, elapsedMs))
-                    } finally {
-                        rgb.fill(0)
-                        detectorBusy.set(false)
-                    }
-                }
-            }
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (error: Exception) {
-            Log.w(TAG, "Person detector unavailable", error)
-        } catch (error: LinkageError) {
-            Log.w(TAG, "Person detector runtime unavailable", error)
-        } finally {
-            detectorReady.set(false)
-            modelFrames.cancel()
-            if (samples > 0) {
-                Log.d(TAG, "Person detector: $samples inferences, mean ${totalMs / samples} ms, peak $peakMs ms")
-            }
-        }
-    }
-
-    var lastDetection = Long.MIN_VALUE
+    // Light only (brightness + flicker). No person detection: frames are reduced to one luminance value.
     val camera = CameraStream(
         context = context,
         displayRotation = displayRotation,
-        onFrame = { image, steadyExposure, rotation ->
-            val timestamp = image.timestamp
-            if (steadyExposure) trySend(CameraSample.Luminance(timestamp, image.meanLuminance()))
-            val eligible = lastDetection == Long.MIN_VALUE || timestamp - lastDetection >= DETECTION_INTERVAL_NS
-            if (eligible && detectorReady.get() && detectorBusy.compareAndSet(false, true)) {
-                lastDetection = timestamp
-                val rgb = image.personDetectorInput(rotation)
-                if (modelFrames.trySend(rgb).isFailure) {
-                    rgb.fill(0)
-                    detectorBusy.set(false)
-                }
-            }
+        onFrame = { image, steadyExposure, _ ->
+            if (steadyExposure) trySend(CameraSample.Luminance(image.timestamp, image.meanLuminance()))
         },
         onFailure = { cause ->
             Log.w(TAG, "Camera capture unavailable", cause)
@@ -109,8 +53,6 @@ internal fun cameraSamples(context: Context, displayRotation: Int): Flow<CameraS
         camera.start()
         awaitClose()
     } finally {
-        modelFrames.cancel()
-        detection.cancel()
         withContext(NonCancellable) { camera.stop() }
     }
 }.buffer(128)
@@ -340,4 +282,20 @@ private fun selectCamera(manager: CameraManager, displayRotation: Int): CameraCo
         )
     }
     return null
+}
+
+/** Mean of the Y (luma) plane, sampling every 8th pixel in both directions. */
+internal fun Image.meanLuminance(): Double {
+    val plane = planes[0]
+    val data = plane.buffer
+    val start = data.position()
+    var sum = 0L
+    var count = 0
+    for (row in 0 until height step 8) {
+        for (column in 0 until width step 8) {
+            sum += data.get(start + row * plane.rowStride + column * plane.pixelStride).toInt() and 0xff
+            count++
+        }
+    }
+    return sum.toDouble() / count
 }

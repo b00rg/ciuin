@@ -1,5 +1,7 @@
 package ch.ciuin.app.measure
 
+import ch.ciuin.app.CROWD_BUSY_DEVICES
+import ch.ciuin.app.CROWD_QUIET_DEVICES
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -118,10 +120,10 @@ internal fun MeasurementDialog(
                 Text(place.name, style = MaterialTheme.typography.titleSmall)
                 when (current) {
                     Phase.Ready -> {
-                        Text("Keep the app open for 30 seconds. Hold the phone steady and point the rear camera toward the area you want to measure.")
-                        Text("Video and audio stay on the phone. You can review the readings before sharing.")
+                        Text("Keep the app open for 30 seconds. Hold the phone steady and point the rear camera toward the lights.")
+                        Text("The camera only measures light and flicker, never people. Video, audio and Bluetooth stay on the phone: only the readings are shared, after you review them.")
                     }
-                    Phase.Requesting -> Text("Waiting for camera and microphone permissions…")
+                    Phase.Requesting -> Text("Waiting for camera, microphone and nearby-devices permissions…")
                     Phase.PermissionDenied -> Text(
                         "Camera and microphone access are unavailable. Allow access in system settings to take a measurement.",
                     )
@@ -210,11 +212,18 @@ private fun ReviewReadings(review: MeasurementReview) {
             style = MaterialTheme.typography.bodySmall,
         )
     }
-    Text(when (val people = features.peopleCount) {
-        null -> if (review.permissions.camera) "Crowd  No person count" else "Crowd  Camera access unavailable"
-        else -> "Crowd  $people ${if (people == 1) "person" else "people"} in view (typical frame)"
+    Text(when (val devices = features.nearbyDevices) {
+        null -> if (review.permissions.bluetooth) "Crowd  Bluetooth is off" else "Crowd  Nearby-devices access unavailable"
+        else -> "Crowd  ${busyness(devices)} · $devices nearby ${if (devices == 1) "device" else "devices"}"
     })
     if (!review.canUpload) Text("No readings available to upload.", style = MaterialTheme.typography.bodySmall)
+}
+
+/** Same bands as the map's Crowd layer (Category.CROWD). */
+private fun busyness(devices: Int): String = when {
+    devices < CROWD_QUIET_DEVICES -> "Quiet"
+    devices < CROWD_BUSY_DEVICES -> "Busy"
+    else -> "Crowded"
 }
 
 private fun decimal(value: Double, places: Int): String {

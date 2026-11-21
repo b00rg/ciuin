@@ -23,6 +23,12 @@ import kotlin.uuid.Uuid
 
 internal const val MEASUREMENT_SECONDS = 30
 
+/**
+ * Bluetooth signal-strength cut-off for "nearby": roughly the same room (side-eye's near/far idea). Weaker
+ * signals (other floors, the street) are ignored. First guess; tune with field measurements.
+ */
+internal const val NEARBY_RSSI_DBM = -80
+
 internal data class MeasurementReview(
     val measurement: Measurement,
     val permissions: CapturePermissions,
@@ -33,7 +39,7 @@ internal data class MeasurementReview(
     val canUpload: Boolean
         get() = measurement.features.let {
             it.dbMean != null || it.soundClasses != null ||
-                it.luxMean != null || it.flickerIndex != null || it.peopleCount != null
+                it.luxMean != null || it.flickerIndex != null || it.nearbyDevices != null
         }
 }
 
@@ -47,7 +53,8 @@ internal suspend fun measurePlace(
 ): MeasurementReview {
     val startedAt = Clock.System.now().toString()
     val luminance = mutableListOf<LuminanceSample>()
-    val people = mutableListOf<Int>()
+    val strongest = mutableMapOf<Int, Int>() // device fingerprint -> strongest signal, in memory only
+    var scanned = false
     val audio = mutableListOf<AudioSample>()
     var luxSum = 0.0
     var luxCount = 0
@@ -58,7 +65,6 @@ internal suspend fun measurePlace(
                 capture.camera().collect { sample ->
                     when (sample) {
                         is CameraSample.Luminance -> luminance += LuminanceSample(sample.timestampNanos, sample.value)
-                        is CameraSample.People -> if (sample.count >= 0) people.add(sample.count) else Unit
                     }
                 }
             }
@@ -76,6 +82,12 @@ internal suspend fun measurePlace(
         if (permissions.microphone) launch {
             captureAvailable { capture.audio().collect { audio += it } }
         }
+        if (permissions.bluetooth && capture.canScanBluetooth) launch {
+            captureAvailable {
+                scanned = true
+                capture.bluetooth().collect { s -> strongest[s.device] = maxOf(strongest[s.device] ?: Int.MIN_VALUE, s.rssi) }
+            }
+        }
         awaitCancellation()
     }
 
@@ -89,7 +101,7 @@ internal suspend fun measurePlace(
             soundClasses = soundClasses(audio),
             luxMean = if (luxCount == 0) null else luxSum / luxCount,
             flickerIndex = flicker?.flickerIndex,
-            peopleCount = people.sorted().let(::medianCount),
+            nearbyDevices = if (scanned) strongest.values.count { it >= NEARBY_RSSI_DBM } else null,
         )
         MeasurementReview(
             measurement = Measurement(
@@ -141,9 +153,3 @@ private fun soundClasses(windows: List<AudioSample>): Map<String, Double>? {
     }
 }
 
-private fun medianCount(counts: List<Int>): Int? {
-    if (counts.isEmpty()) return null
-    val upper = counts.size / 2
-    val lower = (counts.size - 1) / 2
-    return ((counts[lower].toDouble() + counts[upper]) / 2).roundToInt()
-}

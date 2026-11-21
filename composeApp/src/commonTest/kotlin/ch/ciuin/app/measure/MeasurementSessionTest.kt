@@ -22,7 +22,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class MeasurementSessionTest {
     private val place = Place("osm:1", "Square", 46.5, 6.6, "square")
-    private val allowed = CapturePermissions(camera = true, microphone = true)
+    private val allowed = CapturePermissions(camera = true, microphone = true, bluetooth = true)
 
     @Test
     fun capturesForThirtySecondsAndKeepsObservedZeros() = runTest {
@@ -30,12 +30,16 @@ class MeasurementSessionTest {
             override val device = "test"
             override val canMeasureLux = true
             override suspend fun requestPermissions() = allowed
-            override fun camera() = flow {
-                emit(CameraSample.People(0, 15.0))
-                emit(CameraSample.People(6, 15.0))
-                emit(CameraSample.People(0, 15.0))
+            override fun camera() = flow<CameraSample> { delay(30_001) }
+            override val canScanBluetooth = true
+            override fun bluetooth() = flow {
+                emit(BleSighting(device = 1, rssi = -90)) // far at first...
+                emit(BleSighting(device = 2, rssi = -95)) // far: ignored
+                emit(BleSighting(device = 1, rssi = -70)) // ...then near: counted once
+                emit(BleSighting(device = 1, rssi = -60))
+                emit(BleSighting(device = 3, rssi = NEARBY_RSSI_DBM)) // on the cut-off: counted
                 delay(30_001)
-                emit(CameraSample.People(50, 15.0))
+                emit(BleSighting(device = 4, rssi = -50)) // after the window: ignored
             }
             override fun lux() = flowOf(0.0, 0.0, Double.NaN)
             override fun audio() = flowOf(
@@ -55,7 +59,8 @@ class MeasurementSessionTest {
         assertEquals(62.0, features.dbPeak)
         assertEquals(SoundClass.entries.associate { it.label to 0.0 }, features.soundClasses)
         assertEquals(0.0, features.luxMean)
-        assertEquals(0, features.peopleCount)
+        assertEquals(2, features.nearbyDevices)
+        assertNull(features.peopleCount)
         assertNull(features.flickerIndex)
     }
 
@@ -78,7 +83,7 @@ class MeasurementSessionTest {
         assertNull(review.measurement.features.dbMean)
         assertNull(review.measurement.features.soundClasses)
         assertNull(review.measurement.features.luxMean)
-        assertNull(review.measurement.features.peopleCount)
+        assertNull(review.measurement.features.nearbyDevices) // no Bluetooth permission: unavailable, not zero
     }
 
     @Test

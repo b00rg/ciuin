@@ -38,8 +38,14 @@ internal fun featurize(features: FeatureVector): DoubleArray = DoubleArray(perso
     val lightIndex = 2 + SoundClass.COUNT
     features.luxMean?.let { this[lightIndex] = clamp01(log10(it.coerceAtLeast(0.0) + 1.0) / 4.0) }
     features.flickerIndex?.let { this[lightIndex + 1] = clamp01(it) }
-    features.peopleCount?.let { this[lightIndex + 2] = clamp01(ln(1.0 + it.coerceAtLeast(0)) / ln(31.0)) }
+    // Crowd slot, in people-equivalents so the preset weights still apply (no retraining): a measured
+    // Bluetooth device count (~2 devices per person) wins over a people estimate from the prior.
+    val crowd = features.nearbyDevices?.let { it / DEVICES_PER_PERSON } ?: features.peopleCount?.toDouble()
+    crowd?.let { this[lightIndex + 2] = clamp01(ln(1.0 + it.coerceAtLeast(0.0)) / ln(31.0)) }
 }
+
+/** Rough phones + earbuds + watches per person, to turn a Bluetooth device count into a crowd estimate. */
+internal const val DEVICES_PER_PERSON = 2.0
 
 private fun clamp01(value: Double): Double = when {
     value > 1.0 -> 1.0

@@ -24,15 +24,15 @@ PLACE_KEYS = {
 STARBUCKS = "osm:node/911106747"  # opening_hours "Mo-Sa 07:00-19:00; Su 11:00-19:00"
 SAT_10_LOCAL = "2026-11-21T09:00:00Z"  # Saturday 10:00 in Lausanne (CET)
 SAT_22_LOCAL = "2026-11-21T21:00:00Z"  # Saturday 22:00
-FEATURE_KEYS = {"db_mean", "db_peak", "sound_classes", "lux_mean", "flicker_index", "people_count"}
+FEATURE_KEYS = {"db_mean", "db_peak", "sound_classes", "lux_mean", "flicker_index", "people_count", "nearby_devices"}
 SOUND = ["speech_crowd", "music", "traffic", "siren", "construction", "alarm_beep", "dog", "machinery_hum", "other"]
 
 
-def features(db_mean: float = 62.4, people: int = 7, lux: float = 340, flicker: float = 0.04) -> dict:
+def features(db_mean: float = 62.4, devices: int = 14, lux: float = 340, flicker: float = 0.04) -> dict:
     probs = dict.fromkeys(SOUND, 0.0) | {"speech_crowd": 0.71, "music": 0.12, "traffic": 0.08,
                                           "machinery_hum": 0.03, "other": 0.06}
     return {"db_mean": db_mean, "db_peak": db_mean + 15, "sound_classes": probs, "lux_mean": lux,
-            "flicker_index": flicker, "people_count": people}
+            "flicker_index": flicker, "people_count": None, "nearby_devices": devices}
 
 
 def measurement(place_id: str, lat: float, lon: float, **kw) -> dict:
@@ -112,16 +112,16 @@ def test_nearby_sorted_and_within_radius(client):
 
 def test_post_measurement_aggregates_mean_and_scores(client, a_place):
     pid, lat, lon = a_place["place_id"], a_place["lat"], a_place["lon"]
-    r1 = client.post("/measurements", json=measurement(pid, lat, lon, db_mean=60, people=10))
+    r1 = client.post("/measurements", json=measurement(pid, lat, lon, db_mean=60, devices=10))
     assert r1.status_code == 201
-    r2 = client.post("/measurements", json=measurement(pid, lat, lon, db_mean=70, people=20)).json()
+    r2 = client.post("/measurements", json=measurement(pid, lat, lon, db_mean=70, devices=20)).json()
 
     place = r2["place"]
     assert set(place) == PLACE_KEYS
     assert place["measured"]["n"] == 2
     f = place["measured"]["features"]
     assert set(f) == FEATURE_KEYS
-    assert f["db_mean"] == 65 and f["people_count"] == 15
+    assert f["db_mean"] == 65 and f["nearby_devices"] == 15 and f["people_count"] is None
     assert set(f["sound_classes"]) == set(SOUND)
     s = place["score"]
     assert set(s) == {"noise", "light", "flicker", "crowd", "access"}
@@ -155,7 +155,7 @@ def test_measurement_requires_exactly_nine_sound_classes(client, a_place):
 def test_partial_measurement_aggregates_only_available_readings(client, a_place):
     pid, lat, lon = a_place["place_id"], a_place["lat"], a_place["lon"]
     partial = measurement(pid, lat, lon)
-    partial.update(features=dict.fromkeys(FEATURE_KEYS) | {"people_count": 0}, flicker_hz=None)
+    partial.update(features=dict.fromkeys(FEATURE_KEYS) | {"nearby_devices": 0}, flicker_hz=None)
     first = client.post("/measurements", json=partial)
     assert first.status_code == 201
     place = first.json()["place"]
@@ -165,16 +165,29 @@ def test_partial_measurement_aggregates_only_available_readings(client, a_place)
     assert place["score"]["crowd"] == 1.0
     assert client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "light"}).json()["features"] == []
 
-    complete = measurement(pid, lat, lon, db_mean=60, people=8, lux=200)
+    complete = measurement(pid, lat, lon, db_mean=60, devices=8, lux=200)
     second = client.post("/measurements", json=complete)
     assert second.status_code == 201
     assert second.json()["place"]["measured"] == {
-        "n": 2, "features": complete["features"] | {"people_count": 4},
+        "n": 2, "features": complete["features"] | {"nearby_devices": 4},
     }
     light = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "light"}).json()["features"]
     assert [f["properties"] for f in light] == [{"value": 200.0, "source": "measured", "n": 1}]
     crowd = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "crowd"}).json()["features"]
     assert [f["properties"] for f in crowd] == [{"value": 4.0, "source": "measured", "n": 2}]
+
+
+def test_crowd_score_uses_devices_and_falls_back_to_people():
+    from aggregate import CROWD_BUSY_DEVICES, score
+    from models import FeatureVector
+
+    assert score(FeatureVector(nearby_devices=0), None).crowd == 1.0
+    assert score(FeatureVector(nearby_devices=CROWD_BUSY_DEVICES // 2), None).crowd == pytest.approx(0.5)
+    assert score(FeatureVector(nearby_devices=CROWD_BUSY_DEVICES * 2), None).crowd == 0.0
+    # older data / priors with only a people estimate still score; devices win when both exist
+    assert score(FeatureVector(people_count=15), None).crowd == pytest.approx(0.5)
+    assert score(FeatureVector(people_count=30, nearby_devices=0), None).crowd == 1.0
+    assert score(FeatureVector(), None).crowd is None
 
 
 def test_measurement_requires_some_reading(client, a_place):
@@ -318,8 +331,8 @@ def test_heatmap_noise_day_and_night(client):
 def test_heatmap_measured_dims_from_measurements(client, a_place):
     assert client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "light"}).json()["features"] == []
     pid, lat, lon = a_place["place_id"], a_place["lat"], a_place["lon"]
-    client.post("/measurements", json=measurement(pid, lat, lon, lux=200, people=4))
-    client.post("/measurements", json=measurement(pid, lat, lon, lux=400, people=8))
+    client.post("/measurements", json=measurement(pid, lat, lon, lux=200, devices=4))
+    client.post("/measurements", json=measurement(pid, lat, lon, lux=400, devices=8))
     light = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "light"}).json()["features"]
     crowd = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "crowd"}).json()["features"]
     assert len(light) == 1 and light[0]["properties"] == {"value": 300.0, "source": "measured", "n": 2}

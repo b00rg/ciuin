@@ -1,6 +1,11 @@
 package ch.ciuin.app.measure
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.bluetooth.BluetoothManager
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -40,6 +45,10 @@ internal class AndroidMeasurementCapture(
     private val sensors = activity.getSystemService(SensorManager::class.java)
     private val lightSensor = sensors?.getDefaultSensor(Sensor.TYPE_LIGHT)
     override val canMeasureLux = lightSensor != null
+    private val bluetoothAdapter = activity.getSystemService(BluetoothManager::class.java)?.adapter
+    override val canScanBluetooth: Boolean
+        get() = activity.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) &&
+            bluetoothAdapter?.isEnabled == true
     private var screenUsers = 0
     private var permissionResult: CompletableDeferred<CapturePermissions>? = null
     private val permissions = activity.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -54,6 +63,9 @@ internal class AndroidMeasurementCapture(
             }
             if (!current.microphone && activity.packageManager.hasSystemFeature(PackageManager.FEATURE_MICROPHONE)) {
                 add(Manifest.permission.RECORD_AUDIO)
+            }
+            if (!current.bluetooth && activity.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+                add(BLUETOOTH_SCAN_PERMISSION)
             }
         }
         if (missing.isEmpty()) return current
@@ -107,9 +119,51 @@ internal class AndroidMeasurementCapture(
 
     override fun audio(): Flow<AudioSample> = whileForeground(app.audioWindows.map { it.getOrThrow() })
 
+    /**
+     * Bluetooth LE scan for the crowd proxy. Reads only the signal strength and an in-memory fingerprint of
+     * each advertiser (never its address or name); the session turns them into one count.
+     */
+    @SuppressLint("MissingPermission") // checked in requestPermissions(); a SecurityException closes the flow
+    override fun bluetooth(): Flow<BleSighting> = whileForeground(callbackFlow {
+        val scanner = bluetoothAdapter?.takeIf { it.isEnabled }?.bluetoothLeScanner
+        if (scanner == null) {
+            close()
+            return@callbackFlow
+        }
+        val callback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                trySend(BleSighting(device = result.device.hashCode(), rssi = result.rssi))
+            }
+
+            override fun onBatchScanResults(results: MutableList<ScanResult>) {
+                results.forEach { onScanResult(ScanSettings.CALLBACK_TYPE_ALL_MATCHES, it) }
+            }
+
+            override fun onScanFailed(errorCode: Int) {
+                close(IllegalStateException("Bluetooth LE scan failed ($errorCode)"))
+            }
+        }
+        val settings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
+        try {
+            scanner.startScan(null, settings, callback)
+        } catch (denied: SecurityException) {
+            close(denied)
+            return@callbackFlow
+        }
+        awaitClose {
+            try {
+                scanner.stopScan(callback)
+            } catch (_: SecurityException) {
+            } catch (_: IllegalStateException) {
+                // Bluetooth was switched off mid-scan
+            }
+        }
+    })
+
     private fun currentPermissions() = CapturePermissions(
         camera = activity.checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED,
         microphone = activity.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED,
+        bluetooth = activity.checkSelfPermission(BLUETOOTH_SCAN_PERMISSION) == PackageManager.PERMISSION_GRANTED,
     )
 
     private fun displayRotationDegrees(): Int = when (activity.window.decorView.display?.rotation) {
@@ -141,3 +195,7 @@ internal class AndroidMeasurementCapture(
         }
     }
 }
+
+/** Android 12+: BLUETOOTH_SCAN (declared neverForLocation). Older versions need location for BLE scans. */
+private val BLUETOOTH_SCAN_PERMISSION: String =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) Manifest.permission.BLUETOOTH_SCAN else Manifest.permission.ACCESS_FINE_LOCATION

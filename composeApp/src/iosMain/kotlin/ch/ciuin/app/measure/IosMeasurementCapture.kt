@@ -62,7 +62,7 @@ internal class IosMeasurementCapture(private val devices: IosMeasurementDevices)
             }
 
             override fun people(count: Int, inferenceMs: Double) {
-                trySend(CameraSample.People(count, inferenceMs))
+                // People counting was removed (crowd now comes from a Bluetooth scan). Kept for the Swift API.
             }
 
             override fun ended() {

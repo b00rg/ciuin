@@ -69,6 +69,14 @@ class PersonalModelTest {
     }
 
     @Test
+    fun nearbyDevicesFeedTheCrowdSlotWithoutRetraining() {
+        // ~2 devices per person: a Bluetooth count lands where the matching people estimate did.
+        assertContentEquals(featurize(FeatureVector(peopleCount = 15)), featurize(FeatureVector(nearbyDevices = 30)))
+        // A measured device count wins over a people estimate.
+        assertContentEquals(featurize(FeatureVector(nearbyDevices = 0)), featurize(FeatureVector(peopleCount = 30, nearbyDevices = 0)))
+    }
+
+    @Test
     fun updatesMatchPythonAtEveryCheckpoint() {
         for (user in fixture.users) {
             val model = LogisticPersonalModel(presetsById.getValue(user.preset))

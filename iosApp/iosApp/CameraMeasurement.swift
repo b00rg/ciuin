@@ -147,10 +147,6 @@ final class CameraMeasurement: NSObject, IosMeasurementOperation, AVCaptureVideo
         if exposureReady, let value = Self.meanLuminance(pixels) {
             sink.luminance(timestampNanos: Int64((seconds * 1e9).rounded()), value: value)
         }
-        if seconds - lastDetection >= 1, Self.detectionSlot.wait(timeout: .now()) == .success {
-            lastDetection = seconds
-            detectPeople(pixels)
-        }
     }
 
     private static func lockExposure(_ camera: AVCaptureDevice) -> Bool {

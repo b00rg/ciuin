@@ -14,7 +14,8 @@ from models import SOUND_CLASSES, FeatureVector, PlaceScore
 NOISE_QUIET_DB, NOISE_LOUD_DB = 40.0, 75.0  # dB(A): 40 -> 1.0, 75 -> 0.0
 LUX_COMFORT, LUX_HARSH = 300.0, 3000.0  # log scale: <=300 lx -> 1.0, >=3000 lx -> 0.0
 FLICKER_BAD = 0.2  # flicker index: 0 -> 1.0, >=0.2 -> 0.0
-CROWD_BUSY = 30  # people in view: 0 -> 1.0, >=30 -> 0.0
+CROWD_BUSY = 30  # people (estimates / older data): 0 -> 1.0, >=30 -> 0.0
+CROWD_BUSY_DEVICES = 60  # nearby Bluetooth devices (~2 per person): 0 -> 1.0, >=60 -> 0.0
 ACCESS = {"yes": 1.0, "designated": 1.0, "limited": 0.5, "no": 0.0}
 ACCESS_UNKNOWN = 0.5
 
@@ -39,6 +40,7 @@ def mean_features(vectors: list[FeatureVector]) -> FeatureVector:
         lux_mean=_mean((v.lux_mean for v in vectors), 1),
         flicker_index=_mean((v.flicker_index for v in vectors), 4),
         people_count=_mean(v.people_count for v in vectors),
+        nearby_devices=_mean(v.nearby_devices for v in vectors),
     )
 
 
@@ -52,6 +54,8 @@ def score(f: FeatureVector, wheelchair: str | None) -> PlaceScore:
         noise=_dimension_score(f.db_mean, NOISE_QUIET_DB, NOISE_LOUD_DB),
         light=_dimension_score(log_lux, math.log10(LUX_COMFORT), math.log10(LUX_HARSH)),
         flicker=_dimension_score(f.flicker_index, 0, FLICKER_BAD),
-        crowd=_dimension_score(f.people_count, 0, CROWD_BUSY),
+        crowd=_dimension_score(f.nearby_devices, 0, CROWD_BUSY_DEVICES)
+        if f.nearby_devices is not None
+        else _dimension_score(f.people_count, 0, CROWD_BUSY),
         access=ACCESS.get(wheelchair or "", ACCESS_UNKNOWN),
     )
