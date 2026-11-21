@@ -4,7 +4,10 @@ Uses the tile query (x/y/z), which the API docs recommend for bulk use; their la
 search is meant for end-user lookups, not exports. Pages through each tile 1000 at a time.
 
 Needs an app token (free for non-commercial use): sign up at accessibility.cloud, create an
-organization, add an app, copy its token. Never commit it. Provide it as an env var:
+organization, add an app, copy its token. Never commit it. Either put it in a .env file in the
+repo root (gitignored):
+  ACCESSIBILITY_CLOUD_TOKEN=...
+or set it as an env var:
   PowerShell:  $env:ACCESSIBILITY_CLOUD_TOKEN = "..."
   bash:        export ACCESSIBILITY_CLOUD_TOKEN=...
 
@@ -83,6 +86,18 @@ def get_page(token: str, x: int, y: int, z: int, skip: int) -> dict:
     raise RuntimeError("unreachable")
 
 
+def token_from_dotenv() -> str:
+    """Read the token from a gitignored .env in the repo root: ACCESSIBILITY_CLOUD_TOKEN=..."""
+    env = Path(__file__).resolve().parents[2] / ".env"
+    if not env.is_file():
+        return ""
+    for line in env.read_text(encoding="utf-8-sig").splitlines():
+        key, sep, value = line.partition("=")
+        if sep and key.strip() == TOKEN_ENV:
+            return value.strip().strip('"').strip("'")
+    return ""
+
+
 def in_bbox(feature: dict, bbox: tuple[float, float, float, float]) -> bool:
     s, w, n, e = bbox
     try:
@@ -98,7 +113,7 @@ def main() -> int:
         print(f"{len(tiles)} tiles at z={ZOOM}: {tiles}")
         return 0
 
-    token = os.environ.get(TOKEN_ENV, "").strip()
+    token = os.environ.get(TOKEN_ENV, "").strip() or token_from_dotenv()
     if not token:
         print(f"Set ${TOKEN_ENV} first (see the docstring at the top of this script).", file=sys.stderr)
         return 2

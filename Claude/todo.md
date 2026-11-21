@@ -155,7 +155,7 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 
 ### Transformation
 - [ ] Normalise OSM + accessibility.cloud into the Place schema; dedupe on name + distance < 25 m
-- [ ] Reproject sonBASE to WGS84; sample noise at each place → `baseline_noise_db`
+- [ ] Sample sonBASE at each place → `baseline_noise_db`. Rasters are 10 m, LV95 (EPSG:2056), float64, nodata -9999: transform place coords to LV95 (don't reproject the raster). Use the **median within ~25–50 m**, not the single cell (a POI point on the street-side façade reads 20 dB louder than its own courtyard). Combine road + rail energetically: 10·log10(10^(road/10) + 10^(rail/10)). Scripts: `fetch_sonbase.py`, `check_sonbase.py`; import `raster_env` before rasterio
 - [ ] Build a 50 m grid over Lausanne with baseline noise for the heatmap layer
 - [ ] Seed unmeasured places with a prior feature vector from category + `baseline_noise_db` (so the personal model can score them)
 - [ ] Write `data/processed/places_lausanne.geojson` and commit it (app must work offline)

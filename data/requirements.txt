@@ -1,0 +1,6 @@
+# Data pipeline (todo.md section A). The fetch_* and count_* scripts are stdlib-only;
+# these are for reading/sampling rasters (sonBASE) in the transformation step.
+#   python -m venv data/.venv
+#   data/.venv/Scripts/pip install -r data/requirements.txt   (Windows; bin/pip on macOS/Linux)
+rasterio>=1.4
+numpy>=2.0
