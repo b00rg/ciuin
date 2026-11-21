@@ -1,0 +1,46 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+buildscript {
+    configurations.classpath {
+        resolutionStrategy.force 'org.jetbrains.kotlin:kotlin-stdlib:2.2.10', 'org.jetbrains.kotlin:kotlin-reflect:2.2.10'
+    }
+}
+
+plugins {
+    id 'org.jetbrains.kotlin.multiplatform' version '2.2.10'
+    id 'com.android.application' version '8.12.0'
+}
+
+kotlin {
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(JvmTarget.JVM_17)
+            if (property('litertVersion') == '2.4.0') {
+                // The diagnostic uses the Java interpreter API. The AAR also carries newer Kotlin metadata.
+                freeCompilerArgs.add('-Xskip-metadata-version-check')
+            }
+        }
+    }
+    sourceSets {
+        androidMain.dependencies {
+            implementation files('libs/litert.aar', 'libs/litert-api.aar')
+        }
+    }
+}
+
+android {
+    namespace 'ch.ciuin.parity'
+    compileSdk 36
+    defaultConfig {
+        applicationId property('diagnosticPackage')
+        minSdk 26
+        targetSdk 36
+        ndk { abiFilters(property('deviceAbi')) }
+    }
+    sourceSets.main.manifest.srcFile 'src/androidMain/AndroidManifest.xml'
+    sourceSets.main.assets.srcDir 'src/androidMain/assets'
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

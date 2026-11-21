@@ -1,0 +1,460 @@
+{
+  "environment": {
+    "serial": "emulator-5554",
+    "device_api": 35,
+    "device_abi": "arm64-v8a",
+    "device_model": "sdk_gphone64_arm64",
+    "device_fingerprint": "google/sdk_gphone64_arm64/emu64a:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+    "device_logical_cpus": 4,
+    "host": "Darwin 27.0.0 arm64",
+    "host_logical_cpus": 10,
+    "runtime_aars_sha256": {
+      "litert": "13926c98f35417b6fe4f104f780ab869747b4a69f08a91ccd224013c6bf71615",
+      "litert-api": "96faeff454aedd64c3cbe375c0b507b6732053cf4f36ea013ffe90755edd5b91"
+    }
+  },
+  "runtime": "LiteRT 2.4.0 built-in CPU kernels (1 thread, XNNPACK disabled)",
+  "rounds": 1,
+  "warmup_passes_per_run": 3,
+  "measured_passes_per_run": 20,
+  "latency_quantiles": "linear interpolation at sorted index (sample count - 1) * quantile",
+  "clips_per_pass": 10,
+  "windows_per_pass": 65,
+  "successful_attempts": 2,
+  "failed_attempt_count": 0,
+  "retried_measurements": 0,
+  "failed_attempts": [],
+  "attempt_count": 2,
+  "fp32_reference_vs_emma_max_delta": 6.484413146434775e-07,
+  "variants": {
+    "fp32": {
+      "model_sha256": "250b5a9f0e4409315413c18230e71083591ad106715541d76f0edd9a4dc99022",
+      "model_bytes": 1170564,
+      "successful_runs": 1,
+      "reference": "ml/android_parity/benchmarks/emulator-5554/pilot/reference-fp32.json",
+      "max_reference_delta": 2.682209014892578e-07,
+      "max_fixture_delta": 7.009944915647992e-07,
+      "output_sha256s": [
+        "3a1437c960b6b7e873f4bf46d1c3e0047b5f9b40d410ee359f1d63079700dc94"
+      ],
+      "pooled_inference": {
+        "samples": 1300,
+        "p50_ms": 0.9547505,
+        "p95_ms": 2.51739855
+      },
+      "run_ranges": {
+        "load_ms": {
+          "median": 23.363666,
+          "min": 23.363666,
+          "max": 23.363666
+        },
+        "inference_p50_ms": {
+          "median": 0.9547505,
+          "min": 0.9547505,
+          "max": 0.9547505
+        },
+        "inference_p95_ms": {
+          "median": 2.51739855,
+          "min": 2.51739855,
+          "max": 2.51739855
+        },
+        "last_warmup_pass_p50_ms": {
+          "median": 0.97675,
+          "min": 0.97675,
+          "max": 0.97675
+        },
+        "loop_wall_ms": {
+          "median": 1627.117251,
+          "min": 1627.117251,
+          "max": 1627.117251
+        },
+        "instrumentation_wall_ms": {
+          "median": 3185.982,
+          "min": 3185.982,
+          "max": 3185.982
+        },
+        "thread_cpu_pct": {
+          "median": 96.24856936631421,
+          "min": 96.24856936631421,
+          "max": 96.24856936631421
+        },
+        "invoke_wall_pct": {
+          "median": 98.70458499613068,
+          "min": 98.70458499613068,
+          "max": 98.70458499613068
+        },
+        "baseline_hwm_kib": {
+          "median": 109120,
+          "min": 109120,
+          "max": 109120
+        },
+        "after_allocate_hwm_kib": {
+          "median": 114060,
+          "min": 114060,
+          "max": 114060
+        },
+        "peak_hwm_kib": {
+          "median": 118516,
+          "min": 118516,
+          "max": 118516
+        },
+        "hwm_growth_kib": {
+          "median": 9396,
+          "min": 9396,
+          "max": 9396
+        }
+      },
+      "runs": [
+        {
+          "round": 1,
+          "position": 1,
+          "model": "fp32",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-01-pos-1-fp32-attempt-1.json",
+          "pid": 10408,
+          "process_start_elapsed_ms": 1138957,
+          "output_sha256": "3a1437c960b6b7e873f4bf46d1c3e0047b5f9b40d410ee359f1d63079700dc94",
+          "max_reference_delta": 2.682209014892578e-07,
+          "max_fixture_delta": 7.009944915647992e-07,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 23.363666,
+          "inference_p50_ms": 0.9547505,
+          "inference_p95_ms": 2.51739855,
+          "last_warmup_pass_p50_ms": 0.97675,
+          "loop_wall_ms": 1627.117251,
+          "loop_thread_cpu_ms": 1566.077076,
+          "loop_process_cpu_ms": 1571,
+          "instrumentation_wall_ms": 3185.982,
+          "thread_cpu_pct": 96.24856936631421,
+          "invoke_wall_pct": 98.70458499613068,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:10:52.502039+00:00",
+              "host_loadavg": [
+                15.458984375,
+                12.07373046875,
+                9.29736328125
+              ],
+              "emulator_loadavg": [
+                0.84,
+                1.73,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:10:55.718261+00:00",
+              "host_loadavg": [
+                15.021484375,
+                12.0390625,
+                9.30126953125
+              ],
+              "emulator_loadavg": [
+                0.86,
+                1.72,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 109120,
+              "vm_rss_kib": 109120
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 114060,
+              "vm_rss_kib": 114060
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118516,
+              "vm_rss_kib": 118432
+            }
+          },
+          "baseline_hwm_kib": 109120,
+          "after_allocate_hwm_kib": 114060,
+          "peak_hwm_kib": 118516,
+          "hwm_growth_kib": 9396
+        }
+      ]
+    },
+    "int8": {
+      "model_sha256": "e0b5d99bb757c015864dfb47cec66766ab23a009a869d4d7cc77e6321bf0e20e",
+      "model_bytes": 997384,
+      "successful_runs": 1,
+      "reference": "ml/android_parity/benchmarks/emulator-5554/pilot/reference-int8.json",
+      "max_reference_delta": 1.862645149230957e-09,
+      "max_fixture_delta": 0.07811469560623174,
+      "output_sha256s": [
+        "253979d8e0d1eb90ae233ea7c0801179cc7bb4df110b82a2f426f35bb90070fd"
+      ],
+      "pooled_inference": {
+        "samples": 1300,
+        "p50_ms": 0.8504995,
+        "p95_ms": 1.7968193999999995
+      },
+      "run_ranges": {
+        "load_ms": {
+          "median": 22.619375,
+          "min": 22.619375,
+          "max": 22.619375
+        },
+        "inference_p50_ms": {
+          "median": 0.8504995,
+          "min": 0.8504995,
+          "max": 0.8504995
+        },
+        "inference_p95_ms": {
+          "median": 1.7968193999999995,
+          "min": 1.7968193999999995,
+          "max": 1.7968193999999995
+        },
+        "last_warmup_pass_p50_ms": {
+          "median": 0.757375,
+          "min": 0.757375,
+          "max": 0.757375
+        },
+        "loop_wall_ms": {
+          "median": 1394.184292,
+          "min": 1394.184292,
+          "max": 1394.184292
+        },
+        "instrumentation_wall_ms": {
+          "median": 2509.245542,
+          "min": 2509.245542,
+          "max": 2509.245542
+        },
+        "thread_cpu_pct": {
+          "median": 96.32881819902185,
+          "min": 96.32881819902185,
+          "max": 96.32881819902185
+        },
+        "invoke_wall_pct": {
+          "median": 98.50026498505407,
+          "min": 98.50026498505407,
+          "max": 98.50026498505407
+        },
+        "baseline_hwm_kib": {
+          "median": 108996,
+          "min": 108996,
+          "max": 108996
+        },
+        "after_allocate_hwm_kib": {
+          "median": 113980,
+          "min": 113980,
+          "max": 113980
+        },
+        "peak_hwm_kib": {
+          "median": 118204,
+          "min": 118204,
+          "max": 118204
+        },
+        "hwm_growth_kib": {
+          "median": 9208,
+          "min": 9208,
+          "max": 9208
+        }
+      },
+      "runs": [
+        {
+          "round": 1,
+          "position": 2,
+          "model": "int8",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-01-pos-2-int8-attempt-1.json",
+          "pid": 10456,
+          "process_start_elapsed_ms": 1142996,
+          "output_sha256": "253979d8e0d1eb90ae233ea7c0801179cc7bb4df110b82a2f426f35bb90070fd",
+          "max_reference_delta": 1.862645149230957e-09,
+          "max_fixture_delta": 0.07811469560623174,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 22.619375,
+          "inference_p50_ms": 0.8504995,
+          "inference_p95_ms": 1.7968193999999995,
+          "last_warmup_pass_p50_ms": 0.757375,
+          "loop_wall_ms": 1394.184292,
+          "loop_thread_cpu_ms": 1343.001252,
+          "loop_process_cpu_ms": 1347,
+          "instrumentation_wall_ms": 2509.245542,
+          "thread_cpu_pct": 96.32881819902185,
+          "invoke_wall_pct": 98.50026498505407,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:10:56.544611+00:00",
+              "host_loadavg": [
+                15.021484375,
+                12.0390625,
+                9.30126953125
+              ],
+              "emulator_loadavg": [
+                0.86,
+                1.72,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:10:59.099483+00:00",
+              "host_loadavg": [
+                15.021484375,
+                12.0390625,
+                9.30126953125
+              ],
+              "emulator_loadavg": [
+                0.86,
+                1.72,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 108996,
+              "vm_rss_kib": 108996
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113980,
+              "vm_rss_kib": 113980
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118204,
+              "vm_rss_kib": 115896
+            }
+          },
+          "baseline_hwm_kib": 108996,
+          "after_allocate_hwm_kib": 113980,
+          "peak_hwm_kib": 118204,
+          "hwm_growth_kib": 9208
+        }
+      ]
+    }
+  },
+  "paired_run_differences": {
+    "load_ms": {
+      "median": -0.7442909999999969,
+      "min": -0.7442909999999969,
+      "max": -0.7442909999999969,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    },
+    "inference_p50_ms": {
+      "median": -0.10425099999999998,
+      "min": -0.10425099999999998,
+      "max": -0.10425099999999998,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    },
+    "inference_p95_ms": {
+      "median": -0.7205791500000003,
+      "min": -0.7205791500000003,
+      "max": -0.7205791500000003,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    },
+    "last_warmup_pass_p50_ms": {
+      "median": -0.219375,
+      "min": -0.219375,
+      "max": -0.219375,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    },
+    "loop_wall_ms": {
+      "median": -232.93295899999998,
+      "min": -232.93295899999998,
+      "max": -232.93295899999998,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    },
+    "instrumentation_wall_ms": {
+      "median": -676.7364579999999,
+      "min": -676.7364579999999,
+      "max": -676.7364579999999,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    },
+    "thread_cpu_pct": {
+      "median": 0.08024883270763894,
+      "min": 0.08024883270763894,
+      "max": 0.08024883270763894,
+      "lower": 0,
+      "equal": 0,
+      "higher": 1
+    },
+    "invoke_wall_pct": {
+      "median": -0.2043200110766037,
+      "min": -0.2043200110766037,
+      "max": -0.2043200110766037,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    },
+    "baseline_hwm_kib": {
+      "median": -124,
+      "min": -124,
+      "max": -124,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    },
+    "after_allocate_hwm_kib": {
+      "median": -80,
+      "min": -80,
+      "max": -80,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    },
+    "peak_hwm_kib": {
+      "median": -312,
+      "min": -312,
+      "max": -312,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    },
+    "hwm_growth_kib": {
+      "median": -188,
+      "min": -188,
+      "max": -188,
+      "lower": 1,
+      "equal": 0,
+      "higher": 0
+    }
+  },
+  "round_pairs": [
+    {
+      "round": 1,
+      "int8_minus_fp32": {
+        "load_ms": -0.7442909999999969,
+        "inference_p50_ms": -0.10425099999999998,
+        "inference_p95_ms": -0.7205791500000003,
+        "last_warmup_pass_p50_ms": -0.219375,
+        "loop_wall_ms": -232.93295899999998,
+        "instrumentation_wall_ms": -676.7364579999999,
+        "thread_cpu_pct": 0.08024883270763894,
+        "invoke_wall_pct": -0.2043200110766037,
+        "baseline_hwm_kib": -124,
+        "after_allocate_hwm_kib": -80,
+        "peak_hwm_kib": -312,
+        "hwm_growth_kib": -188
+      }
+    }
+  ],
+  "pooled_inference_differences": {
+    "p50_ms": {
+      "int8_minus_fp32": -0.10425099999999998,
+      "percent_change": -10.919187787804248
+    },
+    "p95_ms": {
+      "int8_minus_fp32": -0.7205791500000003,
+      "percent_change": -28.62395984140057
+    }
+  }
+}

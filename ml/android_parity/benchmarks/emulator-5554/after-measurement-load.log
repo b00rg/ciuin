@@ -1,0 +1,34 @@
+Sat Nov 21 18:11:56 CET 2026
+18:11  up 2 days, 16:18, 2 users, load averages: 15.42 12.84 9.79
+10
+4
+1.87 1.85 1.57 1/1997 11741
+cpu  18191 7293 33935 388757 1637 19923 1224 0 0 0
+cpu0 3844 1647 8014 96536 372 6786 700 0 0 0
+cpu1 4427 1801 9225 97260 394 4390 177 0 0 0
+cpu2 5203 1988 7821 97615 412 4471 161 0 0 0
+cpu3 4716 1855 8874 97344 458 4275 184 0 0 0
+Processes: 816 total, 2 running, 814 sleeping, 7228 threads 
+2026/11/21 18:11:57
+Load Avg: 15.42, 12.84, 9.79 
+CPU usage: 20.2% user, 18.60% sys, 61.37% idle 
+SharedLibs: 360M resident, 77M data, 72M linkedit.
+MemRegions: 1544409 total, 5536M resident, 161M private, 3884M shared.
+PhysMem: 23G used (4125M wired, 9196M compressor), 137M unused.
+VM: 511T vsize, 57G framework vsize, 1607697(0) swapins, 2933054(0) swapouts.
+Networks: packets: 295989551/270G in, 171634299/150G out.
+Disks: 27286160/636G read, 27003655/437G written.
+
+Processes: 821 total, 4 running, 817 sleeping, 7289 threads 
+2026/11/21 18:11:58
+Load Avg: 15.42, 12.84, 9.79 
+CPU usage: 20.44% user, 12.85% sys, 66.69% idle 
+SharedLibs: 360M resident, 77M data, 72M linkedit.
+MemRegions: 1177 total, 10M resident, 161M private, 3893M shared.
+PhysMem: 23G used (4033M wired, 9107M compressor), 143M unused.
+VM: 514T vsize, 57G framework vsize, 1607709(12) swapins, 2933054(0) swapouts.
+Networks: packets: 295991321/270G in, 171636620/150G out.
+Disks: 27286556/636G read, 27003758/437G written.
+
+PID    COMMAND          %CPU #TH   
+12366  qemu-system-aarc 28.8 152/2 

@@ -1,0 +1,14 @@
+{
+  "serial": "emulator-5554",
+  "device_api": 35,
+  "device_abi": "arm64-v8a",
+  "device_model": "sdk_gphone64_arm64",
+  "device_fingerprint": "google/sdk_gphone64_arm64/emu64a:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+  "device_logical_cpus": 4,
+  "host": "Darwin 27.0.0 arm64",
+  "host_logical_cpus": 10,
+  "runtime_aars_sha256": {
+    "litert": "13926c98f35417b6fe4f104f780ab869747b4a69f08a91ccd224013c6bf71615",
+    "litert-api": "96faeff454aedd64c3cbe375c0b507b6732053cf4f36ea013ffe90755edd5b91"
+  }
+}

@@ -1,0 +1,1255 @@
+{
+  "environment": {
+    "serial": "emulator-5554",
+    "device_api": 35,
+    "device_abi": "arm64-v8a",
+    "device_model": "sdk_gphone64_arm64",
+    "device_fingerprint": "google/sdk_gphone64_arm64/emu64a:15/AE3A.240806.043/12960925:userdebug/dev-keys",
+    "device_logical_cpus": 4,
+    "host": "Darwin 27.0.0 arm64",
+    "host_logical_cpus": 10,
+    "runtime_aars_sha256": {
+      "litert": "13926c98f35417b6fe4f104f780ab869747b4a69f08a91ccd224013c6bf71615",
+      "litert-api": "96faeff454aedd64c3cbe375c0b507b6732053cf4f36ea013ffe90755edd5b91"
+    }
+  },
+  "runtime": "LiteRT 2.4.0 built-in CPU kernels (1 thread, XNNPACK disabled)",
+  "rounds": 6,
+  "warmup_passes_per_run": 3,
+  "measured_passes_per_run": 20,
+  "latency_quantiles": "linear interpolation at sorted index (sample count - 1) * quantile",
+  "clips_per_pass": 10,
+  "windows_per_pass": 65,
+  "successful_attempts": 12,
+  "failed_attempt_count": 0,
+  "retried_measurements": 0,
+  "failed_attempts": [],
+  "attempt_count": 12,
+  "fp32_reference_vs_emma_max_delta": 6.484413146434775e-07,
+  "variants": {
+    "fp32": {
+      "model_sha256": "250b5a9f0e4409315413c18230e71083591ad106715541d76f0edd9a4dc99022",
+      "model_bytes": 1170564,
+      "successful_runs": 6,
+      "reference": "ml/android_parity/benchmarks/emulator-5554/quiet-runs/reference-fp32.json",
+      "max_reference_delta": 2.682209014892578e-07,
+      "max_fixture_delta": 7.009944915647992e-07,
+      "output_sha256s": [
+        "3a1437c960b6b7e873f4bf46d1c3e0047b5f9b40d410ee359f1d63079700dc94"
+      ],
+      "pooled_inference": {
+        "samples": 7800,
+        "p50_ms": 0.753604,
+        "p95_ms": 1.4898526999999997
+      },
+      "run_ranges": {
+        "load_ms": {
+          "median": 5.4289585,
+          "min": 5.177,
+          "max": 9.572959
+        },
+        "inference_p50_ms": {
+          "median": 0.7480105,
+          "min": 0.733667,
+          "max": 0.83275
+        },
+        "inference_p95_ms": {
+          "median": 1.212508325,
+          "min": 1.0636202,
+          "max": 2.2161125
+        },
+        "last_warmup_pass_p50_ms": {
+          "median": 0.734292,
+          "min": 0.718833,
+          "max": 0.81625
+        },
+        "loop_wall_ms": {
+          "median": 1065.767542,
+          "min": 1030.65475,
+          "max": 1656.786876
+        },
+        "instrumentation_wall_ms": {
+          "median": 1606.198229,
+          "min": 1525.720708,
+          "max": 2640.715833
+        },
+        "thread_cpu_pct": {
+          "median": 98.50088615710862,
+          "min": 96.16454832419858,
+          "max": 99.14895477850366
+        },
+        "invoke_wall_pct": {
+          "median": 99.14164263314362,
+          "min": 98.98353513099413,
+          "max": 99.17109883021995
+        },
+        "baseline_hwm_kib": {
+          "median": 108818.0,
+          "min": 108564,
+          "max": 109288
+        },
+        "after_allocate_hwm_kib": {
+          "median": 113860.0,
+          "min": 113420,
+          "max": 114016
+        },
+        "peak_hwm_kib": {
+          "median": 118266.0,
+          "min": 118176,
+          "max": 118660
+        },
+        "hwm_growth_kib": {
+          "median": 9488.0,
+          "min": 9372,
+          "max": 9680
+        }
+      },
+      "runs": [
+        {
+          "round": 1,
+          "position": 1,
+          "model": "fp32",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-01-pos-1-fp32-attempt-1.json",
+          "pid": 13011,
+          "process_start_elapsed_ms": 1327195,
+          "output_sha256": "3a1437c960b6b7e873f4bf46d1c3e0047b5f9b40d410ee359f1d63079700dc94",
+          "max_reference_delta": 2.682209014892578e-07,
+          "max_fixture_delta": 7.009944915647992e-07,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 9.572959,
+          "inference_p50_ms": 0.7873335,
+          "inference_p95_ms": 1.7139347999999999,
+          "last_warmup_pass_p50_ms": 0.81625,
+          "loop_wall_ms": 1237.636084,
+          "loop_thread_cpu_ms": 1202.493466,
+          "loop_process_cpu_ms": 1207,
+          "instrumentation_wall_ms": 2640.715833,
+          "thread_cpu_pct": 97.1605047352514,
+          "invoke_wall_pct": 98.98353513099413,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:13:59.925493+00:00",
+              "host_loadavg": [
+                11.14404296875,
+                11.63427734375,
+                9.68359375
+              ],
+              "emulator_loadavg": [
+                1.37,
+                1.59,
+                1.5
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:03.029970+00:00",
+              "host_loadavg": [
+                11.05224609375,
+                11.60693359375,
+                9.68505859375
+              ],
+              "emulator_loadavg": [
+                1.37,
+                1.59,
+                1.5
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 108832,
+              "vm_rss_kib": 108832
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113944,
+              "vm_rss_kib": 113944
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118224,
+              "vm_rss_kib": 118224
+            }
+          },
+          "baseline_hwm_kib": 108832,
+          "after_allocate_hwm_kib": 113944,
+          "peak_hwm_kib": 118224,
+          "hwm_growth_kib": 9392
+        },
+        {
+          "round": 2,
+          "position": 2,
+          "model": "fp32",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-02-pos-2-fp32-attempt-1.json",
+          "pid": 13264,
+          "process_start_elapsed_ms": 1335548,
+          "output_sha256": "3a1437c960b6b7e873f4bf46d1c3e0047b5f9b40d410ee359f1d63079700dc94",
+          "max_reference_delta": 2.682209014892578e-07,
+          "max_fixture_delta": 7.009944915647992e-07,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 5.493792,
+          "inference_p50_ms": 0.83275,
+          "inference_p95_ms": 2.2161125,
+          "last_warmup_pass_p50_ms": 0.737667,
+          "loop_wall_ms": 1656.786876,
+          "loop_thread_cpu_ms": 1593.241616,
+          "loop_process_cpu_ms": 1599,
+          "instrumentation_wall_ms": 2244.290833,
+          "thread_cpu_pct": 96.16454832419858,
+          "invoke_wall_pct": 98.98563688284551,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:09.419662+00:00",
+              "host_loadavg": [
+                11.4482421875,
+                11.6796875,
+                9.7216796875
+              ],
+              "emulator_loadavg": [
+                1.58,
+                1.63,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:11.682614+00:00",
+              "host_loadavg": [
+                10.931640625,
+                11.568359375,
+                9.69384765625
+              ],
+              "emulator_loadavg": [
+                1.53,
+                1.62,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 108624,
+              "vm_rss_kib": 108624
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113616,
+              "vm_rss_kib": 113616
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118176,
+              "vm_rss_kib": 118176
+            }
+          },
+          "baseline_hwm_kib": 108624,
+          "after_allocate_hwm_kib": 113616,
+          "peak_hwm_kib": 118176,
+          "hwm_growth_kib": 9552
+        },
+        {
+          "round": 3,
+          "position": 1,
+          "model": "fp32",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-03-pos-1-fp32-attempt-1.json",
+          "pid": 13312,
+          "process_start_elapsed_ms": 1337948,
+          "output_sha256": "3a1437c960b6b7e873f4bf46d1c3e0047b5f9b40d410ee359f1d63079700dc94",
+          "max_reference_delta": 2.682209014892578e-07,
+          "max_fixture_delta": 7.009944915647992e-07,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 7.713708,
+          "inference_p50_ms": 0.754646,
+          "inference_p95_ms": 1.25774345,
+          "last_warmup_pass_p50_ms": 0.745209,
+          "loop_wall_ms": 1086.084292,
+          "loop_thread_cpu_ms": 1072.615657,
+          "loop_process_cpu_ms": 1075,
+          "instrumentation_wall_ms": 1647.0515,
+          "thread_cpu_pct": 98.75989045240698,
+          "invoke_wall_pct": 99.13093264772124,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:11.841346+00:00",
+              "host_loadavg": [
+                10.931640625,
+                11.568359375,
+                9.69384765625
+              ],
+              "emulator_loadavg": [
+                1.53,
+                1.62,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:13.507395+00:00",
+              "host_loadavg": [
+                10.931640625,
+                11.568359375,
+                9.69384765625
+              ],
+              "emulator_loadavg": [
+                1.53,
+                1.62,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 108884,
+              "vm_rss_kib": 108884
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113932,
+              "vm_rss_kib": 113932
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118308,
+              "vm_rss_kib": 118308
+            }
+          },
+          "baseline_hwm_kib": 108884,
+          "after_allocate_hwm_kib": 113932,
+          "peak_hwm_kib": 118308,
+          "hwm_growth_kib": 9424
+        },
+        {
+          "round": 4,
+          "position": 2,
+          "model": "fp32",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-04-pos-2-fp32-attempt-1.json",
+          "pid": 13454,
+          "process_start_elapsed_ms": 1343322,
+          "output_sha256": "3a1437c960b6b7e873f4bf46d1c3e0047b5f9b40d410ee359f1d63079700dc94",
+          "max_reference_delta": 2.682209014892578e-07,
+          "max_fixture_delta": 7.009944915647992e-07,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 5.177,
+          "inference_p50_ms": 0.741375,
+          "inference_p95_ms": 1.1672731999999997,
+          "last_warmup_pass_p50_ms": 0.730917,
+          "loop_wall_ms": 1045.450792,
+          "loop_thread_cpu_ms": 1027.070532,
+          "loop_process_cpu_ms": 1030,
+          "instrumentation_wall_ms": 1564.962458,
+          "thread_cpu_pct": 98.24188186181028,
+          "invoke_wall_pct": 99.15318156839658,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:17.241960+00:00",
+              "host_loadavg": [
+                10.53662109375,
+                11.4755859375,
+                9.671875
+              ],
+              "emulator_loadavg": [
+                1.49,
+                1.61,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:18.824918+00:00",
+              "host_loadavg": [
+                10.53662109375,
+                11.4755859375,
+                9.671875
+              ],
+              "emulator_loadavg": [
+                1.49,
+                1.61,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 108564,
+              "vm_rss_kib": 108564
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113420,
+              "vm_rss_kib": 113420
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118192,
+              "vm_rss_kib": 118116
+            }
+          },
+          "baseline_hwm_kib": 108564,
+          "after_allocate_hwm_kib": 113420,
+          "peak_hwm_kib": 118192,
+          "hwm_growth_kib": 9628
+        },
+        {
+          "round": 5,
+          "position": 1,
+          "model": "fp32",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-05-pos-1-fp32-attempt-1.json",
+          "pid": 13501,
+          "process_start_elapsed_ms": 1345078,
+          "output_sha256": "3a1437c960b6b7e873f4bf46d1c3e0047b5f9b40d410ee359f1d63079700dc94",
+          "max_reference_delta": 2.682209014892578e-07,
+          "max_fixture_delta": 7.009944915647992e-07,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 5.364125,
+          "inference_p50_ms": 0.73525,
+          "inference_p95_ms": 1.1337253,
+          "last_warmup_pass_p50_ms": 0.72875,
+          "loop_wall_ms": 1030.65475,
+          "loop_thread_cpu_ms": 1021.883412,
+          "loop_process_cpu_ms": 1025,
+          "instrumentation_wall_ms": 1565.344958,
+          "thread_cpu_pct": 99.14895477850366,
+          "invoke_wall_pct": 99.15235261856601,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:18.972892+00:00",
+              "host_loadavg": [
+                10.53662109375,
+                11.4755859375,
+                9.671875
+              ],
+              "emulator_loadavg": [
+                1.49,
+                1.61,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:20.556166+00:00",
+              "host_loadavg": [
+                9.9326171875,
+                11.33447265625,
+                9.63232421875
+              ],
+              "emulator_loadavg": [
+                1.45,
+                1.6,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 108804,
+              "vm_rss_kib": 108804
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113788,
+              "vm_rss_kib": 113788
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118484,
+              "vm_rss_kib": 118484
+            }
+          },
+          "baseline_hwm_kib": 108804,
+          "after_allocate_hwm_kib": 113788,
+          "peak_hwm_kib": 118484,
+          "hwm_growth_kib": 9680
+        },
+        {
+          "round": 6,
+          "position": 2,
+          "model": "fp32",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-06-pos-2-fp32-attempt-1.json",
+          "pid": 13643,
+          "process_start_elapsed_ms": 1350122,
+          "output_sha256": "3a1437c960b6b7e873f4bf46d1c3e0047b5f9b40d410ee359f1d63079700dc94",
+          "max_reference_delta": 2.682209014892578e-07,
+          "max_fixture_delta": 7.009944915647992e-07,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 5.243792,
+          "inference_p50_ms": 0.733667,
+          "inference_p95_ms": 1.0636202,
+          "last_warmup_pass_p50_ms": 0.718833,
+          "loop_wall_ms": 1031.631793,
+          "loop_thread_cpu_ms": 1022.825127,
+          "loop_process_cpu_ms": 1026,
+          "instrumentation_wall_ms": 1525.720708,
+          "thread_cpu_pct": 99.14633631303761,
+          "invoke_wall_pct": 99.17109883021995,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:24.043088+00:00",
+              "host_loadavg": [
+                9.9326171875,
+                11.33447265625,
+                9.63232421875
+              ],
+              "emulator_loadavg": [
+                1.45,
+                1.6,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:25.585670+00:00",
+              "host_loadavg": [
+                9.29736328125,
+                11.17919921875,
+                9.58740234375
+              ],
+              "emulator_loadavg": [
+                1.42,
+                1.59,
+                1.5
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 109288,
+              "vm_rss_kib": 109288
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 114016,
+              "vm_rss_kib": 114016
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118660,
+              "vm_rss_kib": 118584
+            }
+          },
+          "baseline_hwm_kib": 109288,
+          "after_allocate_hwm_kib": 114016,
+          "peak_hwm_kib": 118660,
+          "hwm_growth_kib": 9372
+        }
+      ]
+    },
+    "int8": {
+      "model_sha256": "e0b5d99bb757c015864dfb47cec66766ab23a009a869d4d7cc77e6321bf0e20e",
+      "model_bytes": 997384,
+      "successful_runs": 6,
+      "reference": "ml/android_parity/benchmarks/emulator-5554/quiet-runs/reference-int8.json",
+      "max_reference_delta": 1.862645149230957e-09,
+      "max_fixture_delta": 0.07811469560623174,
+      "output_sha256s": [
+        "253979d8e0d1eb90ae233ea7c0801179cc7bb4df110b82a2f426f35bb90070fd"
+      ],
+      "pooled_inference": {
+        "samples": 7800,
+        "p50_ms": 0.680792,
+        "p95_ms": 1.4462829999999989
+      },
+      "run_ranges": {
+        "load_ms": {
+          "median": 6.4539375,
+          "min": 5.855125,
+          "max": 25.71625
+        },
+        "inference_p50_ms": {
+          "median": 0.67629175,
+          "min": 0.652125,
+          "max": 0.7424585
+        },
+        "inference_p95_ms": {
+          "median": 1.1821419999999998,
+          "min": 0.9163940499999998,
+          "max": 2.0682273999999996
+        },
+        "last_warmup_pass_p50_ms": {
+          "median": 0.7002085,
+          "min": 0.643667,
+          "max": 0.744292
+        },
+        "loop_wall_ms": {
+          "median": 998.664042,
+          "min": 905.983458,
+          "max": 1892.990168
+        },
+        "instrumentation_wall_ms": {
+          "median": 1602.8533539999999,
+          "min": 1379.001833,
+          "max": 3157.798291
+        },
+        "thread_cpu_pct": {
+          "median": 98.5342958134437,
+          "min": 95.12996621551713,
+          "max": 99.01922281054878
+        },
+        "invoke_wall_pct": {
+          "median": 99.05332241123014,
+          "min": 98.99491951641332,
+          "max": 99.18920241477521
+        },
+        "baseline_hwm_kib": {
+          "median": 109000.0,
+          "min": 108876,
+          "max": 109376
+        },
+        "after_allocate_hwm_kib": {
+          "median": 113950.0,
+          "min": 113608,
+          "max": 114060
+        },
+        "peak_hwm_kib": {
+          "median": 118388.0,
+          "min": 118140,
+          "max": 118428
+        },
+        "hwm_growth_kib": {
+          "median": 9382.0,
+          "min": 9028,
+          "max": 9388
+        }
+      },
+      "runs": [
+        {
+          "round": 1,
+          "position": 2,
+          "model": "int8",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-01-pos-2-int8-attempt-1.json",
+          "pid": 13087,
+          "process_start_elapsed_ms": 1329323,
+          "output_sha256": "253979d8e0d1eb90ae233ea7c0801179cc7bb4df110b82a2f426f35bb90070fd",
+          "max_reference_delta": 1.862645149230957e-09,
+          "max_fixture_delta": 0.07811469560623174,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 6.569708,
+          "inference_p50_ms": 0.7424585,
+          "inference_p95_ms": 2.0682273999999996,
+          "last_warmup_pass_p50_ms": 0.666625,
+          "loop_wall_ms": 1359.166875,
+          "loop_thread_cpu_ms": 1292.974989,
+          "loop_process_cpu_ms": 1296,
+          "instrumentation_wall_ms": 2145.249208,
+          "thread_cpu_pct": 95.12996621551713,
+          "invoke_wall_pct": 98.99491951641332,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:03.212127+00:00",
+              "host_loadavg": [
+                11.05224609375,
+                11.60693359375,
+                9.68505859375
+              ],
+              "emulator_loadavg": [
+                1.37,
+                1.59,
+                1.5
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:05.386120+00:00",
+              "host_loadavg": [
+                11.4482421875,
+                11.6796875,
+                9.7216796875
+              ],
+              "emulator_loadavg": [
+                1.58,
+                1.63,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 109048,
+              "vm_rss_kib": 109048
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113904,
+              "vm_rss_kib": 113904
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118428,
+              "vm_rss_kib": 116112
+            }
+          },
+          "baseline_hwm_kib": 109048,
+          "after_allocate_hwm_kib": 113904,
+          "peak_hwm_kib": 118428,
+          "hwm_growth_kib": 9380
+        },
+        {
+          "round": 2,
+          "position": 1,
+          "model": "int8",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-02-pos-1-int8-attempt-1.json",
+          "pid": 13202,
+          "process_start_elapsed_ms": 1332663,
+          "output_sha256": "253979d8e0d1eb90ae233ea7c0801179cc7bb4df110b82a2f426f35bb90070fd",
+          "max_reference_delta": 1.862645149230957e-09,
+          "max_fixture_delta": 0.07811469560623174,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 5.855125,
+          "inference_p50_ms": 0.726729,
+          "inference_p95_ms": 1.85687115,
+          "last_warmup_pass_p50_ms": 0.695917,
+          "loop_wall_ms": 1892.990168,
+          "loop_thread_cpu_ms": 1854.335193,
+          "loop_process_cpu_ms": 1859,
+          "instrumentation_wall_ms": 3157.798291,
+          "thread_cpu_pct": 97.95799388430844,
+          "invoke_wall_pct": 99.1249616463935,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:06.008140+00:00",
+              "host_loadavg": [
+                11.4482421875,
+                11.6796875,
+                9.7216796875
+              ],
+              "emulator_loadavg": [
+                1.58,
+                1.63,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:09.236158+00:00",
+              "host_loadavg": [
+                11.4482421875,
+                11.6796875,
+                9.7216796875
+              ],
+              "emulator_loadavg": [
+                1.58,
+                1.63,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 109376,
+              "vm_rss_kib": 109376
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 114060,
+              "vm_rss_kib": 114060
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118404,
+              "vm_rss_kib": 116304
+            }
+          },
+          "baseline_hwm_kib": 109376,
+          "after_allocate_hwm_kib": 114060,
+          "peak_hwm_kib": 118404,
+          "hwm_growth_kib": 9028
+        },
+        {
+          "round": 3,
+          "position": 2,
+          "model": "int8",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-03-pos-2-int8-attempt-1.json",
+          "pid": 13359,
+          "process_start_elapsed_ms": 1339793,
+          "output_sha256": "253979d8e0d1eb90ae233ea7c0801179cc7bb4df110b82a2f426f35bb90070fd",
+          "max_reference_delta": 1.862645149230957e-09,
+          "max_fixture_delta": 0.07811469560623174,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 7.03125,
+          "inference_p50_ms": 0.669229,
+          "inference_p95_ms": 1.11571425,
+          "last_warmup_pass_p50_ms": 0.721917,
+          "loop_wall_ms": 974.040292,
+          "loop_thread_cpu_ms": 964.487127,
+          "loop_process_cpu_ms": 967,
+          "instrumentation_wall_ms": 1522.6985,
+          "thread_cpu_pct": 99.01922281054878,
+          "invoke_wall_pct": 99.0700179372046,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:13.679014+00:00",
+              "host_loadavg": [
+                10.931640625,
+                11.568359375,
+                9.69384765625
+              ],
+              "emulator_loadavg": [
+                1.53,
+                1.62,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:15.222598+00:00",
+              "host_loadavg": [
+                10.931640625,
+                11.568359375,
+                9.69384765625
+              ],
+              "emulator_loadavg": [
+                1.49,
+                1.61,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 108992,
+              "vm_rss_kib": 108992
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113976,
+              "vm_rss_kib": 113976
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118380,
+              "vm_rss_kib": 116040
+            }
+          },
+          "baseline_hwm_kib": 108992,
+          "after_allocate_hwm_kib": 113976,
+          "peak_hwm_kib": 118380,
+          "hwm_growth_kib": 9388
+        },
+        {
+          "round": 4,
+          "position": 1,
+          "model": "int8",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-04-pos-1-int8-attempt-1.json",
+          "pid": 13407,
+          "process_start_elapsed_ms": 1341572,
+          "output_sha256": "253979d8e0d1eb90ae233ea7c0801179cc7bb4df110b82a2f426f35bb90070fd",
+          "max_reference_delta": 1.862645149230957e-09,
+          "max_fixture_delta": 0.07811469560623174,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 6.338167,
+          "inference_p50_ms": 0.6833545,
+          "inference_p95_ms": 1.1690319,
+          "last_warmup_pass_p50_ms": 0.7045,
+          "loop_wall_ms": 994.189959,
+          "loop_thread_cpu_ms": 981.611542,
+          "loop_process_cpu_ms": 986,
+          "instrumentation_wall_ms": 1613.180833,
+          "thread_cpu_pct": 98.73480747958348,
+          "invoke_wall_pct": 99.00055981152794,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:15.455141+00:00",
+              "host_loadavg": [
+                10.53662109375,
+                11.4755859375,
+                9.671875
+              ],
+              "emulator_loadavg": [
+                1.49,
+                1.61,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:17.092119+00:00",
+              "host_loadavg": [
+                10.53662109375,
+                11.4755859375,
+                9.671875
+              ],
+              "emulator_loadavg": [
+                1.49,
+                1.61,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 108932,
+              "vm_rss_kib": 108932
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113924,
+              "vm_rss_kib": 113924
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118316,
+              "vm_rss_kib": 115976
+            }
+          },
+          "baseline_hwm_kib": 108932,
+          "after_allocate_hwm_kib": 113924,
+          "peak_hwm_kib": 118316,
+          "hwm_growth_kib": 9384
+        },
+        {
+          "round": 5,
+          "position": 2,
+          "model": "int8",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-05-pos-2-int8-attempt-1.json",
+          "pid": 13548,
+          "process_start_elapsed_ms": 1346866,
+          "output_sha256": "253979d8e0d1eb90ae233ea7c0801179cc7bb4df110b82a2f426f35bb90070fd",
+          "max_reference_delta": 1.862645149230957e-09,
+          "max_fixture_delta": 0.07811469560623174,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 25.71625,
+          "inference_p50_ms": 0.6663755,
+          "inference_p95_ms": 1.1952520999999998,
+          "last_warmup_pass_p50_ms": 0.744292,
+          "loop_wall_ms": 1003.138125,
+          "loop_thread_cpu_ms": 991.460203,
+          "loop_process_cpu_ms": 995,
+          "instrumentation_wall_ms": 1592.525875,
+          "thread_cpu_pct": 98.83586101365653,
+          "invoke_wall_pct": 99.0366268852557,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:20.717525+00:00",
+              "host_loadavg": [
+                9.9326171875,
+                11.33447265625,
+                9.63232421875
+              ],
+              "emulator_loadavg": [
+                1.45,
+                1.6,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:22.359376+00:00",
+              "host_loadavg": [
+                9.9326171875,
+                11.33447265625,
+                9.63232421875
+              ],
+              "emulator_loadavg": [
+                1.45,
+                1.6,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 109008,
+              "vm_rss_kib": 109008
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113608,
+              "vm_rss_kib": 113608
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118396,
+              "vm_rss_kib": 116080
+            }
+          },
+          "baseline_hwm_kib": 109008,
+          "after_allocate_hwm_kib": 113608,
+          "peak_hwm_kib": 118396,
+          "hwm_growth_kib": 9388
+        },
+        {
+          "round": 6,
+          "position": 1,
+          "model": "int8",
+          "attempt": 1,
+          "status": "success",
+          "filename": "round-06-pos-1-int8-attempt-1.json",
+          "pid": 13596,
+          "process_start_elapsed_ms": 1348595,
+          "output_sha256": "253979d8e0d1eb90ae233ea7c0801179cc7bb4df110b82a2f426f35bb90070fd",
+          "max_reference_delta": 1.862645149230957e-09,
+          "max_fixture_delta": 0.07811469560623174,
+          "warmup_inferences": 195,
+          "measured_inferences": 1300,
+          "load_ms": 6.282916,
+          "inference_p50_ms": 0.652125,
+          "inference_p95_ms": 0.9163940499999998,
+          "last_warmup_pass_p50_ms": 0.643667,
+          "loop_wall_ms": 905.983458,
+          "loop_thread_cpu_ms": 890.887818,
+          "loop_process_cpu_ms": 894,
+          "instrumentation_wall_ms": 1379.001833,
+          "thread_cpu_pct": 98.33378414730393,
+          "invoke_wall_pct": 99.18920241477521,
+          "load_conditions": {
+            "before": {
+              "timestamp_utc": "2026-11-21T17:14:22.503600+00:00",
+              "host_loadavg": [
+                9.9326171875,
+                11.33447265625,
+                9.63232421875
+              ],
+              "emulator_loadavg": [
+                1.45,
+                1.6,
+                1.51
+              ]
+            },
+            "after": {
+              "timestamp_utc": "2026-11-21T17:14:23.899915+00:00",
+              "host_loadavg": [
+                9.9326171875,
+                11.33447265625,
+                9.63232421875
+              ],
+              "emulator_loadavg": [
+                1.45,
+                1.6,
+                1.51
+              ]
+            }
+          },
+          "memory": {
+            "before_load": {
+              "vm_hwm_kib": 108876,
+              "vm_rss_kib": 108876
+            },
+            "after_allocate": {
+              "vm_hwm_kib": 113988,
+              "vm_rss_kib": 113988
+            },
+            "after_inference": {
+              "vm_hwm_kib": 118140,
+              "vm_rss_kib": 115924
+            }
+          },
+          "baseline_hwm_kib": 108876,
+          "after_allocate_hwm_kib": 113988,
+          "peak_hwm_kib": 118140,
+          "hwm_growth_kib": 9264
+        }
+      ]
+    }
+  },
+  "paired_run_differences": {
+    "load_ms": {
+      "median": 0.7002285000000001,
+      "min": -3.0032510000000006,
+      "max": 20.352125,
+      "lower": 2,
+      "equal": 0,
+      "higher": 4
+    },
+    "inference_p50_ms": {
+      "median": -0.07520824999999998,
+      "min": -0.10602100000000003,
+      "max": -0.044875,
+      "lower": 6,
+      "equal": 0,
+      "higher": 0
+    },
+    "inference_p95_ms": {
+      "median": -0.07013524999999987,
+      "min": -0.35924135,
+      "max": 0.35429259999999974,
+      "lower": 3,
+      "equal": 0,
+      "higher": 3
+    },
+    "last_warmup_pass_p50_ms": {
+      "median": -0.03408349999999999,
+      "min": -0.149625,
+      "max": 0.015541999999999945,
+      "lower": 5,
+      "equal": 0,
+      "higher": 1
+    },
+    "loop_wall_ms": {
+      "median": -39.38872900000001,
+      "min": -125.64833499999997,
+      "max": 236.20329200000015,
+      "lower": 4,
+      "equal": 0,
+      "higher": 2
+    },
+    "instrumentation_wall_ms": {
+      "median": -48.586041499999965,
+      "min": -495.466625,
+      "max": 913.507458,
+      "lower": 3,
+      "equal": 0,
+      "higher": 3
+    },
+    "thread_cpu_pct": {
+      "median": -0.026880703352667012,
+      "min": -2.0305385197342645,
+      "max": 1.7934455601098591,
+      "lower": 3,
+      "equal": 0,
+      "higher": 3
+    },
+    "invoke_wall_pct": {
+      "median": -0.024765162548725073,
+      "min": -0.15262175686864055,
+      "max": 0.1393247635479895,
+      "lower": 3,
+      "equal": 0,
+      "higher": 3
+    },
+    "baseline_hwm_kib": {
+      "median": 210.0,
+      "min": -412,
+      "max": 752,
+      "lower": 1,
+      "equal": 0,
+      "higher": 5
+    },
+    "after_allocate_hwm_kib": {
+      "median": 8.0,
+      "min": -180,
+      "max": 504,
+      "lower": 3,
+      "equal": 0,
+      "higher": 3
+    },
+    "peak_hwm_kib": {
+      "median": 98.0,
+      "min": -520,
+      "max": 228,
+      "lower": 2,
+      "equal": 0,
+      "higher": 4
+    },
+    "hwm_growth_kib": {
+      "median": -176.0,
+      "min": -524,
+      "max": -12,
+      "lower": 6,
+      "equal": 0,
+      "higher": 0
+    }
+  },
+  "round_pairs": [
+    {
+      "round": 1,
+      "int8_minus_fp32": {
+        "load_ms": -3.0032510000000006,
+        "inference_p50_ms": -0.044875,
+        "inference_p95_ms": 0.35429259999999974,
+        "last_warmup_pass_p50_ms": -0.149625,
+        "loop_wall_ms": 121.53079099999991,
+        "instrumentation_wall_ms": -495.466625,
+        "thread_cpu_pct": -2.0305385197342645,
+        "invoke_wall_pct": 0.01138438541919129,
+        "baseline_hwm_kib": 216,
+        "after_allocate_hwm_kib": -40,
+        "peak_hwm_kib": 204,
+        "hwm_growth_kib": -12
+      }
+    },
+    {
+      "round": 2,
+      "int8_minus_fp32": {
+        "load_ms": 0.3613330000000001,
+        "inference_p50_ms": -0.10602100000000003,
+        "inference_p95_ms": -0.35924135,
+        "last_warmup_pass_p50_ms": -0.041749999999999954,
+        "loop_wall_ms": 236.20329200000015,
+        "instrumentation_wall_ms": 913.507458,
+        "thread_cpu_pct": 1.7934455601098591,
+        "invoke_wall_pct": 0.1393247635479895,
+        "baseline_hwm_kib": 752,
+        "after_allocate_hwm_kib": 444,
+        "peak_hwm_kib": 228,
+        "hwm_growth_kib": -524
+      }
+    },
+    {
+      "round": 3,
+      "int8_minus_fp32": {
+        "load_ms": -0.6824579999999996,
+        "inference_p50_ms": -0.08541700000000008,
+        "inference_p95_ms": -0.14202920000000008,
+        "last_warmup_pass_p50_ms": -0.02329199999999998,
+        "loop_wall_ms": -112.04399999999998,
+        "instrumentation_wall_ms": -124.35300000000007,
+        "thread_cpu_pct": 0.2593323581418048,
+        "invoke_wall_pct": -0.060914710516641435,
+        "baseline_hwm_kib": 108,
+        "after_allocate_hwm_kib": 44,
+        "peak_hwm_kib": 72,
+        "hwm_growth_kib": -36
+      }
+    },
+    {
+      "round": 4,
+      "int8_minus_fp32": {
+        "load_ms": 1.1611670000000007,
+        "inference_p50_ms": -0.05802050000000003,
+        "inference_p95_ms": 0.001758700000000335,
+        "last_warmup_pass_p50_ms": -0.026417000000000024,
+        "loop_wall_ms": -51.26083300000005,
+        "instrumentation_wall_ms": 48.218374999999924,
+        "thread_cpu_pct": 0.49292561777319577,
+        "invoke_wall_pct": -0.15262175686864055,
+        "baseline_hwm_kib": 368,
+        "after_allocate_hwm_kib": 504,
+        "peak_hwm_kib": 124,
+        "hwm_growth_kib": -244
+      }
+    },
+    {
+      "round": 5,
+      "int8_minus_fp32": {
+        "load_ms": 20.352125,
+        "inference_p50_ms": -0.06887449999999995,
+        "inference_p95_ms": 0.06152679999999977,
+        "last_warmup_pass_p50_ms": 0.015541999999999945,
+        "loop_wall_ms": -27.516624999999976,
+        "instrumentation_wall_ms": 27.180917000000136,
+        "thread_cpu_pct": -0.3130937648471388,
+        "invoke_wall_pct": -0.11572573331031322,
+        "baseline_hwm_kib": 204,
+        "after_allocate_hwm_kib": -180,
+        "peak_hwm_kib": -88,
+        "hwm_growth_kib": -292
+      }
+    },
+    {
+      "round": 6,
+      "int8_minus_fp32": {
+        "load_ms": 1.0391240000000002,
+        "inference_p50_ms": -0.081542,
+        "inference_p95_ms": -0.14722615000000006,
+        "last_warmup_pass_p50_ms": -0.07516600000000007,
+        "loop_wall_ms": -125.64833499999997,
+        "instrumentation_wall_ms": -146.71887500000003,
+        "thread_cpu_pct": -0.8125521657336776,
+        "invoke_wall_pct": 0.01810358455526284,
+        "baseline_hwm_kib": -412,
+        "after_allocate_hwm_kib": -28,
+        "peak_hwm_kib": -520,
+        "hwm_growth_kib": -108
+      }
+    }
+  ],
+  "pooled_inference_differences": {
+    "p50_ms": {
+      "int8_minus_fp32": -0.0728120000000001,
+      "percent_change": -9.661838312960136
+    },
+    "p95_ms": {
+      "int8_minus_fp32": -0.04356970000000082,
+      "percent_change": -2.9244300460039323
+    }
+  }
+}

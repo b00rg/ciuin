@@ -1,0 +1,20 @@
+Model: <repo-root>/ml/export/audio-student-s.tflite sha256=250b5a9f0e4409315413c18230e71083591ad106715541d76f0edd9a4dc99022
+Host runtime: LiteRT 2.4.0 built-in CPU kernels
+FP32 fixture -> host candidate
+  00_speech_crowd.wav: starts=[0, 8000, 16000, 24000, 32000, 40000, 48000, 48400], clip top=speech_crowd -> speech_crowd
+  01_music.wav: starts=[0, 8000, 16000, 24000, 32000, 40000, 48000, 48400], clip top=music -> music
+  02_traffic.wav: starts=[0], clip top=traffic -> traffic
+  03_siren.wav: starts=[0, 8000, 16000, 24000, 32000, 40000, 48000, 48400], clip top=speech_crowd -> speech_crowd
+  04_construction.wav: starts=[0, 8000, 16000, 24000, 32000, 40000, 48000, 48400], clip top=construction -> construction
+  05_alarm_beep.wav: starts=[0, 8000, 16000, 24000, 32000, 40000, 48000, 56000, 64000, 64400], clip top=alarm_beep -> alarm_beep
+  06_dog.wav: starts=[0], clip top=dog -> dog
+  07_machinery_hum.wav: starts=[0, 8000, 16000, 24000, 32000, 40000, 48000, 56000, 64000, 64400], clip top=machinery_hum -> machinery_hum
+  08_other.wav: starts=[0, 8000, 16000, 24000, 32000, 40000, 48000, 56000, 64000, 64400], clip top=other -> other
+  09_siren.wav: starts=[0], clip top=other -> other
+  Starts matched for 65 windows across 10 clips
+  Top class changed for 0/65 windows and 0/10 clips
+  Correct labels on handoff clips: 8/10 -> 8/10
+  Window probabilities: max abs delta=6.48441315e-07 (07_machinery_hum.wav start=64400, construction)
+  Window probabilities: 0/585 scalar comparisons > 0.001; 0/65 vectors with any delta > 0.001
+  Clip averages: max abs delta=4.96748282e-07 (02_traffic.wav, music)
+  Clip averages: 0/90 scalar comparisons > 0.001; 0/10 vectors with any delta > 0.001

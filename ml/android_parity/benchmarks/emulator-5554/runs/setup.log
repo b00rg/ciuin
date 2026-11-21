@@ -1,0 +1,67 @@
+ADB serial: emulator-5554
+ABI: arm64-v8a
+API level: 35
+LiteRT 2.4.0 built-in CPU kernels (1 thread, XNNPACK disabled)
+Source model SHA-256: 250b5a9f0e4409315413c18230e71083591ad106715541d76f0edd9a4dc99022  ml/export/audio-student-s.tflite
+<benchmark-stage>/libs/litert.aar: OK
+<benchmark-stage>/libs/litert-api.aar: OK
+> Task :preBuild UP-TO-DATE
+> Task :preDebugBuild UP-TO-DATE
+> Task :mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :checkDebugAarMetadata
+> Task :generateDebugResValues
+> Task :mapDebugSourceSetPaths
+> Task :generateDebugResources
+> Task :mergeDebugResources
+> Task :packageDebugResources
+> Task :createDebugCompatibleScreenManifests
+> Task :extractDeepLinksDebug
+> Task :parseDebugLocalResources
+> Task :processDebugMainManifest
+> Task :processDebugManifest
+> Task :processDebugManifestForPackage
+> Task :javaPreCompileDebug
+> Task :mergeDebugShaders
+> Task :compileDebugShaders NO-SOURCE
+> Task :debugAssetsCopyForAGP NO-SOURCE
+> Task :generateDebugAssets UP-TO-DATE
+> Task :mergeDebugAssets
+> Task :compressDebugAssets
+> Task :mergeDebugJniLibFolders
+> Task :checkDebugDuplicateClasses
+> Task :mergeLibDexDebug
+> Task :validateSigningDebug
+> Task :writeDebugAppMetadata
+> Task :writeDebugSigningConfigVersions
+> Task :processDebugResources
+> Task :mergeDebugNativeLibs
+
+> Task :stripDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libLiteRt.so, liblitert_jni.so. Run with --info option to learn more.
+
+> Task :desugarDebugFileDependencies
+> Task :mergeExtDexDebug
+> Task :compileDebugKotlinAndroid
+> Task :compileDebugJavaWithJavac NO-SOURCE
+> Task :dexBuilderDebug
+> Task :mergeDebugGlobalSynthetics
+> Task :processDebugJavaRes
+> Task :mergeProjectDexDebug
+> Task :mergeDebugJavaResource
+> Task :packageDebug
+> Task :createDebugApkListingFileRedirect
+> Task :assembleDebug
+
+[Incubating] Problems report is available at: <benchmark-stage>/build/reports/problems/problems-report.html
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.14.3/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD SUCCESSFUL in 4s
+35 actionable tasks: 35 executed
+Performing Streamed Install
+Success

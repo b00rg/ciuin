@@ -1,12 +1,14 @@
 """Build the audio clip index: one SQLite row per clip, with its class and split.
 
     python3 ml/build_index.py          # -> data/processed/audio_index.sqlite
+    python3 ml/build_index.py --test-only  # -> data/processed/audio_test_index.sqlite
 
 Every training, evaluation and weighting script reads clips from this index,
 so all of them use the same train / val / test split. Audio stays as files
 in data/raw/audio/; the index stores paths relative to that folder. Re-run
 it after more datasets finish downloading: it is rebuilt from scratch, and
 the split never changes for a given clip.
+Use --test-only with the original metadata when only held-out audio is present.
 
 Splits (never split within a dataset fold):
   ESC-50        folds 1-3 train, fold 4 val, fold 5 test
@@ -86,14 +88,17 @@ def info(path: Path) -> tuple[float, int, int]:
 
 
 class Builder:
-    def __init__(self, labels: dict):
+    def __init__(self, labels: dict, test_only: bool = False):
         self.classes = labels["classes"]
         self.mapping = labels["mapping"]
+        self.test_only = test_only
         self.rows: list[tuple] = []
         self.missing: list[str] = []
 
     def add(self, dataset, path: Path, source_label, cls, split, fold=None,
             start=0.0, end=None, licence=None):
+        if self.test_only and split != "test":
+            return
         dur, sr, ch = info(path)
         self.rows.append((
             dataset, path.relative_to(AUDIO_RAW).as_posix(), start, dur if end is None else end,
@@ -195,12 +200,14 @@ def main() -> int:
     global AUDIO_RAW, INDEX
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--audio-root", type=Path, default=AUDIO_RAW, help="folder holding the datasets")
-    ap.add_argument("--out", type=Path, default=INDEX)
+    ap.add_argument("--out", type=Path, help="override the default index path")
+    ap.add_argument("--test-only", action="store_true", help="index only test rows and skip other audio files")
     args = ap.parse_args()
-    AUDIO_RAW, INDEX = args.audio_root.resolve(), args.out.resolve()
+    default_index = INDEX.with_name("audio_test_index.sqlite") if args.test_only else INDEX
+    AUDIO_RAW, INDEX = args.audio_root.resolve(), (args.out or default_index).resolve()
 
     t0 = time.time()
-    b = Builder(yaml.safe_load(LABELS.read_text()))
+    b = Builder(yaml.safe_load(LABELS.read_text()), test_only=args.test_only)
     for step in (b.esc50, b.us8k, b.musan, b.fsd50k, b.demand):
         step()
 

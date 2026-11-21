@@ -1,0 +1,24 @@
+Processes: 813 total, 3 running, 810 sleeping, 7193 threads 
+2026/11/21 18:11:01
+Load Avg: 14.14, 11.91, 9.27 
+CPU usage: 23.55% user, 22.63% sys, 53.80% idle 
+SharedLibs: 321M resident, 67M data, 67M linkedit.
+MemRegions: 1532629 total, 5913M resident, 83M private, 3460M shared.
+PhysMem: 23G used (4527M wired, 8580M compressor), 163M unused.
+VM: 509T vsize, 57G framework vsize, 1583508(0) swapins, 2933054(0) swapouts.
+Networks: packets: 295908207/270G in, 171544869/150G out.
+Disks: 27233950/635G read, 26990714/436G written.
+
+Processes: 814 total, 5 running, 809 sleeping, 7211 threads 
+2026/11/21 18:11:02
+Load Avg: 14.14, 11.91, 9.27 
+CPU usage: 19.90% user, 14.5% sys, 66.3% idle 
+SharedLibs: 321M resident, 67M data, 67M linkedit.
+MemRegions: 59 total, 2288K resident, 83M private, 3460M shared.
+PhysMem: 23G used (4477M wired, 8472M compressor), 176M unused.
+VM: 509T vsize, 57G framework vsize, 1583560(52) swapins, 2933054(0) swapouts.
+Networks: packets: 295908998/270G in, 171546106/150G out.
+Disks: 27234835/635G read, 26991025/436G written.
+
+PID    COMMAND          %CPU #TH   
+12366  qemu-system-aarc 5.0  154   

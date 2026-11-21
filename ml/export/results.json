@@ -116,6 +116,158 @@
     ],
     "trained_at": "2026-11-21T16:59:50+0100"
   },
+  "audio-student-s-int8": {
+    "model": "student S with calibrated INT8 classifier conv/depthwise conv/dense and float32 frontend",
+    "params": 68461,
+    "size_mb": 0.997384,
+    "size_bytes": 997384,
+    "sha256": "e0b5d99bb757c015864dfb47cec66766ab23a009a869d4d7cc77e6321bf0e20e",
+    "accuracy": 0.7205,
+    "macro_f1": 0.7037,
+    "eval": "Clip-level mean window probabilities on the reconstructed original 2,057-clip test split, paired FP32 and INT8 TFLite runs.",
+    "paired_heldout": {
+      "handoff_commit": "5568e2f1d6a735e17e548f005febceece6a521ec",
+      "runtime": "ai-edge-litert 2.4.0, built-in CPU, 1 thread, no delegates",
+      "host_platform": "Darwin arm64",
+      "test_manifest_sha256": "b37da14b6e82f236103f39cd7f793cf011cd2b231d322221b270446849ea44c8",
+      "us8k_soundata_manifest_md5": "1c4940e08c1305c49b592f3d9c103e6f",
+      "dataset_counts": {
+        "demand": 4,
+        "esc50": 400,
+        "us8k": 1653
+      },
+      "class_counts": {
+        "speech_crowd": 204,
+        "music": 200,
+        "traffic": 287,
+        "siren": 173,
+        "construction": 394,
+        "alarm_beep": 8,
+        "dog": 208,
+        "machinery_hum": 216,
+        "other": 367
+      },
+      "n_windows_per_model": 15442,
+      "fp32_sha256": "250b5a9f0e4409315413c18230e71083591ad106715541d76f0edd9a4dc99022",
+      "int8_sha256": "e0b5d99bb757c015864dfb47cec66766ab23a009a869d4d7cc77e6321bf0e20e",
+      "fp32": {
+        "accuracy": 0.72,
+        "macro_f1": 0.7046,
+        "per_class_f1": {
+          "speech_crowd": 0.7307,
+          "music": 0.7403,
+          "traffic": 0.7402,
+          "siren": 0.7712,
+          "construction": 0.7931,
+          "alarm_beep": 0.8571,
+          "dog": 0.7222,
+          "machinery_hum": 0.2568,
+          "other": 0.7299
+        },
+        "n_clips": 2057
+      },
+      "int8": {
+        "accuracy": 0.7205,
+        "macro_f1": 0.7037,
+        "per_class_f1": {
+          "speech_crowd": 0.7431,
+          "music": 0.7438,
+          "traffic": 0.7266,
+          "siren": 0.7746,
+          "construction": 0.7902,
+          "alarm_beep": 0.8571,
+          "dog": 0.7242,
+          "machinery_hum": 0.2362,
+          "other": 0.7378
+        },
+        "n_clips": 2057
+      },
+      "macro_f1_delta_percentage_points": -0.09,
+      "accuracy_delta_percentage_points": 0.05,
+      "changed_clip_predictions": 39
+    },
+    "handoff": {
+      "n_clips": 10,
+      "n_windows": 65,
+      "window_starts_matched": 65,
+      "changed_clip_top_classes": [],
+      "fp32_correct_clips": 8,
+      "android_int8_correct_clips": 8,
+      "host_int8_correct_clips": 8,
+      "android_serial": "emulator-5554",
+      "android_runtime": "LiteRT 1.4.2 built-in CPU kernels, XNNPACK disabled",
+      "host_runtime": "LiteRT 2.4.0 built-in CPU kernels",
+      "threshold": 0.001,
+      "window_probability_comparisons": 585,
+      "clip_average_probability_comparisons": 90,
+      "android_int8_vs_fp32_fixture": {
+        "window_max_abs_delta": 0.0771065094,
+        "window_probabilities_over_threshold": 172,
+        "clip_average_max_abs_delta": 0.0203559817,
+        "clip_average_probabilities_over_threshold": 29,
+        "changed_window_top_classes": [
+          {"file": "03_siren.wav", "start_sample": 32000, "from": "other", "to": "speech_crowd"}
+        ]
+      },
+      "host_int8_vs_fp32_fixture": {
+        "window_max_abs_delta": 0.0781146956,
+        "window_probabilities_over_threshold": 166,
+        "clip_average_max_abs_delta": 0.0330985188,
+        "clip_average_probabilities_over_threshold": 26
+      },
+      "android_int8_vs_host_int8": {
+        "window_max_abs_delta": 0.0588690341,
+        "window_probabilities_over_threshold": 133,
+        "clip_average_max_abs_delta": 0.0297450423,
+        "clip_average_probabilities_over_threshold": 24
+      },
+      "runtime_alignment": {
+        "android_serial": "emulator-5554",
+        "android_api": 35,
+        "android_abi": "arm64-v8a",
+        "android_runtime": "LiteRT 2.4.0 built-in CPU kernels, one thread, XNNPACK disabled",
+        "host_runtime": "ai-edge-litert 2.4.0 optimized built-in CPU kernels, one thread, no delegates",
+        "android_1_4_2_first_int8_divergence": {
+          "android_threads": "interpreter default",
+          "op_index_zero_based": 14,
+          "op": "CONV_2D",
+          "preceding_quantize_codes_compared": 399360,
+          "preceding_quantize_codes_different": 0,
+          "output_codes_compared": 9584640,
+          "output_codes_different": 13003,
+          "max_abs_code_delta": 1,
+          "host_requantization": "single rounding",
+          "android_requantization": "double rounding"
+        },
+        "android_1_4_2_one_thread_trace": {
+          "first_int8_op_by_window": {"13": 2, "14": 63},
+          "op_13": "QUANTIZE",
+          "op_13_source": "One ULP difference in normalized log-mel values crosses a quantization boundary.",
+          "op_13_changed_codes": [
+            {"file": "04_construction.wav", "start_sample": 8000, "host": -19, "android": -20},
+            {"file": "04_construction.wav", "start_sample": 16000, "host": -19, "android": -20}
+          ],
+          "op_14_differing_codes_on_identical_inputs": 13003
+        },
+        "android_2_4_0_vs_host_int8": {
+          "window_max_abs_delta": 1.862645149230957e-9,
+          "window_probabilities_over_threshold": 0,
+          "clip_average_max_abs_delta": 1.862645149230957e-9,
+          "clip_average_probabilities_over_threshold": 0
+        },
+        "android_2_4_0_vs_fp32_fixture": {
+          "window_max_abs_delta": 0.0781146956,
+          "window_probabilities_over_threshold": 166,
+          "clip_average_max_abs_delta": 0.0330985188,
+          "clip_average_probabilities_over_threshold": 26,
+          "changed_window_top_classes": [
+            {"file": "03_siren.wav", "start_sample": 32000, "from": "other", "to": "speech_crowd"},
+            {"file": "07_machinery_hum.wav", "start_sample": 48000, "from": "machinery_hum", "to": "construction"}
+          ]
+        }
+      }
+    }
+  },
   "audio-student-s-hard": {
     "model": "depthwise-separable CNN, width x1, in-graph log-mel frontend (hard-label baseline, no distillation)",
     "params": 68461,
