@@ -46,8 +46,11 @@ class KtorPlacesApi(
         }
     }
 
-    override suspend fun places(bbox: BBox): List<Place> =
-        http.get("$baseUrl/places") { parameter("bbox", bbox.toQuery()) }.body()
+    override suspend fun places(bbox: BBox, at: String?): List<Place> =
+        http.get("$baseUrl/places") {
+            parameter("bbox", bbox.toQuery())
+            at?.let { parameter("at", it) }
+        }.body()
 
     override suspend fun postMeasurement(m: Measurement): MeasurementResult =
         http.post("$baseUrl/measurements") {
@@ -61,11 +64,13 @@ class KtorPlacesApi(
             parameter("dim", dim)
         }.body()
 
-    override suspend fun nearby(lat: Double, lon: Double, radiusM: Int): List<Place> =
+    override suspend fun nearby(lat: Double, lon: Double, radiusM: Int, openOnly: Boolean, at: String?): List<Place> =
         http.get("$baseUrl/places/nearby") {
             parameter("lat", lat)
             parameter("lon", lon)
             parameter("radius", radiusM)
+            if (openOnly) parameter("open_only", true)
+            at?.let { parameter("at", it) }
         }.body()
 
     override suspend fun stats(): Stats = http.get("$baseUrl/stats").body()

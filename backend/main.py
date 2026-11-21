@@ -12,6 +12,7 @@ import math
 import sqlite3
 from collections.abc import Iterator
 from contextlib import asynccontextmanager, closing
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated
 
@@ -19,6 +20,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, status
 
 import db
 from aggregate import mean_features, score
+from opening_hours import is_open
 from models import (
     Coverage,
     CoverageCell,
@@ -117,10 +119,28 @@ def rows_in_bbox(conn: sqlite3.Connection, min_lon: float, min_lat: float, max_l
     ).fetchall()
 
 
-def to_place(row: sqlite3.Row) -> Place:
+def parse_at(at: str | None) -> datetime:
+    """?at= ISO-8601 (e.g. 2026-11-21T20:00:00Z); naive = UTC; default now."""
+    if not at:
+        return datetime.now(timezone.utc)
+    try:
+        t = datetime.fromisoformat(at.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(422, "at must be ISO-8601, e.g. 2026-11-21T20:00:00Z") from None
+    return t if t.tzinfo else t.replace(tzinfo=timezone.utc)
+
+
+AT_QUERY = Query(
+    description="ISO-8601 time for `open_now` (default: now). E.g. 2026-11-21T20:00:00Z",
+    examples=["2026-11-21T19:00:00Z"],
+)
+
+
+def to_place(row: sqlite3.Row, at: datetime | None = None) -> Place:
     measured = None
     if row["n"] and row["mean_features"]:
         measured = MeasuredAggregate(n=row["n"], features=FeatureVector.model_validate_json(row["mean_features"]))
+    tags = json.loads(row["osm_tags"]) if row["osm_tags"] else {}
     return Place(
         place_id=row["place_id"],
         name=row["name"],
@@ -131,7 +151,11 @@ def to_place(row: sqlite3.Row) -> Place:
         sensory_friendly=row["sensory_friendly"],
         quiet_room=bool(row["quiet_room"]),
         baseline_noise_db=row["baseline_noise_db"],
+        baseline_noise_night_db=row["baseline_noise_night_db"],
         baseline_source=row["baseline_source"],
+        osm_tags=tags,
+        open_now=is_open(tags.get("opening_hours"), at or datetime.now(timezone.utc)),
+        prior=FeatureVector.model_validate_json(row["prior"]) if row["prior"] else None,
         measured=measured,
         score=PlaceScore.model_validate_json(row["score"]) if row["score"] else None,
     )
@@ -156,10 +180,62 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+ATTRIBUTION = [
+    {"text": "© OpenStreetMap contributors", "url": "https://www.openstreetmap.org/copyright",
+     "required": True, "covers": "places, categories, accessibility tags, opening hours (ODbL 1.0)"},
+    {"text": "Noise: sonBASE © FOEN/BAFU", "url": "https://www.bafu.admin.ch/en/noise-geodata",
+     "required": True, "covers": "baseline_noise_db, baseline_noise_night_db, noise heatmap"},
+]
+
+
+def _json_header(path: Path, keys: tuple[str, ...]) -> dict:
+    """Top-level metadata of a processed GeoJSON/JSON file (without loading features into the response)."""
+    if not path.is_file():
+        return {"available": False}
+    d = json.loads(path.read_text(encoding="utf-8"))
+    out = {"available": True, **{k: d[k] for k in keys if k in d}}
+    for list_key in ("features", "cells"):
+        if list_key in d:
+            out["count"] = len(d[list_key])
+    return out
+
+
+@app.get("/meta", tags=["meta"], summary="Attribution, data sources and freshness")
+def meta(conn: Conn) -> dict:
+    """What the app must credit (show every `required` entry, e.g. in the map corner or About screen),
+    which data the backend holds, and how fresh it is."""
+    return {
+        "api_version": app.version,
+        "attribution": ATTRIBUTION,
+        "data": {
+            "places": {
+                "count": conn.execute("SELECT COUNT(*) FROM places").fetchone()[0],
+                "measured": conn.execute("SELECT COUNT(*) FROM places WHERE n > 0").fetchone()[0],
+                **_json_header(PROCESSED / "places_lausanne.geojson", ("osm_timestamp",)),
+            },
+            "noise": {"source": "sonBASE (FOEN/BAFU)", "data_year": 2021,
+                      "periods": {"day": "06:00-22:00", "night": "22:00-06:00"}, "kind": "outdoor road + rail, dB(A)"},
+            "heatmap_noise": _json_header(PROCESSED / "heatmap_lausanne_noise.geojson", ("cell_m",)),
+            "coverage_global": _json_header(PROCESSED / "coverage_2deg.json", ("res_deg", "note")),
+            "coverage_europe": _json_header(PROCESSED / "coverage_1deg.json", ("res_deg", "note")),
+            "measurements": conn.execute("SELECT COUNT(*) FROM measurements").fetchone()[0],
+        },
+        "tiers": {
+            "global": "2° grid: wheelchair / sensory_friendly counts (estimated per cell) + live measurements",
+            "europe": "1° grid: same counts, Europe",
+            "switzerland": "per place (planned; Lausanne built so far)",
+            "lausanne": "per place + 50 m noise heatmap (day/night) + measured layers",
+        },
+        "open_now": "computed from OSM opening_hours in Europe/Zurich time; null = unknown",
+    }
+
+
 @app.get("/places", response_model=list[Place], tags=["places"], summary="Places in a bounding box")
-def places(conn: Conn, bbox: Annotated[str, BBOX_QUERY]) -> list[Place]:
-    """All places inside the box. The whole Lausanne demo area is ~2,900 places (~740 KB)."""
-    return [to_place(r) for r in rows_in_bbox(conn, *parse_bbox(bbox))]
+def places(conn: Conn, bbox: Annotated[str, BBOX_QUERY], at: Annotated[str | None, AT_QUERY] = None) -> list[Place]:
+    """All places inside the box. The whole Lausanne demo area is ~2,900 places (~1 MB).
+    `open_now` is evaluated at `at` (default: now, Europe/Zurich local time)."""
+    t = parse_at(at)
+    return [to_place(r, t) for r in rows_in_bbox(conn, *parse_bbox(bbox))]
 
 
 @app.get("/places/nearby", response_model=list[Place], tags=["places"], summary="Places near a point, nearest first")
@@ -168,14 +244,19 @@ def nearby(
     lat: Annotated[float, Query(ge=-90, le=90, examples=[46.5236])],
     lon: Annotated[float, Query(ge=-180, le=180, examples=[6.6327])],
     radius: Annotated[float, Query(gt=0, le=5000, description="metres")] = 300,
+    at: Annotated[str | None, AT_QUERY] = None,
+    open_only: Annotated[bool, Query(description="drop places known to be closed at `at` (unknown stays)")] = False,
 ) -> list[Place]:
     """Places within `radius` m, nearest first, with mean features (for the quiet-place pick).
-    The example point is Place de la Riponne."""
+    The example point is Place de la Riponne. `open_only=true` drops places known to be closed;
+    places with unknown hours are kept."""
+    t = parse_at(at)
     dlat = math.degrees(radius / EARTH_M)
     dlon = dlat / max(math.cos(math.radians(lat)), 1e-6)
     rows = rows_in_bbox(conn, lon - dlon, lat - dlat, lon + dlon, lat + dlat)
     with_d = [(distance_m(lat, lon, r["lat"], r["lon"]), r) for r in rows]
-    return [to_place(r) for d, r in sorted(with_d, key=lambda x: x[0]) if d <= radius]
+    out = [to_place(r, t) for d, r in sorted(with_d, key=lambda x: x[0]) if d <= radius]
+    return [p for p in out if p.open_now is not False] if open_only else out
 
 
 @app.post(
@@ -203,25 +284,72 @@ def post_measurement(conn: Conn, m: Measurement) -> MeasurementResult:
     return MeasurementResult(stored=True, place=to_place(row) if row else None)
 
 
+HEATMAP_CELL_M = 50
+# 50 m in degrees at Lausanne's latitude (46.5° N); used to bin measurements into heatmap cells
+CELL_DLAT = HEATMAP_CELL_M / 111_320
+CELL_DLON = HEATMAP_CELL_M / (111_320 * math.cos(math.radians(46.5)))
+MEASURED_DIMS = {"light": "lux_mean", "flicker": "flicker_index", "crowd": "people_count"}
+_noise_grid_cache: dict[str, object] = {}
+
+
+def _noise_grid() -> list[dict]:
+    f = PROCESSED / "heatmap_lausanne_noise.geojson"
+    if not f.is_file():
+        return []
+    mtime = f.stat().st_mtime
+    if _noise_grid_cache.get("mtime") != mtime:  # reload when the file is rebuilt
+        _noise_grid_cache.update(mtime=mtime, features=json.loads(f.read_text(encoding="utf-8"))["features"])
+    return _noise_grid_cache["features"]  # type: ignore[return-value]
+
+
+def _cell_feature(lon: float, lat: float, props: dict) -> dict:
+    return {"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]}, "properties": props}
+
+
 @app.get("/heatmap", tags=["map layers"], summary="Heatmap grid (GeoJSON)")
 def heatmap(
+    conn: Conn,
     bbox: Annotated[str, BBOX_QUERY],
     dim: Annotated[str, Query(pattern="^(noise|light|flicker|crowd)$")] = "noise",
+    period: Annotated[str, Query(pattern="^(day|night)$", description="noise only: day 06-22, night 22-06")] = "day",
 ) -> dict:
-    """GeoJSON grid for the heatmap layer, from data/processed/heatmap_lausanne_<dim>.geojson.
-    Returns an empty FeatureCollection until that file is built (todo.md: 50 m grid task)."""
+    """GeoJSON FeatureCollection of 50 m cells (Points at cell centres; draw 50 m squares).
+    Every feature has `properties.value` and `properties.source`:
+
+    * `dim=noise`: outdoor road+rail noise in dB(A) from sonBASE (`source: "sonbase"`), day or night.
+      Lausanne only (data/processed/heatmap_lausanne_noise.geojson).
+    * `dim=light|flicker|crowd`: mean of the **measurements** in each cell (`source: "measured"`, plus `n`):
+      lux, flicker index, people count. Empty until phones measure; works anywhere, not just Lausanne.
+    """
     min_lon, min_lat, max_lon, max_lat = parse_bbox(bbox)
-    f = PROCESSED / f"heatmap_lausanne_{dim}.geojson"
-    if not f.is_file():
-        return {"type": "FeatureCollection", "features": []}
-    grid = json.loads(f.read_text(encoding="utf-8"))
+    inside = lambda lon, lat: min_lon <= lon <= max_lon and min_lat <= lat <= max_lat  # noqa: E731
+    features: list[dict] = []
 
-    def inside(feat: dict) -> bool:
-        coords = feat["geometry"]["coordinates"]
-        lon, lat = coords[:2] if feat["geometry"]["type"] == "Point" else coords[0][0][:2]
-        return min_lon <= lon <= max_lon and min_lat <= lat <= max_lat
+    if dim == "noise":
+        key = f"noise_{period}_db"
+        for f in _noise_grid():
+            lon, lat = f["geometry"]["coordinates"][:2]
+            v = f["properties"].get(key)
+            if v is not None and inside(lon, lat):
+                features.append(_cell_feature(lon, lat, {"value": v, "source": "sonbase"}))
+    else:
+        field = MEASURED_DIMS[dim]
+        cells: dict[tuple[int, int], list[float]] = {}
+        rows = conn.execute(
+            "SELECT lat, lon, features FROM measurements WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?",
+            (min_lat, max_lat, min_lon, max_lon),
+        )
+        for r in rows:
+            key_ = (math.floor(r["lat"] / CELL_DLAT), math.floor(r["lon"] / CELL_DLON))
+            cells.setdefault(key_, []).append(float(json.loads(r["features"])[field]))
+        for (i, j), vals in cells.items():
+            lat, lon = (i + 0.5) * CELL_DLAT, (j + 0.5) * CELL_DLON
+            features.append(_cell_feature(
+                round(lon, 6), round(lat, 6),
+                {"value": round(sum(vals) / len(vals), 3), "source": "measured", "n": len(vals)},
+            ))
 
-    return {"type": "FeatureCollection", "features": [x for x in grid["features"] if inside(x)]}
+    return {"type": "FeatureCollection", "dim": dim, "period": period, "cell_m": HEATMAP_CELL_M, "features": features}
 
 
 @app.get("/stats", response_model=Stats, tags=["map layers"], summary="Counts for the gap badge")
