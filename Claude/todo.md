@@ -145,20 +145,20 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 ## A. Siddhi: data and backend (until ~19:00)
 
 ### Gathering
-- [ ] Overpass query for the Lausanne bbox: `amenity`, `shop`, `leisure`, `tourism` POIs with `name` → `data/raw/osm_lausanne.json`
-- [ ] Count tags: `wheelchair=*`, `sensory_friendly=*`, `amenity=quiet_room` for Lausanne / Switzerland / Europe / world (`data/scripts/count_tags.py` → `data/processed/tag_counts.json`); post counts in chat by 14:00
+- [x] Overpass query for the Lausanne bbox: `amenity`, `shop`, `leisure`, `tourism` POIs with `name` → `data/raw/osm_lausanne.json`
+- [x] Count tags: `wheelchair=*`, `sensory_friendly=*`, `amenity=quiet_room` for Lausanne / Switzerland / Europe / world (`data/scripts/count_tags.py` → `data/processed/tag_counts.json`); post counts in chat by 14:00
 - [ ] Switzerland POIs: Geofabrik `switzerland-latest.osm.pbf` filtered locally (more reliable than one huge Overpass query) → `data/raw/osm_switzerland/`
 - [ ] **Stretch, blocked:** accessibility.cloud app token. Sign-up app (v2.accessibility.cloud/sign-up) never finished loading on 21 Nov (laptop + phone on mobile data, normal + private). Retry later; once there's a token, `data/scripts/fetch_a11ycloud_lausanne.py` is ready → `data/raw/a11ycloud_lausanne.json`. Not on the critical path: OSM `wheelchair=*` covers the demo. NB: accessibilitycloud.com (no dot) is an unrelated web-testing product
-- [ ] Download sonBASE daytime road noise (layer `ch.bafu.laerm-strassenlaerm_tag`) and railway noise for all of Switzerland → `data/raw/sonbase/`
+- [x] Download sonBASE daytime road noise (layer `ch.bafu.laerm-strassenlaerm_tag`) and railway noise for all of Switzerland → `data/raw/sonbase/`
 - [ ] Download opentransportdata.swiss accessibility data (stops, toilets, platforms) → `data/raw/prm/`
 - [ ] Optional: EEA END noise grid for Dublin
 
 ### Transformation
-- [ ] Normalise OSM + accessibility.cloud into the Place schema; dedupe on name + distance < 25 m
-- [ ] Sample sonBASE at each place → `baseline_noise_db`. Rasters are 10 m, LV95 (EPSG:2056), float64, nodata -9999: transform place coords to LV95 (don't reproject the raster). Use the **median within ~25–50 m**, not the single cell (a POI point on the street-side façade reads 20 dB louder than its own courtyard). Combine road + rail energetically: 10·log10(10^(road/10) + 10^(rail/10)). Scripts: `fetch_sonbase.py`, `check_sonbase.py`; import `raster_env` before rasterio
+- [x] Normalise OSM into the Place schema, drop non-venues, dedupe on name + category < 25 m (`build_places_lausanne.py`). accessibility.cloud merge pending a token
+- [x] Sample sonBASE at each place → `baseline_noise_db`. Rasters are 10 m, LV95 (EPSG:2056), float64, nodata -9999: transform place coords to LV95 (don't reproject the raster). Use the **median within ~25–50 m**, not the single cell (a POI point on the street-side façade reads 20 dB louder than its own courtyard). Combine road + rail energetically: 10·log10(10^(road/10) + 10^(rail/10)). Scripts: `fetch_sonbase.py`, `check_sonbase.py`; import `raster_env` before rasterio
 - [ ] Build a 50 m grid over Lausanne with baseline noise for the heatmap layer
 - [ ] Seed unmeasured places with a prior feature vector from category + `baseline_noise_db` (so the personal model can score them)
-- [ ] Write `data/processed/places_lausanne.geojson` and commit it (app must work offline)
+- [x] Write `data/processed/places_lausanne.geojson` and commit it (app must work offline). 2,873 places, all with noise; Kotlin test `BundledPlacesTest` checks every feature decodes as Place
 - [ ] Widen to Switzerland: same normalise + sonBASE sampling for all Swiss POIs → `data/processed/places_switzerland.geojson` (check size; gitignore if > 50 MB and document how to rebuild)
 - [ ] Coverage grids: 2° global and 0.5° Europe cell counts of `wheelchair=*` and `sensory_friendly=*` (pre-aggregated source / extracts; not per-place Overpass) + EEA noise coverage per cell → `data/processed/coverage_2deg.json`, `coverage_0.5deg.json` (commit, small)
 
