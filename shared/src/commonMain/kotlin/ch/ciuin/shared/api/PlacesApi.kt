@@ -2,21 +2,22 @@ package ch.ciuin.shared.api
 
 import ch.ciuin.shared.model.Coverage
 import ch.ciuin.shared.model.Measurement
+import ch.ciuin.shared.model.MeasurementResult
 import ch.ciuin.shared.model.Place
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Backend API (todo.md §0). The real implementation will be a Ktor client
- * (engines already on the classpath: OkHttp on Android, CIO on desktop) configured with [ContractJson].
+ * Backend API (todo.md §0). Implementations: [KtorPlacesApi] (real backend) and [FakePlacesApi]
+ * (5 hard-coded places, for UI work without a backend). Network/HTTP errors are thrown.
  */
 interface PlacesApi {
     /** GET /places?bbox=minLon,minLat,maxLon,maxLat */
     suspend fun places(bbox: BBox): List<Place>
 
-    /** POST /measurements */
-    suspend fun postMeasurement(m: Measurement)
+    /** POST /measurements -> the place with updated aggregates (null if place_id is unknown) */
+    suspend fun postMeasurement(m: Measurement): MeasurementResult
 
     /** GET /heatmap?bbox=...&dim=noise -> GeoJSON grid */
     suspend fun heatmap(bbox: BBox, dim: String): JsonObject

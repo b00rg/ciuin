@@ -32,6 +32,20 @@ The team uses macOS (Emma, Paramveer) and Windows (Siddhi, Christine). Commands 
 ```
 The first build downloads Gradle and dependencies (a few minutes).
 
+**Which backend the app talks to:**
+| Target | Default | Override |
+|---|---|---|
+| Desktop | `http://localhost:8000` | `CIUIN_API_URL=https://….trycloudflare.com ./gradlew :composeApp:run` |
+| Android | `http://10.0.2.2:8000` (the laptop, seen from the emulator) | `./gradlew :composeApp:installDebug -Pciuin.apiUrl=https://….trycloudflare.com` (real phones need the tunnel URL) |
+
+Use `fake` as the URL to run on the 5 hard-coded places without a backend. If the backend is down, the app shows the error and a Retry button.
+
+Live end-to-end test (writes a measurement, so use a throwaway DB):
+```sh
+cd backend && CIUIN_DB=/tmp/e2e.db uvicorn main:app --port 8000      # terminal 1
+CIUIN_LIVE_API=http://localhost:8000 ./gradlew :shared:desktopTest --tests '*LiveTest'   # terminal 2
+```
+
 ### Backend
 ```sh
 cd backend

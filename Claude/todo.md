@@ -66,6 +66,7 @@ Only aggregates. **Never** raw audio, images, embeddings, trigger taps or user i
 ### Place (backend → app)
 `measured` carries the **mean feature vector** so the personal model can re-score every place on the phone.
 `baseline_noise_db` / `baseline_source` are null outside regions with noise data. `baseline_source` is `"sonbase"` (Switzerland), `"eea"` (EU END maps) or null.
+`measured` and `score` are null until the place has at least one measurement. `score` is the generic per-dimension score for users with no personal model: **1 = calmest / most accessible, 0 = worst** (heuristics and thresholds in `backend/aggregate.py`; tune in Phase 2).
 ```json
 {
   "place_id": "osm:node/123456", "name": "Café X", "lat": 46.5191, "lon": 6.5668,
@@ -108,10 +109,11 @@ Log time spent in each stage; this is the battery/frugality evidence.
 
 ### API (Siddhi owns)
 - `GET /places?bbox=minLon,minLat,maxLon,maxLat` → list of Place
-- `POST /measurements` → stores one Measurement, recomputes that place's aggregates
-- `GET /heatmap?bbox=...&dim=noise` → GeoJSON grid for the heatmap layer
-- `GET /places/nearby?lat=..&lon=..&radius=300` → places sorted by distance, with mean features
-- `GET /stats` → places mapped, measurements taken, `sensory_friendly` tags found
+- `POST /measurements` → stores one Measurement, recomputes that place's aggregates. **201** `{"stored": true, "place": Place | null}` (`place` is the updated place; null if `place_id` isn't a known place: the measurement is still stored and counted). **422** on any field not in the contract (privacy guard) or if `sound_classes` isn't exactly the 9 classes
+- `GET /heatmap?bbox=...&dim=noise` → GeoJSON grid for the heatmap layer (`dim`: noise | light | flicker | crowd). Empty FeatureCollection until the 50 m grid is built
+- `GET /places/nearby?lat=..&lon=..&radius=300` → places sorted by distance, with mean features (radius in m, max 5000)
+- `GET /stats` → `{"places_mapped": n, "measurements_taken": n, "sensory_friendly_tags": n}`
+- `GET /health` → `{"status": "ok"}`. Interactive API docs at `/docs`
 - `GET /coverage?res_deg=2` → coarse grid for the 3D globe (below). `res_deg=2` global, `res_deg=0.5` Europe. Never per-place
 
 ### Scope and coverage (3D globe): three data tiers + demo city
@@ -163,15 +165,16 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 - [ ] Coverage grids: 2° global and 0.5° Europe cell counts of `wheelchair=*` and `sensory_friendly=*` (pre-aggregated source / extracts; not per-place Overpass) + EEA noise coverage per cell → `data/processed/coverage_2deg.json`, `coverage_0.5deg.json` (commit, small)
 
 ### Backend
-- [ ] FastAPI + SQLite (stdlib `sqlite3`, no ORM, WAL mode, R-Tree index on place coordinates): the endpoints above. Tables created on startup; schema change = delete the `.db` and re-seed. Never commit `*.db`
-- [ ] `GET /coverage?res_deg=`: serve the matching coverage file, adding live `measurements` counts per cell
-- [ ] Aggregation: mean feature vector per place; generic per-dimension score in [0, 1] for users with no personal model
-- [ ] Seed script that loads `places_lausanne.geojson` (then `places_switzerland.geojson`)
+- [x] FastAPI + SQLite (stdlib `sqlite3`, no ORM, WAL mode, R-Tree index on place coordinates): the endpoints above. `backend/`, 12 pytest tests. Tables created on startup; schema change = delete the `.db` and re-seed. Never commit `*.db`
+- [x] `GET /coverage?res_deg=`: serves `data/processed/coverage_<res>deg.json` when built, otherwise counts places in the DB (Lausanne only for now); live `measurements` counts added per cell
+- [x] Aggregation: mean feature vector per place; generic per-dimension score in [0, 1] for users with no personal model (`backend/aggregate.py`; thresholds are first guesses)
+- [x] Seed: DB is created and seeded from `places_lausanne.geojson` on first start; `python db.py --reset` to wipe and re-seed. Add `places_switzerland.geojson` to `SEED_FILES` in `db.py` once built
 - [ ] Reachability: Cloudflare quick tunnel (`cloudflared tunnel --url http://localhost:8000`) so phones reach the laptop on any network; phone hotspot as fallback. Everyone tests against this one shared backend
 
 ### After ~19:00: help Christine
 - [ ] Take the app screens Christine hands over (likely Place detail, Privacy, Model screen UI)
-- [ ] Ktor client against your own API, plus the offline fallback using the bundled GeoJSON
+- [x] Ktor client against your own API: `KtorPlacesApi` in `shared/commonMain` (mock-engine tests + a live round-trip test). App picks the URL per platform (`composeApp/.../ApiConfig.kt`); `postMeasurement` now returns `MeasurementResult`
+- [ ] Offline fallback using the bundled GeoJSON (when the backend is unreachable)
 - [ ] Own `REUSED.md`: collect entries from everyone as they go
 
 ---

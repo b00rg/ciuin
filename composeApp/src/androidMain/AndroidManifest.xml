@@ -2,7 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- usesCleartextTraffic: plain http to the laptop backend (emulator 10.0.2.2, hotspot IP).
+         The Cloudflare tunnel is https and doesn't need it. Hackathon setting; revisit for release. -->
     <application
+        android:usesCleartextTraffic="true"
         android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
