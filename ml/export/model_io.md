@@ -12,7 +12,7 @@ Every audio model we ship (the dummy now, then students S / M / L) has exactly t
 - TFLite signature key: `serving_default`. You can also use plain input/output index 0.
 - Output index `i` = `SoundClass.entries[i]` = line `i` of [`labels.txt`](labels.txt):
   `speech_crowd, music, traffic, siren, construction, alarm_beep, dog, machinery_hum, other`.
-- **The spectrogram is inside the model.** The app only has to resample to 16 kHz, downmix to mono, scale to [-1, 1] (16-bit PCM ÷ 32768) and cut 15,600-sample windows. No FFT or mel code is needed in Kotlin.
+- **The spectrogram is inside the model.** The app only has to resample to 16 kHz, downmix to mono, scale to [-1, 1] (16-bit PCM ÷ 32768) and cut 15,600-sample windows ([`preprocess.md`](preprocess.md)). No FFT or mel code is needed in Kotlin.
 
 Kotlin, Android (LiteRT):
 
@@ -58,4 +58,6 @@ There are no Flex / Select-TF ops and no variables. Real students add more of th
 | `labels.txt` | Class names, one per line, in output order |
 | `../verify_tflite.py` | `python3 ml/verify_tflite.py <model.tflite>` checks any model against this contract |
 
-Coming at Handoff 1: `preprocess.md` (resampling, mono downmix, windowing, clip-level averaging), the first real student, and `test_clips/` for parity checks.
+App-side preprocessing (capture, mono, 16 kHz, windowing, averaging): [`preprocess.md`](preprocess.md).
+
+Coming at Handoff 1: the first real student and `test_clips/` for parity checks.
