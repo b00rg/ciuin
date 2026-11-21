@@ -64,12 +64,13 @@ Only aggregates. **Never** raw audio, images, embeddings, trigger taps or user i
 
 ### Place (backend → app)
 `measured` carries the **mean feature vector** so the personal model can re-score every place on the phone.
+`baseline_noise_db` / `baseline_source` are null outside regions with noise data. `baseline_source` is `"sonbase"` (Switzerland), `"eea"` (EU END maps) or null.
 ```json
 {
   "place_id": "osm:node/123456", "name": "Café X", "lat": 46.5191, "lon": 6.5668,
   "category": "cafe",
   "wheelchair": "yes", "sensory_friendly": null, "quiet_room": false,
-  "baseline_noise_db": 58,
+  "baseline_noise_db": 58, "baseline_source": "sonbase",
   "measured": {"n": 4, "features": { "...": "mean feature vector" }},
   "score": {"noise": 0.4, "light": 0.8, "flicker": 0.9, "crowd": 0.6, "access": 1.0}
 }
@@ -110,6 +111,29 @@ Log time spent in each stage; this is the battery/frugality evidence.
 - `GET /heatmap?bbox=...&dim=noise` → GeoJSON grid for the heatmap layer
 - `GET /places/nearby?lat=..&lon=..&radius=300` → places sorted by distance, with mean features
 - `GET /stats` → places mapped, measurements taken, `sensory_friendly` tags found
+- `GET /coverage` → coarse global grid for the 3D globe (below). Never per-place
+
+### Scope and coverage (3D globe)
+| Layer | Coverage |
+|---|---|
+| Phone measurements, personal model | Global (measured wherever the phone is) |
+| `wheelchair=*` (OSM + accessibility.cloud) | Global |
+| `sensory_friendly` (OSM proposal tag) | Global but sparse; shown where present, not promised |
+| Baseline noise | Europe (EEA END), Switzerland in detail (sonBASE) |
+| Full pipeline (places, noise sampling, 50 m heatmap) | Lausanne (demo city) |
+
+Pitch line: *measurements work anywhere, starter data covers Europe, Lausanne is the demo city.*
+
+`GET /coverage` response (2° cells, `lat`/`lon` = cell centre; empty cells omitted):
+```json
+{
+  "res_deg": 2.0,
+  "cells": [
+    {"lat": 47.0, "lon": 7.0, "wheelchair": 18342, "sensory_friendly": 3, "noise_source": "sonbase", "measurements": 12}
+  ]
+}
+```
+3D globe: drawn on a Compose Canvas in `commonMain` (dotted land from Natural Earth, data as radial spikes, drag to spin, fly-to → hands off to the flat map). No native 3D engine, no WebView.
 
 ---
 
@@ -129,9 +153,11 @@ Log time spent in each stage; this is the battery/frugality evidence.
 - [ ] Build a 50 m grid over Lausanne with baseline noise for the heatmap layer
 - [ ] Seed unmeasured places with a prior feature vector from category + `baseline_noise_db` (so the personal model can score them)
 - [ ] Write `data/processed/places_lausanne.geojson` and commit it (app must work offline)
+- [ ] Global coverage grid for the globe: 2° cell counts of `wheelchair=*` and `sensory_friendly=*` (taginfo / a planet extract or a pre-aggregated source; not per-place Overpass) + EEA noise coverage per cell → `data/processed/coverage.json` (commit it, small)
 
 ### Backend
 - [ ] FastAPI + SQLite (or plain JSON files): the endpoints above
+- [ ] `GET /coverage`: serve `coverage.json`, adding live `measurements` counts per cell
 - [ ] Aggregation: mean feature vector per place; generic per-dimension score in [0, 1] for users with no personal model
 - [ ] Seed script that loads `places_lausanne.geojson`
 - [ ] Run on a laptop reachable over a phone hotspot (eduroam may block device-to-device traffic)
@@ -243,6 +269,7 @@ Log time spent in each stage; this is the battery/frugality evidence.
 - [ ] Onboarding (first launch): short explanation + choose a preset
 - [ ] Map: OSM tiles, markers coloured by **this user's** `p_overwhelm`, heatmap toggle per dimension, gap badge from `/stats`
 - [ ] Place detail: features, accessibility tags, measurement count, "Measure here"
+- [ ] 3D globe (opening screen, after MVP): static rotating dotted globe early; then spikes from `/coverage`, live measurement pulses, fly-to Lausanne → flat map. Bundle Natural Earth land points + `coverage.json` for offline
 - [ ] Measure flow: 30 s capture → dB + classifier + camera module → show → confirm → POST aggregates
 - [ ] "Too much" and "This is fine" buttons, reachable from the map and from the alert notification
 - [ ] Model screen: variants and per-device latency from `results.json`, which variant this device picked, switch live, cascade stage stats, personal model example count + reset
@@ -300,6 +327,7 @@ Split by area; whoever finishes first picks up the next unchecked item.
 - sonBASE noise (FOEN): https://www.bafu.admin.ch/en/noise-geodata · map: https://map.geo.admin.ch/?layers=ch.bafu.laerm-strassenlaerm_tag
 - Swiss public transport accessibility: https://opentransportdata.swiss/en/cookbook/accessibility/
 - EEA noise data: https://www.eea.europa.eu/data-and-maps/data/quiet-areas-in-europe-2
+- Natural Earth (globe land outline, public domain): https://www.naturalearthdata.com
 - ESC-50: https://github.com/karolpiczak/ESC-50
 - UrbanSound8K: https://zenodo.org/record/1203745
 - SONYC-UST: https://wp.nyu.edu/sonyc/

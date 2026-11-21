@@ -1,0 +1,55 @@
+# Gradle / Kotlin
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+.kotlin/
+local.properties
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.fleet/
+out/
+
+# Android
+*.apk
+*.aab
+*.ap_
+*.dex
+captures/
+.externalNativeBuild/
+.cxx/
+*.keystore
+*.jks
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.env
+.ipynb_checkpoints/
+.pytest_cache/
+*.egg-info/
+
+# Data: raw downloads stay local
+data/raw/*
+!data/raw/.gitkeep
+
+# Model files over 50 MB. Git can't filter by size, so:
+#  - known-large artefacts are listed here, and
+#  - scripts/ignore-large-models.sh appends any other model file > 50 MB below the marker.
+ml/export/audio-teacher.onnx
+ml/checkpoints/
+*.ckpt
+*.pt
+*.pth
+*.h5
+*.npy
+# --- large model files (auto, scripts/ignore-large-models.sh) ---

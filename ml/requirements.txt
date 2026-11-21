@@ -1,0 +1,2 @@
+# Audio ML training (see Claude/todo.md section B1). Add pinned deps as they are chosen.
+numpy
