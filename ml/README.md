@@ -11,11 +11,21 @@ python3 ml/check_labels.py        # validate labels.yaml, regenerate labels.txt
 python3 ml/build_index.py         # clip index with splits -> data/processed/audio_index.sqlite
 python3 ml/class_weights.py       # recompute loss weights + the table below
 python3 -m pytest ml/tests        # preprocessing tests
+python3 ml/teacher.py             # teacher: YAMNet embeddings + MLP head -> export/results.json
 ```
 
 ## Preprocessing
 
 `ml/preprocess.py` loads any clip as 16 kHz mono float, cuts 0.975 s windows (0.5 s hop), skips windows below −60 dBFS and averages window probabilities into a clip score. Training and evaluation use it; [`export/preprocess.md`](export/preprocess.md) is the same thing written for the Kotlin port. Change both together.
+
+## Teacher
+
+`ml/teacher.py`: frozen YAMNet (pretrained on AudioSet) turns each 0.975 s window into a 1024-d embedding, and a small MLP (1024 → 512 → 9) trained on our data maps that to the 9 classes. It stays offline (~15 MB, 3.7 M params); only the students ship.
+
+- Embeddings are cached per dataset in `data/cache/teacher/` (gitignored), keyed by clip, so re-running after a download finishes only embeds the new dataset
+- Trained with the loss weights below; the epoch is chosen on **val** clip-level macro-F1, and **test** is scored once
+- Scores go to `export/results.json` under `teacher`, including per-class F1 and which datasets were missing at training time
+- The window cache and the head are what #4 uses for the students' soft labels
 
 ## Classes
 
