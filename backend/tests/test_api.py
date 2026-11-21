@@ -16,8 +16,12 @@ LAUSANNE = "6.58,46.50,6.67,46.54"
 # Section 0 key sets (Claude/todo.md). If these change, the Kotlin classes must change too.
 PLACE_KEYS = {
     "place_id", "name", "lat", "lon", "category", "wheelchair", "sensory_friendly", "quiet_room",
-    "baseline_noise_db", "baseline_source", "measured", "score",
+    "baseline_noise_db", "baseline_noise_night_db", "baseline_source", "osm_tags", "open_now", "prior",
+    "measured", "score",
 }
+STARBUCKS = "osm:node/911106747"  # opening_hours "Mo-Sa 07:00-19:00; Su 11:00-19:00"
+SAT_10_LOCAL = "2026-11-21T09:00:00Z"  # Saturday 10:00 in Lausanne (CET)
+SAT_22_LOCAL = "2026-11-21T21:00:00Z"  # Saturday 22:00
 FEATURE_KEYS = {"db_mean", "db_peak", "sound_classes", "lux_mean", "flicker_index", "people_count"}
 SOUND = ["speech_crowd", "music", "traffic", "siren", "construction", "alarm_beep", "dog", "machinery_hum", "other"]
 
@@ -168,7 +172,122 @@ def test_coverage_counts_places_and_live_measurements(client):
     assert cells[(41.0, -73.0)]["measurements"] == 1
 
 
-def test_heatmap_empty_until_grid_is_built(client):
-    r = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "noise"})
-    assert r.status_code == 200 and r.json()["type"] == "FeatureCollection"
+def test_places_carry_night_noise_and_osm_tags(client):
+    places = client.get("/places", params={"bbox": LAUSANNE}).json()
+    both = [p for p in places if p["baseline_noise_db"] is not None and p["baseline_noise_night_db"] is not None]
+    assert len(both) > 2000
+    assert sum(p["baseline_noise_night_db"] < p["baseline_noise_db"] for p in both) > 0.95 * len(both)
+    assert sum("opening_hours" in p["osm_tags"] for p in places) > 1000
+
+
+def test_open_now_follows_opening_hours_and_at(client):
+    def starbucks(at):
+        ps = client.get("/places/nearby", params={"lat": 46.522522, "lon": 6.630265, "radius": 30, "at": at}).json()
+        return next(p for p in ps if p["place_id"] == STARBUCKS)
+
+    assert starbucks(SAT_10_LOCAL)["open_now"] is True
+    assert starbucks(SAT_22_LOCAL)["open_now"] is False
+    everyone = client.get("/places", params={"bbox": LAUSANNE, "at": SAT_10_LOCAL}).json()
+    known = [p for p in everyone if p["open_now"] is not None]
+    assert len(known) > 1000  # ~1,475 places with parseable hours
+    assert all(p["open_now"] is None for p in everyone if "opening_hours" not in p["osm_tags"])
+    assert client.get("/places", params={"bbox": LAUSANNE, "at": "saturday"}).status_code == 422
+
+
+def test_nearby_open_only_drops_closed_keeps_unknown(client):
+    params = {"lat": 46.5236, "lon": 6.6327, "radius": 400, "at": SAT_22_LOCAL}
+    allp = client.get("/places/nearby", params=params).json()
+    openp = client.get("/places/nearby", params=params | {"open_only": True}).json()
+    assert any(p["open_now"] is False for p in allp)
+    assert all(p["open_now"] is not False for p in openp)
+    assert {p["place_id"] for p in openp} == {p["place_id"] for p in allp if p["open_now"] is not False}
+
+
+def test_prior_is_separate_from_measured(client, a_place):
+    """Unmeasured places carry an estimate in `prior` and null `measured`; measuring fills `measured`
+    and leaves `prior` untouched, so estimates and real data can't be confused."""
+    assert a_place["measured"] is None and a_place["prior"] is not None
+    assert set(a_place["prior"]) == FEATURE_KEYS and set(a_place["prior"]["sound_classes"]) == set(SOUND)
+    r = client.post("/measurements", json=measurement(a_place["place_id"], a_place["lat"], a_place["lon"], db_mean=50)).json()
+    assert r["place"]["measured"]["n"] == 1 and r["place"]["measured"]["features"]["db_mean"] == 50
+    assert r["place"]["prior"] == a_place["prior"]
+
+
+def test_meta_lists_required_attribution_and_data(client):
+    m = client.get("/meta").json()
+    texts = [a["text"] for a in m["attribution"] if a["required"]]
+    assert "© OpenStreetMap contributors" in texts
+    assert any("sonBASE" in t for t in texts)
+    assert m["data"]["places"]["count"] > 2000
+    assert m["data"]["heatmap_noise"]["available"] and m["data"]["heatmap_noise"]["cell_m"] == 50
+
+
+def test_heatmap_noise_day_and_night(client):
+    import statistics
+
+    day = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "noise", "period": "day"}).json()
+    night = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "noise", "period": "night"}).json()
+    assert day["type"] == "FeatureCollection" and day["cell_m"] == 50
+    assert len(day["features"]) > 5000
+    f = day["features"][0]
+    assert f["geometry"]["type"] == "Point" and set(f["properties"]) == {"value", "road_db", "rail_db", "source"}
+    assert day["res_m"] == 50  # the key the app reads for cell size
+    # value is the energetic sum of road and rail (where both exist)
+    import math
+    both = [x["properties"] for x in day["features"] if x["properties"]["rail_db"] is not None][:200]
+    assert both
+    for p in both:
+        expected = 10 * math.log10(10 ** (p["road_db"] / 10) + 10 ** (p["rail_db"] / 10))
+        assert abs(p["value"] - expected) < 1.5  # medians of each source vs median of the sum: close, not exact
+    assert f["properties"]["source"] == "sonbase"
+    dv = statistics.median(x["properties"]["value"] for x in day["features"])
+    nv = statistics.median(x["properties"]["value"] for x in night["features"])
+    assert nv < dv - 5  # nights are clearly quieter
+
+    small = client.get("/heatmap", params={"bbox": "6.6300,46.5220,6.6310,46.5230"}).json()
+    assert 0 < len(small["features"]) < 20
     assert client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "smell"}).status_code == 422
+    assert client.get("/heatmap", params={"bbox": LAUSANNE, "period": "dawn"}).status_code == 422
+
+
+def test_heatmap_measured_dims_from_measurements(client, a_place):
+    assert client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "light"}).json()["features"] == []
+    pid, lat, lon = a_place["place_id"], a_place["lat"], a_place["lon"]
+    client.post("/measurements", json=measurement(pid, lat, lon, lux=200, people=4))
+    client.post("/measurements", json=measurement(pid, lat, lon, lux=400, people=8))
+    light = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "light"}).json()["features"]
+    crowd = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "crowd"}).json()["features"]
+    assert len(light) == 1 and light[0]["properties"] == {"value": 300.0, "source": "measured", "n": 2}
+    assert crowd[0]["properties"]["value"] == 6.0
+    (clon, clat) = light[0]["geometry"]["coordinates"]
+    assert abs(clat - lat) < 0.0005 and abs(clon - lon) < 0.0007  # within the 50 m cell
+
+
+def test_existing_db_is_migrated_in_place(tmp_path):
+    """An old ciuin.db without the new columns upgrades on start and keeps its measurements."""
+    import sqlite3
+
+    import db
+
+    old = tmp_path / "old.db"
+    conn = sqlite3.connect(old)
+    conn.executescript("""
+        CREATE TABLE places (id INTEGER PRIMARY KEY, place_id TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+          lat REAL NOT NULL, lon REAL NOT NULL, category TEXT NOT NULL, wheelchair TEXT, sensory_friendly TEXT,
+          quiet_room INTEGER NOT NULL DEFAULT 0, baseline_noise_db REAL, baseline_source TEXT,
+          n INTEGER NOT NULL DEFAULT 0, mean_features TEXT, score TEXT);
+        CREATE TABLE measurements (id INTEGER PRIMARY KEY, place_id TEXT NOT NULL, lat REAL NOT NULL,
+          lon REAL NOT NULL, timestamp TEXT NOT NULL, duration_s INTEGER NOT NULL, features TEXT NOT NULL,
+          flicker_hz REAL, model_variant TEXT NOT NULL, device TEXT NOT NULL, received_at TEXT);
+        INSERT INTO measurements (place_id, lat, lon, timestamp, duration_s, features, model_variant, device)
+          VALUES ('osm:node/1', 46.5, 6.6, 't', 30, '{}', 'm', 'd');
+    """)
+    conn.commit()
+    conn.close()
+    os.environ["CIUIN_DB"] = str(old)
+    db.ensure_ready()
+    conn = sqlite3.connect(old)
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(places)")}
+    assert {"baseline_noise_night_db", "osm_tags"} <= cols
+    assert conn.execute("SELECT COUNT(*) FROM measurements").fetchone()[0] == 1
+    conn.close()

@@ -85,7 +85,7 @@ fun clipProbabilities(x: FloatArray, classify: (FloatArray) -> FloatArray): Floa
 
 ## Parity checks
 
-The Handoff 1 `test_clips/` are already 16 kHz mono float. They test the model and windowing (steps 6–8) on the phone against Python's expected outputs. Steps 1–4 are checked separately:
+The Handoff 1 `test_clips/` are already 16 kHz mono (16-bit PCM WAV: read as int16 ÷ 32 768, step 2). They test the model and windowing (steps 6–8) on the phone against Python's expected outputs. Steps 1–4 are checked separately:
 - a 1 kHz tone recorded through the pipeline should come out as 1 kHz
 - a 12 kHz tone in a 48 kHz file should come out near-silent after resampling, not as a 4 kHz tone
 

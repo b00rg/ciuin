@@ -87,7 +87,8 @@ class ContractJsonTest {
               "place_id": "osm:node/123456", "name": "Café X", "lat": 46.5191, "lon": 6.5668,
               "category": "cafe",
               "wheelchair": "yes", "sensory_friendly": null, "quiet_room": false,
-              "baseline_noise_db": 58, "baseline_source": "sonbase",
+              "baseline_noise_db": 58, "baseline_noise_night_db": 47.5, "baseline_source": "sonbase",
+              "osm_tags": {"opening_hours": "Mo-Sa 07:00-19:00", "outdoor_seating": "yes"},
               "measured": {"n": 4, "features": $featureJson},
               "score": {"noise": 0.4, "light": 0.8, "flicker": 0.9, "crowd": 0.6, "access": 1.0}
             }
@@ -97,6 +98,8 @@ class ContractJsonTest {
         assertNull(p.sensoryFriendly)
         assertEquals(58.0, p.baselineNoiseDb)
         assertEquals("sonbase", p.baselineSource)
+        assertEquals(47.5, p.baselineNoiseNightDb)
+        assertEquals("Mo-Sa 07:00-19:00", p.osmTags["opening_hours"])
         assertEquals(4, p.measured?.n)
         assertEquals(0.9, p.score?.flicker)
         assertRoundTrip(src, p)
@@ -112,6 +115,7 @@ class ContractJsonTest {
         assertNull(p.baselineNoiseDb)
         assertNull(p.baselineSource)
         assertNull(p.measured)
+        assertTrue(p.osmTags.isEmpty()) // older payloads without osm_tags still decode
     }
 
     @Test

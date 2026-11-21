@@ -59,6 +59,16 @@ def rms_dbfs(x: np.ndarray) -> np.ndarray:
     return 10 * np.log10(np.mean(np.square(x, dtype=np.float64), axis=-1) + 1e-12)
 
 
+def window_starts(n: int, hop: int = HOP) -> list[int]:
+    """Start sample of each window for a clip of n samples (see windows())."""
+    if n <= WINDOW:
+        return [0]
+    starts = list(range(0, n - WINDOW + 1, hop))
+    if starts[-1] != n - WINDOW:
+        starts.append(n - WINDOW)
+    return starts
+
+
 def windows(x: np.ndarray, hop: int = HOP) -> np.ndarray:
     """[n, WINDOW] windows every `hop` samples.
 
@@ -67,18 +77,21 @@ def windows(x: np.ndarray, hop: int = HOP) -> np.ndarray:
     """
     if len(x) <= WINDOW:
         return np.pad(x, (0, WINDOW - len(x)))[None].astype(np.float32)
-    starts = list(range(0, len(x) - WINDOW + 1, hop))
-    if starts[-1] != len(x) - WINDOW:
-        starts.append(len(x) - WINDOW)
-    return np.stack([x[s:s + WINDOW] for s in starts]).astype(np.float32)
+    return np.stack([x[s:s + WINDOW] for s in window_starts(len(x), hop)]).astype(np.float32)
+
+
+def active_window_starts(x: np.ndarray, hop: int = HOP) -> tuple[list[int], np.ndarray]:
+    """Like active_windows(), but also returns where each kept window starts."""
+    starts, w = window_starts(len(x), hop), windows(x, hop)
+    level = rms_dbfs(w)
+    keep = level >= SILENCE_DBFS
+    idx = np.flatnonzero(keep) if keep.any() else np.array([int(level.argmax())])
+    return [starts[i] for i in idx], w[idx]
 
 
 def active_windows(x: np.ndarray, hop: int = HOP) -> np.ndarray:
     """Windows above SILENCE_DBFS. If every window is silent, keep the loudest one."""
-    w = windows(x, hop)
-    level = rms_dbfs(w)
-    keep = level >= SILENCE_DBFS
-    return w[keep] if keep.any() else w[[int(level.argmax())]]
+    return active_window_starts(x, hop)[1]
 
 
 def clip_probabilities(predict: Callable[[np.ndarray], np.ndarray], x: np.ndarray, hop: int = HOP) -> np.ndarray:

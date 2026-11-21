@@ -39,7 +39,7 @@ class FakePlacesApi : PlacesApi {
         ),
     )
 
-    override suspend fun places(bbox: BBox): List<Place> = all.filter {
+    override suspend fun places(bbox: BBox, at: String?): List<Place> = all.filter {
         it.lon in bbox.minLon..bbox.maxLon && it.lat in bbox.minLat..bbox.maxLat
     }
 
@@ -51,7 +51,8 @@ class FakePlacesApi : PlacesApi {
 
     override suspend fun heatmap(bbox: BBox, dim: String): JsonObject = fakeHeat
 
-    override suspend fun nearby(lat: Double, lon: Double, radiusM: Int): List<Place> = all
+    override suspend fun nearby(lat: Double, lon: Double, radiusM: Int, openOnly: Boolean, at: String?): List<Place> =
+        if (openOnly) all.filter { it.openNow != false } else all
 
     override suspend fun stats(): Stats = Stats(placesMapped = all.size, measurementsTaken = 0, sensoryFriendlyTags = 0)
 

@@ -63,7 +63,7 @@ class FallbackPlacesApi(
         }
     }
 
-    override suspend fun places(bbox: BBox): List<Place> = withFallback { places(bbox) }
+    override suspend fun places(bbox: BBox, at: String?): List<Place> = withFallback { places(bbox, at) }
 
     /** Returns `stored = false` when the measurement was queued for later instead of uploaded. */
     override suspend fun postMeasurement(m: Measurement): MeasurementResult =
@@ -85,8 +85,8 @@ class FallbackPlacesApi(
 
     override suspend fun heatmap(bbox: BBox, dim: String): JsonObject = withFallback { heatmap(bbox, dim) }
 
-    override suspend fun nearby(lat: Double, lon: Double, radiusM: Int): List<Place> =
-        withFallback { nearby(lat, lon, radiusM) }
+    override suspend fun nearby(lat: Double, lon: Double, radiusM: Int, openOnly: Boolean, at: String?): List<Place> =
+        withFallback { nearby(lat, lon, radiusM, openOnly, at) }
 
     override suspend fun stats(): Stats = withFallback { stats() }
 

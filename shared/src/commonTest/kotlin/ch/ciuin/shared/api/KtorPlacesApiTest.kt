@@ -69,6 +69,20 @@ class KtorPlacesApiTest {
     }
 
     @Test
+    fun openOnlyAndAtAreSentOnlyWhenSet() = runTest {
+        val api = api { ok("[]") }
+        api.nearby(46.5, 6.6, 300, openOnly = true, at = "2026-11-21T20:00:00Z")
+        api.nearby(46.5, 6.6)
+        api.places(BBox.LAUSANNE, at = "2026-11-21T20:00:00Z")
+        val (withFlags, plain, places) = requests.map { it.url.parameters }
+        assertEquals("true", withFlags["open_only"])
+        assertEquals("2026-11-21T20:00:00Z", withFlags["at"])
+        assertNull(plain["open_only"])
+        assertNull(plain["at"])
+        assertEquals("2026-11-21T20:00:00Z", places["at"])
+    }
+
+    @Test
     fun postMeasurementSendsEveryContractFieldAndDecodesResult() = runTest {
         val m = Measurement(
             placeId = "osm:node/911106747", lat = 46.522522, lon = 6.630265, timestamp = "2026-11-21T14:05:00Z",

@@ -34,9 +34,16 @@ On first start the database (`ciuin.db`, gitignored) is created and seeded from 
 
 ## Reaching it from phones
 
-Phones and the laptop may not see each other on eduroam. Use a Cloudflare quick tunnel (no account):
+Phones and the laptop may not see each other on eduroam. Use a Cloudflare quick tunnel (no account).
+Install: `winget install --id Cloudflare.cloudflared -e` (Windows) or `brew install cloudflared` (macOS). Then, with the backend running:
 ```sh
-cloudflared tunnel --url http://localhost:8000
+cloudflared tunnel --no-autoupdate --protocol http2 --url http://127.0.0.1:8000
 ```
-It prints a public `https://….trycloudflare.com` URL; point the app at that. Fallback: phone hotspot.
+- It prints a public `https://<random-words>.trycloudflare.com` URL. Point the app at it:
+  `./gradlew :composeApp:installDebug -Pciuin.apiUrl=https://<…>.trycloudflare.com`
+- `--protocol http2`: the default (QUIC over UDP) fails on the venue network; HTTP/2 over TCP works. Tested 21 Nov: Android emulator → tunnel → laptop, all Lausanne places in ~0.3 s.
+- **The URL changes every time the tunnel restarts**, and the Android app has it baked in at build time. Keep one tunnel running for the whole event and post the URL in the team chat; if it restarts, rebuild the app with the new URL.
+- The URL is public: anyone who has it can read places and post measurements. Share it only in the team chat.
+- Fallback: phone hotspot, with the laptop's hotspot IP as the URL (`http://192.168.x.x:8000`, run uvicorn with `--host 0.0.0.0`).
+
 Everyone should test against this one shared backend so all measurements land in one database.

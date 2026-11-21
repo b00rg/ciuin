@@ -122,8 +122,14 @@ class Place(BaseModel):
     wheelchair: str | None = None
     sensory_friendly: str | None = None
     quiet_room: bool = False
-    baseline_noise_db: float | None = None
+    baseline_noise_db: float | None = None  # outdoor road+rail, day 06-22, dB(A)
+    baseline_noise_night_db: float | None = None  # same, night 22-06
     baseline_source: Literal["sonbase", "eea"] | None = None
+    osm_tags: dict[str, str] = {}  # selected OSM tags (opening_hours, outdoor_seating, ...)
+    # From osm_tags.opening_hours at request time (or ?at=). null = unknown (no tag / unsupported syntax)
+    open_now: bool | None = None
+    # ESTIMATED feature vector (data/scripts/priors.py); never measured data. Use `measured` when present.
+    prior: FeatureVector | None = None
     measured: MeasuredAggregate | None = None
     score: PlaceScore | None = None
 
