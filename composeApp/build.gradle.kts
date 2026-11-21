@@ -43,6 +43,13 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "0.1"
+        // Backend URL: -Pciuin.apiUrl=https://xyz.trycloudflare.com (or "fake").
+        // Default 10.0.2.2 = the host machine as seen from the Android emulator.
+        val apiUrl = (project.findProperty("ciuin.apiUrl") as String?) ?: "http://10.0.2.2:8000"
+        buildConfigField("String", "API_URL", "\"$apiUrl\"")
+    }
+    buildFeatures {
+        buildConfig = true
     }
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1,INDEX.LIST,io.netty.versions.properties}" }

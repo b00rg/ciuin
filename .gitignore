@@ -56,3 +56,9 @@ ml/checkpoints/
 *.h5
 *.npy
 # --- large model files (auto, scripts/ignore-large-models.sh) ---
+
+# Local databases (rebuild with the seed script)
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
