@@ -16,7 +16,7 @@ import struct
 EXPORT = Path(__file__).resolve().parents[1] / "export"
 FIXTURE = EXPORT / "test_clips" / "expected.json"
 MODELS = {"fp32": EXPORT / "audio-student-s.tflite", "int8": EXPORT / "audio-student-s-int8.tflite"}
-SERIAL = "emulator-5554"
+DEFAULT_SERIAL = "emulator-5554"
 RUNTIME = "LiteRT 2.4.0 built-in CPU kernels (1 thread, XNNPACK disabled)"
 REFERENCE_RUNTIME = "LiteRT 2.4.0 built-in CPU kernels"
 FIXTURE_TOLERANCE = 0.001
@@ -256,11 +256,14 @@ def check_run(path: Path, event: dict, fixture: dict, fixture_rows: list[list[fl
     }, samples
 
 
-def summarize(directory: Path, rounds: int, warmup: int, measured: int, references: dict[str, Path]) -> dict:
+def summarize(
+    directory: Path, rounds: int, warmup: int, measured: int, references: dict[str, Path], serial: str,
+) -> dict:
     successes, failures = read_events(directory, rounds)
     environment = load(directory / "environment.json")
-    require(environment["serial"] == SERIAL and environment["device_abi"] == "arm64-v8a",
-            "unexpected emulator serial or ABI in environment.json")
+    require(environment["serial"] == serial, "unexpected ADB serial in environment.json")
+    require(environment["device_abi"] in {"arm64-v8a", "armeabi-v7a", "x86_64"},
+            "unsupported device ABI in environment.json")
     for field in ("device_api", "device_logical_cpus", "host_logical_cpus"):
         positive_integer(environment[field], field)
     artifacts = environment["runtime_aars_sha256"]
@@ -358,6 +361,7 @@ def summarize(directory: Path, rounds: int, warmup: int, measured: int, referenc
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("directory", type=Path, help="Benchmark output directory containing events.tsv")
+    parser.add_argument("--serial", default=DEFAULT_SERIAL, help="ADB serial used for the captured runs")
     parser.add_argument("--rounds", type=int, default=6, help="Number of rounds, 1 for a pilot")
     parser.add_argument("--warmup-passes", type=int, default=3)
     parser.add_argument("--measured-passes", type=int, default=20)
@@ -372,7 +376,8 @@ def main() -> None:
             "fp32": args.fp32_reference or args.directory / "reference-fp32.json",
             "int8": args.int8_reference or args.directory / "reference-int8.json",
         }
-        report = summarize(args.directory, args.rounds, args.warmup_passes, args.measured_passes, references)
+        report = summarize(args.directory, args.rounds, args.warmup_passes, args.measured_passes, references,
+                           args.serial)
     except (ValueError, OSError, KeyError, TypeError) as error:
         parser.exit(1, f"Benchmark validation failed: {error}\n")
     serialized = json.dumps(report, indent=2) + "\n"
