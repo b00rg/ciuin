@@ -17,6 +17,7 @@ python3 ml/soft_labels.py         # cache teacher logits per window for distilla
 python3 ml/student.py             # S student: distil, export .tflite, test clips, calibration set
 python3 ml/student.py --hard      # hard-label baseline, no teacher (#15)
 python3 ml/cascade_rule.py        # stage 1 -> 2 escalation rule -> export/cascade.json (#6)
+python3 ml/personal_model.py      # personal trigger model: tune on synthetic users, write spec data (#8)
 ```
 
 ## Preprocessing
@@ -47,6 +48,10 @@ python3 ml/cascade_rule.py        # stage 1 -> 2 escalation rule -> export/casca
 - Loss: `alpha · T² · KL(teacher_T ‖ student_T) + (1 − alpha) · w_c · CE`, default alpha 0.5, T 3; class weights on the CE term only
 - Epoch chosen on val clip-level macro-F1; test scored once
 - For S it also writes `export/test_clips/` (expected outputs computed from the exported `.tflite`) and `export/calibration.npy`
+
+## Personal trigger model
+
+`ml/personal_model.py` prototypes the on-phone model (logistic regression on 14 features, L2 toward a preset) on synthetic users, picks its hyperparameters and writes test vectors for the Kotlin port. Spec: [`export/personal_model.md`](export/personal_model.md).
 
 ## Classes
 
