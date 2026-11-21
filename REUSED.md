@@ -25,9 +25,9 @@ Everything not written during the event (pretrained models, datasets, libraries,
 | **sonBASE noise maps** (road + rail, day + night, 2021) | Dataset | © FOEN / BAFU, via data.geo.admin.ch (Swiss federal geodata; source attribution required) | `baseline_noise_db`, `baseline_noise_night_db`, the 50 m noise heatmap |
 | ESC-50 | Dataset | https://github.com/karolpiczak/ESC-50, CC BY-NC 3.0 | Audio classifier training/eval (fold 4 val, fold 5 test) |
 | UrbanSound8K | Dataset | https://zenodo.org/record/1203745, CC BY-NC 4.0 | Audio classifier training/eval (fold 8 val, folds 9–10 test) |
-| MUSAN | Dataset | https://www.openslr.org/17/, CC BY 4.0 | Speech and music classes; background noise for augmentation |
-| FSD50K (alarm, siren, crowd subset) | Dataset | https://zenodo.org/record/4060432, CC BY 4.0 (clips CC0 / CC BY / CC BY-NC / CC Sampling+, per clip in its metadata) | Extra `alarm_beep`, `siren` and `speech_crowd` training/eval data |
-| DEMAND (PCAFETER, PRESTO, PSTATION, SPSQUARE) | Dataset | https://zenodo.org/record/1227121, CC BY 4.0 | Real crowd ambience for `speech_crowd`; background noise |
+| MUSAN | Dataset | https://www.openslr.org/17/, CC BY 4.0 | Downloaded for speech/music data and augmentation noise; not yet in the trained models (it arrived after the Handoff 2 training started) |
+| FSD50K (alarm, siren, crowd subset) | Dataset | https://zenodo.org/record/4060432, CC BY 4.0 (clips CC0 / CC BY / CC BY-NC / CC Sampling+, per clip in its metadata) | Extra `alarm_beep`, `siren` and `speech_crowd` training/eval data (teacher and the Handoff 2 students) |
+| DEMAND (PCAFETER, PRESTO, PSTATION, SPSQUARE) | Dataset | https://zenodo.org/record/1227121, CC BY 4.0 | Real crowd ambience for `speech_crowd`; augmentation noise; ambience for tuning and replaying the cascade |
 
 ## Built during the event
 
