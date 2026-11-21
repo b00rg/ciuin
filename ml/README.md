@@ -16,6 +16,7 @@ python3 ml/export_teacher.py      # teacher as a reference .tflite (same signatu
 python3 ml/soft_labels.py         # cache teacher logits per window for distillation (#4)
 python3 ml/student.py             # S student: distil, export .tflite, test clips, calibration set
 python3 ml/student.py --hard      # hard-label baseline, no teacher (#15)
+python3 ml/cascade_rule.py        # stage 1 -> 2 escalation rule -> export/cascade.json (#6)
 ```
 
 ## Preprocessing
