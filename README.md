@@ -38,7 +38,7 @@ The first build downloads Gradle and dependencies (a few minutes).
 | Desktop | `http://localhost:8000` | `CIUIN_API_URL=https://….trycloudflare.com ./gradlew :composeApp:run` |
 | Android | `http://10.0.2.2:8000` (the laptop, seen from the emulator) | `./gradlew :composeApp:installDebug -Pciuin.apiUrl=https://….trycloudflare.com` (real phones need the tunnel URL) |
 
-Use `fake` as the URL to run on the 5 hard-coded places without a backend. If the backend is down, the app shows the error and a Retry button.
+Use `fake` as the URL to run on the 5 hard-coded places without a backend. When the backend is unreachable, the map falls back to the sample places and shows an offline badge.
 
 Live end-to-end test (writes a measurement, so use a throwaway DB):
 ```sh

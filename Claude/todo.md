@@ -116,6 +116,7 @@ Log time spent in each stage; this is the battery/frugality evidence.
 - `POST /measurements` → stores one Measurement, recomputes that place's aggregates. **201** `{"stored": true, "place": Place | null}` (`place` is the updated place; null if `place_id` isn't a known place: the measurement is still stored and counted). **422** on any field not in the contract (privacy guard) or if `sound_classes` isn't exactly the 9 classes
 - `GET /heatmap?bbox=...&dim=noise&period=day` → GeoJSON FeatureCollection of 50 m cells: Point features at cell centres (draw 50 m squares), `properties: {"value": x, "source": "sonbase" | "measured", "n": count (measured only)}`, plus top-level `"cell_m": 50`.
   - `dim=noise`: sonBASE outdoor noise in dB(A), `period=day` (06–22) or `night` (22–06). Lausanne only (~10.8k cells)
+  - For grids with separate road and rail levels, the app also reads `road_db` and `rail_db` for the source breakdown. The sample-data grid uses `res_m` for cell size.
   - `dim=light | flicker | crowd`: mean of the **measurements** in each cell (lux, flicker index, people count). Empty until phones measure; works anywhere
 - `GET /places/nearby?lat=..&lon=..&radius=300[&at=…][&open_only=true]` → places sorted by distance, with mean features (radius in m, max 5000). `open_only` drops places known to be closed (unknown hours stay)
 - `GET /stats` → `{"places_mapped": n, "measurements_taken": n, "sensory_friendly_tags": n}`
