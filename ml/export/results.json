@@ -1,0 +1,68 @@
+{
+  "teacher": {
+    "model": "YAMNet embeddings (frozen, AudioSet-pretrained) + MLP head 1024-512-9",
+    "params": 4280786,
+    "size_mb": 24.7,
+    "accuracy": 0.7948,
+    "macro_f1": 0.7857,
+    "eval": "clip-level (mean of window probabilities), test split; selected on val macro-F1",
+    "test": {
+      "accuracy": 0.7948,
+      "macro_f1": 0.7857,
+      "per_class_f1": {
+        "speech_crowd": 0.8114,
+        "music": 0.8771,
+        "traffic": 0.7434,
+        "siren": 0.8024,
+        "construction": 0.8729,
+        "alarm_beep": 0.875,
+        "dog": 0.776,
+        "machinery_hum": 0.4756,
+        "other": 0.8379
+      },
+      "n_clips": 2057,
+      "per_dataset_accuracy": {
+        "demand": 1.0,
+        "esc50": 0.795,
+        "us8k": 0.7943
+      }
+    },
+    "val": {
+      "accuracy": 0.8074,
+      "macro_f1": 0.7987,
+      "per_class_f1": {
+        "speech_crowd": 0.724,
+        "music": 0.7822,
+        "traffic": 0.716,
+        "siren": 0.8687,
+        "construction": 0.8694,
+        "alarm_beep": 1.0,
+        "dog": 0.8837,
+        "machinery_hum": 0.4431,
+        "other": 0.9015
+      },
+      "n_clips": 1210,
+      "per_dataset_accuracy": {
+        "demand": 1.0,
+        "esc50": 0.8125,
+        "us8k": 0.804
+      }
+    },
+    "trained_without": [
+      "MUSAN",
+      "FSD50K"
+    ],
+    "class_weights": {
+      "speech_crowd": 1.31,
+      "music": 0.74,
+      "traffic": 0.85,
+      "siren": 2.2,
+      "construction": 1.01,
+      "alarm_beep": 10.05,
+      "dog": 1.09,
+      "machinery_hum": 0.71,
+      "other": 0.28
+    },
+    "trained_at": "2026-11-21T15:47:49+0100"
+  }
+}
