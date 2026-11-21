@@ -205,5 +205,71 @@
       "frontend": 21365952,
       "backbone": 8144064
     }
+  },
+  "audio-student-m": {
+    "model": "depthwise-separable CNN, width x2, in-graph log-mel frontend",
+    "params": 259021,
+    "size_mb": 1.93,
+    "accuracy": 0.6691,
+    "macro_f1": 0.6502,
+    "eval": "clip-level (mean of window probabilities), test split; fp32 Keras weights",
+    "test": {
+      "accuracy": 0.6691,
+      "macro_f1": 0.6502,
+      "per_class_f1": {
+        "speech_crowd": 0.6452,
+        "music": 0.633,
+        "traffic": 0.6656,
+        "siren": 0.7419,
+        "construction": 0.8691,
+        "alarm_beep": 0.6908,
+        "dog": 0.7513,
+        "machinery_hum": 0.3654,
+        "other": 0.4896
+      },
+      "n_clips": 3116
+    },
+    "val": {
+      "accuracy": 0.6471,
+      "macro_f1": 0.646,
+      "per_class_f1": {
+        "speech_crowd": 0.5894,
+        "music": 0.628,
+        "traffic": 0.6607,
+        "siren": 0.8125,
+        "construction": 0.8307,
+        "alarm_beep": 0.5656,
+        "dog": 0.8341,
+        "machinery_hum": 0.3774,
+        "other": 0.5152
+      },
+      "n_clips": 1380
+    },
+    "distillation": {
+      "teacher": "teacher",
+      "alpha": 0.5,
+      "temperature": 3.0
+    },
+    "epochs": 10,
+    "augment": {
+      "gain_db": 6.0,
+      "shift_frames": 24,
+      "noise_p": 0.5,
+      "snr_db": [
+        3.0,
+        20.0
+      ],
+      "mixup_p": 0.5,
+      "mixup_beta": 0.4
+    },
+    "trained_without": [
+      "MUSAN"
+    ],
+    "trained_at": "2026-11-21T21:08:12+0100",
+    "macs": 50040384,
+    "macs_breakdown": {
+      "frontend": 21365952,
+      "backbone": 28674432
+    }
   }
 }

@@ -77,8 +77,8 @@ Same signature for every model: `waveform [1, 15600]` in, `probabilities [1, 9]`
 | File | Params | MACs / window | What |
 |---|---:|---:|---|
 | `audio-student-s.tflite` | 68k | 29.5M | Retrained with FSD50K + augmentation. Test macro-F1 0.671 (Handoff 1 S: 0.532 on the same test split) |
-| `audio-student-m.tflite` | 259k | 50.0M | Same architecture, 2× wide |
-| `audio-student-l.tflite` | 1.0M | 128.3M | Same architecture, 4× wide |
+| `audio-student-m.tflite` | 259k | 50.0M | Same architecture, 2× wide, 1.93 MB. Test macro-F1 0.650: **below S for now** (10 epochs wasn't enough; val was still rising). Use S as the default until the overnight retrain |
+| `audio-student-l.tflite` | 1.0M | 128.3M | Same architecture, 4× wide. Training now; added to this handoff when it finishes (~22:25) |
 | `audio-teacher.tflite` | 4.3M | | Reference only, retrained with FSD50K |
 | `test_clips/expected.json` | | | Regenerated **from the new S**. Same 10 WAVs |
 | `calibration.npy` | | | **New** 200 training windows (199 differ from Handoff 1): FSD50K is now in the pool, so the alarm / siren / crowd sounds are represented. Re-quantise with this one |
