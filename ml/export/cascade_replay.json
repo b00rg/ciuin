@@ -1,0 +1,294 @@
+{
+  "stage0": {
+    "jump_db": 4,
+    "flux_max": 1.5,
+    "abs_dba": -10,
+    "tau_s": 30
+  },
+  "stage1": "audio-student-s.tflite",
+  "stage1_threshold": 0.2576,
+  "stage2": "audio-teacher.tflite",
+  "ambient": {
+    "PCAFETER-ch01": {
+      "seconds": 300,
+      "no_model_pct": 91.7,
+      "stage1_per_hour": 300,
+      "stage2_per_hour": 0,
+      "escalation_rate": 0.0
+    },
+    "PCAFETER-ch09": {
+      "seconds": 300,
+      "no_model_pct": 92.0,
+      "stage1_per_hour": 288,
+      "stage2_per_hour": 0,
+      "escalation_rate": 0.0
+    },
+    "PRESTO-ch01": {
+      "seconds": 300,
+      "no_model_pct": 96.3,
+      "stage1_per_hour": 132,
+      "stage2_per_hour": 24,
+      "escalation_rate": 0.182
+    },
+    "PRESTO-ch09": {
+      "seconds": 300,
+      "no_model_pct": 95.7,
+      "stage1_per_hour": 156,
+      "stage2_per_hour": 12,
+      "escalation_rate": 0.077
+    },
+    "PSTATION-ch01": {
+      "seconds": 300,
+      "no_model_pct": 99.7,
+      "stage1_per_hour": 12,
+      "stage2_per_hour": 0,
+      "escalation_rate": 0.0
+    },
+    "PSTATION-ch09": {
+      "seconds": 300,
+      "no_model_pct": 99.7,
+      "stage1_per_hour": 12,
+      "stage2_per_hour": 0,
+      "escalation_rate": 0.0
+    },
+    "SPSQUARE-ch01": {
+      "seconds": 300,
+      "no_model_pct": 85.3,
+      "stage1_per_hour": 528,
+      "stage2_per_hour": 72,
+      "escalation_rate": 0.136
+    },
+    "SPSQUARE-ch09": {
+      "seconds": 300,
+      "no_model_pct": 83.7,
+      "stage1_per_hour": 588,
+      "stage2_per_hour": 72,
+      "escalation_rate": 0.122
+    }
+  },
+  "with_events": {
+    "PCAFETER-ch01": {
+      "seconds": 300,
+      "no_model_pct": 75.7,
+      "stage1_per_hour": 876,
+      "stage2_per_hour": 264,
+      "escalation_rate": 0.301,
+      "n_events": 18,
+      "noticed": 0.833,
+      "identified": 0.278,
+      "by_class": {
+        "siren": {
+          "noticed": 1.0,
+          "identified": 0.5
+        },
+        "construction": {
+          "noticed": 1.0,
+          "identified": 0.5
+        },
+        "alarm_beep": {
+          "noticed": 0.625,
+          "identified": 0.0
+        }
+      }
+    },
+    "PCAFETER-ch09": {
+      "seconds": 300,
+      "no_model_pct": 75.0,
+      "stage1_per_hour": 900,
+      "stage2_per_hour": 180,
+      "escalation_rate": 0.2,
+      "n_events": 18,
+      "noticed": 0.833,
+      "identified": 0.389,
+      "by_class": {
+        "siren": {
+          "noticed": 1.0,
+          "identified": 0.5
+        },
+        "construction": {
+          "noticed": 1.0,
+          "identified": 0.833
+        },
+        "alarm_beep": {
+          "noticed": 0.625,
+          "identified": 0.0
+        }
+      }
+    },
+    "PRESTO-ch01": {
+      "seconds": 300,
+      "no_model_pct": 78.3,
+      "stage1_per_hour": 780,
+      "stage2_per_hour": 132,
+      "escalation_rate": 0.169,
+      "n_events": 19,
+      "noticed": 0.842,
+      "identified": 0.368,
+      "by_class": {
+        "construction": {
+          "noticed": 0.75,
+          "identified": 0.625
+        },
+        "siren": {
+          "noticed": 1.0,
+          "identified": 0.25
+        },
+        "alarm_beep": {
+          "noticed": 0.857,
+          "identified": 0.143
+        }
+      }
+    },
+    "PRESTO-ch09": {
+      "seconds": 300,
+      "no_model_pct": 78.3,
+      "stage1_per_hour": 780,
+      "stage2_per_hour": 144,
+      "escalation_rate": 0.185,
+      "n_events": 19,
+      "noticed": 0.842,
+      "identified": 0.316,
+      "by_class": {
+        "construction": {
+          "noticed": 0.75,
+          "identified": 0.625
+        },
+        "siren": {
+          "noticed": 1.0,
+          "identified": 0.0
+        },
+        "alarm_beep": {
+          "noticed": 0.857,
+          "identified": 0.143
+        }
+      }
+    },
+    "PSTATION-ch01": {
+      "seconds": 300,
+      "no_model_pct": 81.0,
+      "stage1_per_hour": 684,
+      "stage2_per_hour": 156,
+      "escalation_rate": 0.228,
+      "n_events": 18,
+      "noticed": 0.833,
+      "identified": 0.444,
+      "by_class": {
+        "siren": {
+          "noticed": 1.0,
+          "identified": 0.25
+        },
+        "construction": {
+          "noticed": 1.0,
+          "identified": 1.0
+        },
+        "alarm_beep": {
+          "noticed": 0.625,
+          "identified": 0.125
+        }
+      }
+    },
+    "PSTATION-ch09": {
+      "seconds": 300,
+      "no_model_pct": 81.0,
+      "stage1_per_hour": 684,
+      "stage2_per_hour": 204,
+      "escalation_rate": 0.298,
+      "n_events": 18,
+      "noticed": 0.833,
+      "identified": 0.5,
+      "by_class": {
+        "siren": {
+          "noticed": 1.0,
+          "identified": 0.5
+        },
+        "construction": {
+          "noticed": 1.0,
+          "identified": 1.0
+        },
+        "alarm_beep": {
+          "noticed": 0.625,
+          "identified": 0.125
+        }
+      }
+    },
+    "SPSQUARE-ch01": {
+      "seconds": 300,
+      "no_model_pct": 66.0,
+      "stage1_per_hour": 1224,
+      "stage2_per_hour": 300,
+      "escalation_rate": 0.245,
+      "n_events": 18,
+      "noticed": 0.944,
+      "identified": 0.5,
+      "by_class": {
+        "siren": {
+          "noticed": 1.0,
+          "identified": 0.5
+        },
+        "construction": {
+          "noticed": 1.0,
+          "identified": 1.0
+        },
+        "alarm_beep": {
+          "noticed": 0.875,
+          "identified": 0.125
+        }
+      }
+    },
+    "SPSQUARE-ch09": {
+      "seconds": 300,
+      "no_model_pct": 65.0,
+      "stage1_per_hour": 1260,
+      "stage2_per_hour": 264,
+      "escalation_rate": 0.21,
+      "n_events": 18,
+      "noticed": 0.944,
+      "identified": 0.444,
+      "by_class": {
+        "siren": {
+          "noticed": 1.0,
+          "identified": 0.25
+        },
+        "construction": {
+          "noticed": 1.0,
+          "identified": 1.0
+        },
+        "alarm_beep": {
+          "noticed": 0.875,
+          "identified": 0.125
+        }
+      }
+    }
+  },
+  "ambient_total": {
+    "seconds": 2400,
+    "no_model_pct": 93.0,
+    "stage1_per_hour": 252,
+    "stage2_per_hour": 22,
+    "escalation_rate": 0.089
+  },
+  "with_events_total": {
+    "seconds": 2400,
+    "no_model_pct": 75.0,
+    "stage1_per_hour": 898,
+    "stage2_per_hour": 206,
+    "escalation_rate": 0.229,
+    "n_events": 146,
+    "noticed": 0.863,
+    "identified": 0.404,
+    "by_class": {
+      "siren": {
+        "noticed": 1.0,
+        "identified": 0.344
+      },
+      "construction": {
+        "noticed": 0.923,
+        "identified": 0.808
+      },
+      "alarm_beep": {
+        "noticed": 0.742,
+        "identified": 0.097
+      }
+    }
+  }
+}
