@@ -40,6 +40,8 @@ The first build downloads Gradle and dependencies (a few minutes).
 
 Use `fake` as the URL to run on the 5 hard-coded places without a backend. When the backend is unreachable, the map falls back to the sample places and shows an offline badge.
 
+On Android, opening a quiet-place alert sends its start and destination coordinates to [FOSSGIS pedestrian routing](https://routing.openstreetmap.de/about.html), which logs route requests. Use `-Pciuin.walkingRouterUrl=https://your-router.example` to point to your own pedestrian OSRM instance, or `-Pciuin.walkingRouterUrl=` for straight-line routes only.
+
 Live end-to-end test (writes a measurement, so use a throwaway DB):
 ```sh
 cd backend && CIUIN_DB=/tmp/e2e.db uvicorn main:app --port 8000      # terminal 1

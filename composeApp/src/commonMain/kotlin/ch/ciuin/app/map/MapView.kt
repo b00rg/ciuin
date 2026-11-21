@@ -14,6 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -43,6 +46,7 @@ private const val HEAT_ALPHA = 0.5f
 private const val TILE_PX = 256
 private const val MAX_TILE_ZOOM = 19
 private val BACKGROUND = Color(0xFFE8E4DC)
+private val ROUTE_COLOR = Color(0xFF2350A8)
 
 /**
  * Slippy map drawn on a Canvas: raster tiles + circle markers.
@@ -50,7 +54,7 @@ private val BACKGROUND = Color(0xFFE8E4DC)
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun MapView(
+internal fun MapView(
     state: MapState,
     markers: List<MapMarker>,
     selectedId: String?,
@@ -58,6 +62,7 @@ fun MapView(
     modifier: Modifier = Modifier,
     heat: List<HeatRect> = emptyList(),
     tileUrl: String = TileCache.OSM_TILES,
+    routeOverlay: MapRouteOverlay? = null,
 ) {
     val scope = rememberCoroutineScope()
     val cache = remember(tileUrl) { TileCache(scope, tileUrl) }
@@ -143,7 +148,45 @@ fun MapView(
                 drawText(layout, topLeft = topLeft)
             }
         }
+
+        if (routeOverlay != null) drawQuietPlaceRoute(routeOverlay, state, tilePx)
     }
+}
+
+private fun DrawScope.drawQuietPlaceRoute(route: MapRouteOverlay, state: MapState, tilePx: Float) {
+    val world = state.worldSize(tilePx)
+    val origin = Offset(
+        (size.width / 2.0 + shortestWrappedDelta(route.origin.x - state.centerX) * world).toFloat(),
+        (size.height / 2.0 + (route.origin.y - state.centerY) * world).toFloat(),
+    )
+    fun toScreen(point: MapRoutePoint): Offset = origin + Offset(
+        ((point.x - route.origin.x) * world).toFloat(),
+        ((point.y - route.origin.y) * world).toFloat(),
+    )
+
+    val line = Path().apply {
+        for ((index, point) in route.line.withIndex()) {
+            val p = toScreen(point)
+            if (index == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+        }
+    }
+    drawPath(line, Color.White, style = Stroke(8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    drawPath(line, ROUTE_COLOR, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+
+    drawCircle(Color.White, 8.dp.toPx(), origin)
+    drawCircle(ROUTE_COLOR, 5.dp.toPx(), origin)
+
+    val destination = toScreen(route.destination)
+    val markerSize = 11.dp.toPx()
+    val marker = Path().apply {
+        moveTo(destination.x, destination.y - markerSize)
+        lineTo(destination.x + markerSize, destination.y)
+        lineTo(destination.x, destination.y + markerSize)
+        lineTo(destination.x - markerSize, destination.y)
+        close()
+    }
+    drawPath(marker, ROUTE_COLOR)
+    drawPath(marker, Color.White, style = Stroke(2.dp.toPx()))
 }
 
 private fun DrawScope.drawTiles(state: MapState, cache: TileCache, tilePx: Float) {
