@@ -3,118 +3,155 @@
     "model": "YAMNet embeddings (frozen, AudioSet-pretrained) + MLP head 1024-512-9",
     "params": 4280786,
     "size_mb": 24.7,
-    "accuracy": 0.7948,
-    "macro_f1": 0.7857,
+    "accuracy": 0.7295,
+    "macro_f1": 0.7169,
     "eval": "clip-level (mean of window probabilities), test split; selected on val macro-F1",
     "test": {
-      "accuracy": 0.7948,
-      "macro_f1": 0.7857,
+      "accuracy": 0.7295,
+      "macro_f1": 0.7169,
       "per_class_f1": {
-        "speech_crowd": 0.8114,
-        "music": 0.8771,
-        "traffic": 0.7434,
-        "siren": 0.8024,
-        "construction": 0.8729,
-        "alarm_beep": 0.875,
-        "dog": 0.776,
-        "machinery_hum": 0.4756,
-        "other": 0.8379
+        "speech_crowd": 0.7543,
+        "music": 0.787,
+        "traffic": 0.6418,
+        "siren": 0.7838,
+        "construction": 0.7932,
+        "alarm_beep": 0.7207,
+        "dog": 0.7812,
+        "machinery_hum": 0.4955,
+        "other": 0.6949
       },
-      "n_clips": 2057,
+      "n_clips": 3116,
       "per_dataset_accuracy": {
         "demand": 1.0,
-        "esc50": 0.795,
-        "us8k": 0.7943
+        "esc50": 0.6275,
+        "fsd50k": 0.7007,
+        "us8k": 0.7719
       }
     },
     "val": {
-      "accuracy": 0.8074,
-      "macro_f1": 0.7987,
+      "accuracy": 0.7645,
+      "macro_f1": 0.7508,
       "per_class_f1": {
-        "speech_crowd": 0.724,
-        "music": 0.7822,
-        "traffic": 0.716,
-        "siren": 0.8687,
-        "construction": 0.8694,
-        "alarm_beep": 1.0,
-        "dog": 0.8837,
-        "machinery_hum": 0.4431,
-        "other": 0.9015
+        "speech_crowd": 0.7214,
+        "music": 0.8384,
+        "traffic": 0.7015,
+        "siren": 0.8559,
+        "construction": 0.8646,
+        "alarm_beep": 0.6582,
+        "dog": 0.8879,
+        "machinery_hum": 0.4405,
+        "other": 0.7888
       },
-      "n_clips": 1210,
+      "n_clips": 1380,
       "per_dataset_accuracy": {
         "demand": 1.0,
-        "esc50": 0.8125,
-        "us8k": 0.804
+        "esc50": 0.67,
+        "fsd50k": 0.8235,
+        "us8k": 0.7978
       }
     },
     "trained_without": [
-      "MUSAN",
-      "FSD50K"
+      "MUSAN"
     ],
     "class_weights": {
-      "speech_crowd": 1.31,
-      "music": 0.74,
-      "traffic": 0.85,
-      "siren": 2.2,
-      "construction": 1.01,
-      "alarm_beep": 10.05,
-      "dog": 1.09,
-      "machinery_hum": 0.71,
-      "other": 0.28
+      "speech_crowd": 1.06,
+      "music": 0.7,
+      "traffic": 0.81,
+      "siren": 2.0,
+      "construction": 0.96,
+      "alarm_beep": 1.65,
+      "dog": 1.03,
+      "machinery_hum": 0.68,
+      "other": 0.27
     },
-    "trained_at": "2026-11-21T15:47:49+0100"
+    "trained_at": "2026-11-21T19:47:23+0100",
+    "note": "Retrained with FSD50K (Handoff 2). Test split now includes FSD50K eval (3,116 clips), so scores aren't comparable to Handoff 1's 0.786."
   },
   "audio-student-s": {
     "model": "depthwise-separable CNN, width x1, in-graph log-mel frontend",
     "params": 68461,
     "size_mb": 1.17,
-    "accuracy": 0.72,
-    "macro_f1": 0.7046,
+    "accuracy": 0.6778,
+    "macro_f1": 0.6706,
     "eval": "clip-level (mean of window probabilities), test split; fp32 Keras weights",
     "test": {
-      "accuracy": 0.72,
-      "macro_f1": 0.7046,
+      "accuracy": 0.6778,
+      "macro_f1": 0.6706,
       "per_class_f1": {
-        "speech_crowd": 0.7307,
-        "music": 0.7403,
-        "traffic": 0.7402,
-        "siren": 0.7712,
-        "construction": 0.7931,
-        "alarm_beep": 0.8571,
-        "dog": 0.7222,
-        "machinery_hum": 0.2568,
-        "other": 0.7299
+        "speech_crowd": 0.6567,
+        "music": 0.6592,
+        "traffic": 0.6934,
+        "siren": 0.7583,
+        "construction": 0.8439,
+        "alarm_beep": 0.7054,
+        "dog": 0.6757,
+        "machinery_hum": 0.4825,
+        "other": 0.5607
       },
-      "n_clips": 2057
+      "n_clips": 3116
     },
     "val": {
-      "accuracy": 0.7529,
-      "macro_f1": 0.7288,
+      "accuracy": 0.6486,
+      "macro_f1": 0.637,
       "per_class_f1": {
-        "speech_crowd": 0.6995,
-        "music": 0.7273,
-        "traffic": 0.6892,
-        "siren": 0.7041,
-        "construction": 0.7872,
-        "alarm_beep": 0.8571,
-        "dog": 0.8298,
-        "machinery_hum": 0.4267,
-        "other": 0.838
+        "speech_crowd": 0.6416,
+        "music": 0.5907,
+        "traffic": 0.6883,
+        "siren": 0.5747,
+        "construction": 0.7526,
+        "alarm_beep": 0.6344,
+        "dog": 0.807,
+        "machinery_hum": 0.4274,
+        "other": 0.6163
       },
-      "n_clips": 1210
+      "n_clips": 1380
     },
     "distillation": {
       "teacher": "teacher",
       "alpha": 0.5,
-      "temperature": 3.0,
-      "epochs": 12
+      "temperature": 3.0
+    },
+    "epochs": 14,
+    "augment": {
+      "gain_db": 6.0,
+      "shift_frames": 24,
+      "noise_p": 0.5,
+      "snr_db": [
+        3.0,
+        20.0
+      ],
+      "mixup_p": 0.5,
+      "mixup_beta": 0.4
     },
     "trained_without": [
-      "MUSAN",
-      "FSD50K"
+      "MUSAN"
     ],
-    "trained_at": "2026-11-21T16:59:50+0100"
+    "trained_at": "2026-11-21T20:19:16+0100",
+    "macs": 29510016,
+    "macs_breakdown": {
+      "frontend": 21365952,
+      "backbone": 8144064
+    }
+  },
+  "audio-student-s-handoff1": {
+    "model": "Handoff 1 S (12 epochs, no augmentation, no FSD50K), re-scored on the Handoff 2 test split for comparison",
+    "params": 68461,
+    "size_mb": 1.17,
+    "accuracy": 0.537,
+    "macro_f1": 0.532,
+    "per_class_f1": {
+      "speech_crowd": 0.47,
+      "music": 0.59,
+      "traffic": 0.65,
+      "siren": 0.64,
+      "construction": 0.72,
+      "alarm_beep": 0.29,
+      "dog": 0.7,
+      "machinery_hum": 0.25,
+      "other": 0.47
+    },
+    "accuracy_fsd50k": 0.183,
+    "accuracy_esc50_us8k": 0.72
   },
   "audio-student-s-hard": {
     "model": "depthwise-separable CNN, width x1, in-graph log-mel frontend (hard-label baseline, no distillation)",
@@ -161,6 +198,144 @@
       "MUSAN",
       "FSD50K"
     ],
-    "trained_at": "2026-11-21T17:21:57+0100"
+    "trained_at": "2026-11-21T17:21:57+0100",
+    "note": "Scored on the Handoff 1 test split (before FSD50K); compare with Handoff 1 S (0.720 / 0.7046 on that split), not with the Handoff 2 students",
+    "macs": 29510016,
+    "macs_breakdown": {
+      "frontend": 21365952,
+      "backbone": 8144064
+    }
+  },
+  "audio-student-m": {
+    "model": "depthwise-separable CNN, width x2, in-graph log-mel frontend",
+    "params": 259021,
+    "size_mb": 1.93,
+    "accuracy": 0.6691,
+    "macro_f1": 0.6502,
+    "eval": "clip-level (mean of window probabilities), test split; fp32 Keras weights",
+    "test": {
+      "accuracy": 0.6691,
+      "macro_f1": 0.6502,
+      "per_class_f1": {
+        "speech_crowd": 0.6452,
+        "music": 0.633,
+        "traffic": 0.6656,
+        "siren": 0.7419,
+        "construction": 0.8691,
+        "alarm_beep": 0.6908,
+        "dog": 0.7513,
+        "machinery_hum": 0.3654,
+        "other": 0.4896
+      },
+      "n_clips": 3116
+    },
+    "val": {
+      "accuracy": 0.6471,
+      "macro_f1": 0.646,
+      "per_class_f1": {
+        "speech_crowd": 0.5894,
+        "music": 0.628,
+        "traffic": 0.6607,
+        "siren": 0.8125,
+        "construction": 0.8307,
+        "alarm_beep": 0.5656,
+        "dog": 0.8341,
+        "machinery_hum": 0.3774,
+        "other": 0.5152
+      },
+      "n_clips": 1380
+    },
+    "distillation": {
+      "teacher": "teacher",
+      "alpha": 0.5,
+      "temperature": 3.0
+    },
+    "epochs": 10,
+    "augment": {
+      "gain_db": 6.0,
+      "shift_frames": 24,
+      "noise_p": 0.5,
+      "snr_db": [
+        3.0,
+        20.0
+      ],
+      "mixup_p": 0.5,
+      "mixup_beta": 0.4
+    },
+    "trained_without": [
+      "MUSAN"
+    ],
+    "trained_at": "2026-11-21T21:08:12+0100",
+    "macs": 50040384,
+    "macs_breakdown": {
+      "frontend": 21365952,
+      "backbone": 28674432
+    }
+  },
+  "audio-student-l": {
+    "model": "depthwise-separable CNN, width x4, in-graph log-mel frontend",
+    "params": 1006477,
+    "size_mb": 4.91,
+    "accuracy": 0.6216,
+    "macro_f1": 0.6124,
+    "eval": "clip-level (mean of window probabilities), test split; fp32 Keras weights",
+    "test": {
+      "accuracy": 0.6216,
+      "macro_f1": 0.6124,
+      "per_class_f1": {
+        "speech_crowd": 0.6066,
+        "music": 0.5683,
+        "traffic": 0.6368,
+        "siren": 0.7202,
+        "construction": 0.85,
+        "alarm_beep": 0.5954,
+        "dog": 0.7789,
+        "machinery_hum": 0.3679,
+        "other": 0.3879
+      },
+      "n_clips": 3116
+    },
+    "val": {
+      "accuracy": 0.6058,
+      "macro_f1": 0.6162,
+      "per_class_f1": {
+        "speech_crowd": 0.6395,
+        "music": 0.5806,
+        "traffic": 0.72,
+        "siren": 0.7636,
+        "construction": 0.8691,
+        "alarm_beep": 0.398,
+        "dog": 0.8056,
+        "machinery_hum": 0.3947,
+        "other": 0.3744
+      },
+      "n_clips": 1380
+    },
+    "distillation": {
+      "teacher": "teacher",
+      "alpha": 0.5,
+      "temperature": 3.0
+    },
+    "epochs": 5,
+    "augment": {
+      "gain_db": 6.0,
+      "shift_frames": 24,
+      "noise_p": 0.5,
+      "snr_db": [
+        3.0,
+        20.0
+      ],
+      "mixup_p": 0.5,
+      "mixup_beta": 0.4
+    },
+    "trained_without": [
+      "MUSAN"
+    ],
+    "trained_at": "2026-11-21T22:11:04+0100",
+    "macs": 128260032,
+    "macs_breakdown": {
+      "frontend": 21365952,
+      "backbone": 106894080
+    }
   }
 }

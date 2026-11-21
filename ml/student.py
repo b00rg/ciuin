@@ -113,6 +113,98 @@ def load_features(clips: list[dict]) -> np.ndarray:
     return np.concatenate([np.load(mel_shard(ds))["mel"] for ds in sorted({c["dataset"] for c in clips})])
 
 
+# ---------------------------------------------------------------- augmentation
+
+NOISE_BANK = FEAT_DIR / "noise_bank.npz"
+
+
+def noise_bank(d: dict, mel: np.ndarray, tr: np.ndarray, n: int = 3000) -> np.ndarray:
+    """Log-mels of background-noise windows for augmentation.
+
+    MUSAN's noise set (index use='noise', train split) if it's downloaded,
+    otherwise DEMAND's training windows (real cafeteria / station / street
+    ambience). Cached in data/cache/student/noise_bank.npz.
+    """
+    import sqlite3
+
+    db = sqlite3.connect(T.INDEX)
+    rows = db.execute("SELECT path, start_s, end_s FROM clips WHERE use = 'noise' AND split = 'train' "
+                      "ORDER BY path").fetchall()
+    db.close()
+    source = f"musan-noise:{len(rows)}" if rows else "demand"
+    if NOISE_BANK.exists():
+        with np.load(NOISE_BANK) as b:
+            if str(b["source"]) == source:
+                return b["mel"]
+    rng = np.random.default_rng(SEED)
+    if rows:
+        import keras
+
+        frontend = keras.Sequential([keras.Input((fe.WINDOW_SAMPLES,)), fe.LogMelFrontend()])
+        per_file = max(1, n // len(rows))
+        wins = []
+        for path, start, end in rows:
+            x = load_retry(T.AUDIO_RAW / path, start, end)
+            wins += [pp.random_window(x, rng) for _ in range(per_file)]
+        bank = frontend.predict(np.stack(wins).astype(np.float32), batch_size=256, verbose=0)
+    else:
+        idx = np.flatnonzero(tr & (d["dataset"] == "demand"))
+        bank = mel[rng.permutation(idx)[:n]].astype(np.float32)
+    bank = bank.astype(np.float16)
+    np.savez(NOISE_BANK, mel=bank, source=source)
+    print(f"[augment] noise bank: {len(bank)} windows from {source}")
+    return bank
+
+
+AUG = {"gain_db": 6.0, "shift_frames": 24, "noise_p": 0.5, "snr_db": (3.0, 20.0),
+       "mixup_p": 0.5, "mixup_beta": 0.4}
+
+
+def make_augment(bank: np.ndarray, aug: dict = AUG):
+    """Batch augmentation on log-mels, done in the power domain where sounds add.
+
+    log-mel = log(P + 1e-3), and the power of two uncorrelated sounds adds, so
+    gain, background noise and mixup are exact (in expectation) without
+    decoding audio again. Targets are [soft | hard | weight]; mixup mixes
+    them with the same lambda.
+    """
+    import tensorflow as tf
+
+    noise = tf.constant(np.maximum(np.exp(bank.astype(np.float32)) - fe.LOG_OFFSET, 0.0))
+    n_frames = fe.N_FRAMES
+
+    def augment(m, y):
+        b = tf.shape(m)[0]
+        p = tf.maximum(tf.exp(m) - fe.LOG_OFFSET, 0.0)                         # [B, 96, 64]
+        # Gain: +-gain_db.
+        g = tf.random.uniform([b, 1, 1], -aug["gain_db"], aug["gain_db"])
+        p = p * tf.pow(10.0, g / 10.0)
+        # Time shift: circular roll by up to shift_frames, per example.
+        k = tf.random.uniform([b, 1], -aug["shift_frames"], aug["shift_frames"] + 1, tf.int32)
+        idx = tf.math.floormod(tf.range(n_frames)[None, :] + k, n_frames)
+        p = tf.gather(p, idx, batch_dims=1)
+        # Background noise at a random SNR, on noise_p of the batch.
+        ni = tf.random.uniform([b], 0, tf.shape(noise)[0], tf.int32)
+        nz = tf.gather(noise, ni)
+        snr = tf.random.uniform([b, 1, 1], *aug["snr_db"])
+        scale = tf.reduce_sum(p, [1, 2], keepdims=True) / (
+            tf.reduce_sum(nz, [1, 2], keepdims=True) * tf.pow(10.0, snr / 10.0) + 1e-9)
+        on = tf.cast(tf.random.uniform([b, 1, 1]) < aug["noise_p"], tf.float32)
+        p = p + on * scale * nz
+        # Mixup with a shuffled copy of the batch; lambda >= 0.5 so the original dominates.
+        g1 = tf.random.gamma([b], aug["mixup_beta"])
+        g2 = tf.random.gamma([b], aug["mixup_beta"])
+        lam = g1 / (g1 + g2 + 1e-9)
+        lam = tf.maximum(lam, 1.0 - lam)
+        lam = tf.where(tf.random.uniform([b]) < aug["mixup_p"], lam, tf.ones_like(lam))
+        perm = tf.random.shuffle(tf.range(b))
+        p = lam[:, None, None] * p + (1 - lam[:, None, None]) * tf.gather(p, perm)
+        y = lam[:, None] * y + (1 - lam[:, None]) * tf.gather(y, perm)
+        return tf.math.log(p + fe.LOG_OFFSET)[..., None], y
+
+    return augment
+
+
 # ---------------------------------------------------------------- model
 
 def build_backbone(width: int = 1, n_classes: int = 9):
@@ -168,7 +260,8 @@ def kd_loss(n_classes: int, alpha: float, temperature: float):
 
 # ---------------------------------------------------------------- train
 
-def train(width: int, epochs: int, alpha: float, temperature: float, patience: int = 5):
+def train(width: int, epochs: int, alpha: float, temperature: float, patience: int = 5,
+          augment: bool = True):
     import keras
     import tensorflow as tf
 
@@ -196,8 +289,13 @@ def train(width: int, epochs: int, alpha: float, temperature: float, patience: i
     model.compile(keras.optimizers.Adam(2e-3), kd_loss(len(classes), alpha, temperature))
     ds = (tf.data.Dataset.from_tensor_slices((mel[tr], target[tr]))
           .shuffle(20_000, seed=SEED)
-          .map(lambda m, y: (tf.cast(m, tf.float32)[..., None], y), num_parallel_calls=tf.data.AUTOTUNE)
-          .batch(128).prefetch(tf.data.AUTOTUNE))
+          .map(lambda m, y: (tf.cast(m, tf.float32), y), num_parallel_calls=tf.data.AUTOTUNE)
+          .batch(128))
+    if augment:
+        ds = ds.map(make_augment(noise_bank(d, mel, tr)), num_parallel_calls=tf.data.AUTOTUNE)
+    else:
+        ds = ds.map(lambda m, y: (m[..., None], y))
+    ds = ds.prefetch(tf.data.AUTOTUNE)
 
     def evaluate(mask):
         logits = model.predict(mel[mask].astype(np.float32)[..., None], batch_size=1024, verbose=0)
@@ -220,7 +318,8 @@ def train(width: int, epochs: int, alpha: float, temperature: float, patience: i
                 break
     model.set_weights(best)
     return model, {"val": evaluate(va), "test": evaluate(te), "missing": missing,
-                   "epochs": epoch, "alpha": alpha, "temperature": temperature}
+                   "epochs": epoch, "alpha": alpha, "temperature": temperature,
+                   "augment": AUG if augment else None}
 
 
 # ---------------------------------------------------------------- export
@@ -314,6 +413,7 @@ def main() -> int:
     ap.add_argument("--epochs", type=int, default=30)
     ap.add_argument("--alpha", type=float, default=0.5, help="weight of the distillation term")
     ap.add_argument("--temperature", type=float, default=3.0)
+    ap.add_argument("--no-augment", action="store_true", help="train without augmentation")
     ap.add_argument("--hard", action="store_true",
                     help="baseline: hard labels only (alpha 0), saved as audio-student-<size>-hard; "
                          "the .tflite goes to data/cache/student/, not ml/export/")
@@ -326,7 +426,8 @@ def main() -> int:
 
     size = SIZES[args.width]
     name = f"audio-student-{size}" + ("-hard" if args.hard else "")
-    backbone, scores = train(args.width, args.epochs, args.alpha, args.temperature)
+    backbone, scores = train(args.width, args.epochs, args.alpha, args.temperature,
+                             augment=not args.no_augment)
     backbone.save(FEAT_DIR / f"{name}.keras")  # log-mel -> logits, for #6 / #7 analysis
     model = deployable(backbone)
     path = export(model, (FEAT_DIR if args.hard else EXPORT) / f"{name}.tflite")
@@ -352,6 +453,7 @@ def main() -> int:
         "distillation": None if args.hard else {"teacher": "teacher", "alpha": scores["alpha"],
                                                 "temperature": scores["temperature"]},
         "epochs": scores["epochs"],
+        "augment": scores["augment"],
         "trained_without": scores["missing"],
         "trained_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
