@@ -111,6 +111,8 @@ Log time spent in each stage; this is the battery/frugality evidence.
 - `GET /places?bbox=minLon,minLat,maxLon,maxLat` → list of Place
 - `POST /measurements` → stores one Measurement, recomputes that place's aggregates. **201** `{"stored": true, "place": Place | null}` (`place` is the updated place; null if `place_id` isn't a known place: the measurement is still stored and counted). **422** on any field not in the contract (privacy guard) or if `sound_classes` isn't exactly the 9 classes
 - `GET /heatmap?bbox=...&dim=noise` → GeoJSON grid for the heatmap layer (`dim`: noise | light | flicker | crowd). Empty FeatureCollection until the 50 m grid is built
+  - `dim=noise` cell format the app reads (Christine): Point at the cell centre, road and rail kept separate so the app can show the road-vs-rail breakdown. Top-level `res_m` sizes the cells. A grid without the split can send one `noise_db` per cell instead.
+    `{"type": "FeatureCollection", "res_m": 50, "features": [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [6.6291, 46.5167]}, "properties": {"road_db": 62.1, "rail_db": 58.0}}]}` (`null` where a source has no data)
 - `GET /places/nearby?lat=..&lon=..&radius=300` → places sorted by distance, with mean features (radius in m, max 5000)
 - `GET /stats` → `{"places_mapped": n, "measurements_taken": n, "sensory_friendly_tags": n}`
 - `GET /health` → `{"status": "ok"}`. Interactive API docs at `/docs`

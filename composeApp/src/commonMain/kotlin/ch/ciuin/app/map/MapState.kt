@@ -61,6 +61,14 @@ class MapState(lat: Double, lon: Double, zoom: Double) {
         this.zoom = zoom.coerceIn(MIN_ZOOM, MAX_ZOOM)
     }
 
+    /** Normalised-coordinate rectangle on screen: (x0, y0, x1, y1). Doesn't handle antimeridian wrap. */
+    fun visibleBounds(viewport: Size, tilePx: Float): DoubleArray {
+        val w = worldSize(tilePx)
+        val hw = viewport.width / 2.0 / w
+        val hh = viewport.height / 2.0 / w
+        return doubleArrayOf(centerX - hw, centerY - hh, centerX + hw, centerY + hh)
+    }
+
     /** Screen position of a lat/lon, taking the shortest way round the antimeridian. */
     fun toScreen(lat: Double, lon: Double, viewport: Size, tilePx: Float): Offset {
         val w = worldSize(tilePx)

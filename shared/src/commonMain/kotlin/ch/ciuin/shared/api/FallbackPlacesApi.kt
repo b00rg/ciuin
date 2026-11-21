@@ -2,7 +2,9 @@ package ch.ciuin.shared.api
 
 import ch.ciuin.shared.model.Coverage
 import ch.ciuin.shared.model.Measurement
+import ch.ciuin.shared.model.MeasurementResult
 import ch.ciuin.shared.model.Place
+import io.ktor.client.plugins.ClientRequestException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -16,10 +18,11 @@ import kotlinx.serialization.json.JsonObject
  * so the app keeps working on a bad network. [online] tells the UI which one answered last.
  *
  * Measurements taken while offline are kept in memory and re-sent on the next successful call.
- * (In memory only: they're lost if the app is killed.)
+ * (In memory only: they're lost if the app is killed.) Measurements the backend *rejects* (4xx, e.g. the
+ * 422 privacy guard) are not queued: the error is thrown so the bug gets noticed.
  */
 class FallbackPlacesApi(
-    private val primary: PlacesApi,
+    val primary: PlacesApi,
     private val fallback: PlacesApi,
 ) : PlacesApi {
 
@@ -52,6 +55,8 @@ class FallbackPlacesApi(
                 pending.removeFirst()
             } catch (e: CancellationException) {
                 throw e
+            } catch (_: ClientRequestException) {
+                pending.removeFirst() // rejected (4xx): retrying won't help
             } catch (_: Exception) {
                 return@withLock // still failing; try again next time
             }
@@ -60,18 +65,23 @@ class FallbackPlacesApi(
 
     override suspend fun places(bbox: BBox): List<Place> = withFallback { places(bbox) }
 
-    override suspend fun postMeasurement(m: Measurement) {
+    /** Returns `stored = false` when the measurement was queued for later instead of uploaded. */
+    override suspend fun postMeasurement(m: Measurement): MeasurementResult =
         try {
-            primary.postMeasurement(m)
+            val result = primary.postMeasurement(m)
             _online.value = true
             flushPending()
+            result
         } catch (e: CancellationException) {
+            throw e
+        } catch (e: ClientRequestException) {
+            _online.value = true // the server answered; it just didn't like the request
             throw e
         } catch (_: Exception) {
             _online.value = false
             pendingLock.withLock { pending.addLast(m) }
+            MeasurementResult(stored = false)
         }
-    }
 
     override suspend fun heatmap(bbox: BBox, dim: String): JsonObject = withFallback { heatmap(bbox, dim) }
 
@@ -80,5 +90,5 @@ class FallbackPlacesApi(
 
     override suspend fun stats(): Stats = withFallback { stats() }
 
-    override suspend fun coverage(): Coverage = withFallback { coverage() }
+    override suspend fun coverage(resDeg: Double): Coverage = withFallback { coverage(resDeg) }
 }

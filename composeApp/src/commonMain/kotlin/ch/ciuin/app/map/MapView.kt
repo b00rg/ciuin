@@ -35,6 +35,11 @@ import kotlin.math.roundToInt
 /** One pin on the map. [color] is decided by the caller (e.g. from the user's p_overwhelm). */
 data class MapMarker(val id: String, val lat: Double, val lon: Double, val label: String, val color: Color)
 
+/** Heatmap square in normalised Web Mercator coords (see [MapState]): top-left [x], [y], side [size]. */
+data class HeatRect(val x: Double, val y: Double, val size: Double, val color: Color)
+
+private const val HEAT_ALPHA = 0.5f
+
 private const val TILE_PX = 256
 private const val MAX_TILE_ZOOM = 19
 private val BACKGROUND = Color(0xFFE8E4DC)
@@ -51,6 +56,7 @@ fun MapView(
     selectedId: String?,
     onMarkerTap: (MapMarker?) -> Unit,
     modifier: Modifier = Modifier,
+    heat: List<HeatRect> = emptyList(),
     tileUrl: String = TileCache.OSM_TILES,
 ) {
     val scope = rememberCoroutineScope()
@@ -103,6 +109,16 @@ fun MapView(
     ) {
         drawRect(BACKGROUND)
         drawTiles(state, cache, tilePx)
+        if (heat.isNotEmpty()) {
+            val w = state.worldSize(tilePx)
+            for (h in heat) {
+                val left = (size.width / 2.0 + (h.x - state.centerX) * w).toFloat()
+                val top = (size.height / 2.0 + (h.y - state.centerY) * w).toFloat()
+                val side = (h.size * w).toFloat()
+                if (left > size.width || top > size.height || left + side < 0 || top + side < 0) continue
+                drawRect(h.color, Offset(left, top), Size(side, side), alpha = HEAT_ALPHA)
+            }
+        }
 
         val labelsVisible = state.zoom >= 15.0
         for (m in markers) {
