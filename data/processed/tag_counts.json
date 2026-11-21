@@ -1,0 +1,101 @@
+{
+  "generated_at": "2026-11-21T13:45:07+00:00",
+  "tiers": {
+    "world": {
+      "source": "https://taginfo.openstreetmap.org",
+      "data_until": "2026-11-21T00:59:08Z",
+      "wheelchair": {
+        "total": 4065687,
+        "yes": 2502629,
+        "limited": 497208,
+        "no": 1027533,
+        "designated": 23126
+      },
+      "sensory_friendly": {
+        "total": 143,
+        "by_value": {
+          "yes": 102,
+          "no": 17,
+          "not_accessible": 13,
+          "limited": 11
+        },
+        "subkeys_not_summed": {
+          "sensory_friendly:accommodation": 4635,
+          "sensory_friendly:conditional": 4583,
+          "sensory_friendly:description:ca": 2,
+          "sensory_friendly:description": 2,
+          "sensory_friendly:check_date": 2
+        }
+      },
+      "amenity=quiet_room": 12
+    },
+    "europe": {
+      "source": "https://taginfo.geofabrik.de/europe",
+      "data_until": "2026-11-20T21:21:21Z",
+      "wheelchair": {
+        "total": 2836673,
+        "yes": 1677891,
+        "limited": 379805,
+        "no": 763083,
+        "designated": 13048
+      },
+      "sensory_friendly": {
+        "total": 8,
+        "by_value": {
+          "limited": 5,
+          "yes": 3
+        },
+        "subkeys_not_summed": {
+          "sensory_friendly:accommodation": 6,
+          "sensory_friendly:conditional": 5,
+          "sensory_friendly:description:ca": 2,
+          "sensory_friendly:description": 2,
+          "sensory_friendly:check_date": 2
+        }
+      },
+      "amenity=quiet_room": 5
+    },
+    "switzerland": {
+      "source": "https://taginfo.geofabrik.de/europe:switzerland",
+      "data_until": "2026-11-20T21:19:54Z",
+      "wheelchair": {
+        "total": 63996,
+        "yes": 40941,
+        "limited": 8823,
+        "no": 14019,
+        "designated": 180
+      },
+      "sensory_friendly": {
+        "total": 0,
+        "by_value": {},
+        "subkeys_not_summed": {}
+      },
+      "amenity=quiet_room": 0
+    },
+    "lausanne": {
+      "source": "https://overpass-api.de/api/interpreter",
+      "bbox_south_west_north_east": [
+        46.5,
+        6.58,
+        46.54,
+        6.67
+      ],
+      "data_until": "2026-11-21T13:45:20Z",
+      "named_pois": 3191,
+      "named_pois_with_wheelchair": 616,
+      "named_pois_wheelchair_pct": 19.3,
+      "wheelchair": {
+        "total": 1117,
+        "yes": 820,
+        "limited": 134,
+        "no": 161,
+        "designated": 2
+      },
+      "sensory_friendly": {
+        "total": 0
+      },
+      "amenity=quiet_room": 0
+    }
+  },
+  "errors": {}
+}

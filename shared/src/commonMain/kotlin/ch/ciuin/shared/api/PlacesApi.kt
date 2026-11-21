@@ -2,21 +2,22 @@ package ch.ciuin.shared.api
 
 import ch.ciuin.shared.model.Coverage
 import ch.ciuin.shared.model.Measurement
+import ch.ciuin.shared.model.MeasurementResult
 import ch.ciuin.shared.model.Place
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Backend API (todo.md §0). The real implementation will be a Ktor client
- * (engines already on the classpath: OkHttp on Android, CIO on desktop) configured with [ContractJson].
+ * Backend API (todo.md §0). Implementations: [KtorPlacesApi] (real backend) and [FakePlacesApi]
+ * (5 hard-coded places, for UI work without a backend). Network/HTTP errors are thrown.
  */
 interface PlacesApi {
     /** GET /places?bbox=minLon,minLat,maxLon,maxLat */
     suspend fun places(bbox: BBox): List<Place>
 
-    /** POST /measurements */
-    suspend fun postMeasurement(m: Measurement)
+    /** POST /measurements -> the place with updated aggregates (null if place_id is unknown) */
+    suspend fun postMeasurement(m: Measurement): MeasurementResult
 
     /** GET /heatmap?bbox=...&dim=noise -> GeoJSON grid */
     suspend fun heatmap(bbox: BBox, dim: String): JsonObject
@@ -27,8 +28,8 @@ interface PlacesApi {
     /** GET /stats */
     suspend fun stats(): Stats
 
-    /** GET /coverage -> coarse global grid for the 3D globe */
-    suspend fun coverage(): Coverage
+    /** GET /coverage?res_deg= -> coarse grid for the 3D globe: 2.0 = global tier, 0.5 = Europe tier */
+    suspend fun coverage(resDeg: Double = 2.0): Coverage
 }
 
 data class BBox(val minLon: Double, val minLat: Double, val maxLon: Double, val maxLat: Double) {

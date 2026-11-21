@@ -8,10 +8,6 @@ plugins {
     alias(libs.plugins.composeCompiler)
 }
 
-/** Backend URL: `-Pciuin.apiUrl=http://<laptop-ip>:8000` (or `ciuin.apiUrl=...` in ~/.gradle/gradle.properties). */
-val apiUrl: String = providers.gradleProperty("ciuin.apiUrl").getOrElse("http://10.0.2.2:8000")
-val desktopApiUrl: String = providers.gradleProperty("ciuin.apiUrl").getOrElse("http://localhost:8000")
-
 kotlin {
     androidTarget {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
@@ -47,11 +43,14 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "0.1"
-        // 10.0.2.2 = the host machine from the Android emulator. For a real phone on the hotspot:
-        //   ./gradlew :composeApp:installDebug -Pciuin.apiUrl=http://<laptop-ip>:8000
+        // Backend URL: -Pciuin.apiUrl=https://xyz.trycloudflare.com (or "fake").
+        // Default 10.0.2.2 = the host machine as seen from the Android emulator.
+        val apiUrl = (project.findProperty("ciuin.apiUrl") as String?) ?: "http://10.0.2.2:8000"
         buildConfigField("String", "API_URL", "\"$apiUrl\"")
     }
-    buildFeatures { buildConfig = true }
+    buildFeatures {
+        buildConfig = true
+    }
     packaging {
         resources { excludes += "/META-INF/{AL2.0,LGPL2.1,INDEX.LIST,io.netty.versions.properties}" }
     }
@@ -67,7 +66,6 @@ android {
 compose.desktop {
     application {
         mainClass = "ch.ciuin.app.MainKt"
-        jvmArgs += "-Dciuin.apiUrl=$desktopApiUrl"
         nativeDistributions {
             targetFormats(TargetFormat.Msi, TargetFormat.Dmg, TargetFormat.Deb)
             packageName = "ciuin"

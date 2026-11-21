@@ -3,6 +3,7 @@ package ch.ciuin.shared.api
 import ch.ciuin.shared.model.Coverage
 import ch.ciuin.shared.model.CoverageCell
 import ch.ciuin.shared.model.Measurement
+import ch.ciuin.shared.model.MeasurementResult
 import ch.ciuin.shared.model.Place
 import kotlinx.serialization.json.JsonObject
 
@@ -32,7 +33,8 @@ class FakePlacesApi : PlacesApi {
         it.lon in bbox.minLon..bbox.maxLon && it.lat in bbox.minLat..bbox.maxLat
     }
 
-    override suspend fun postMeasurement(m: Measurement) = Unit
+    override suspend fun postMeasurement(m: Measurement): MeasurementResult =
+        MeasurementResult(stored = true, place = all.firstOrNull { it.placeId == m.placeId })
 
     override suspend fun heatmap(bbox: BBox, dim: String): JsonObject = JsonObject(emptyMap())
 
@@ -40,5 +42,5 @@ class FakePlacesApi : PlacesApi {
 
     override suspend fun stats(): Stats = Stats(placesMapped = all.size, measurementsTaken = 0, sensoryFriendlyTags = 0)
 
-    override suspend fun coverage(): Coverage = fakeCoverage
+    override suspend fun coverage(resDeg: Double): Coverage = fakeCoverage.copy(resDeg = resDeg)
 }

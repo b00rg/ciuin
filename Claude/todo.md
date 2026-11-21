@@ -66,6 +66,7 @@ Only aggregates. **Never** raw audio, images, embeddings, trigger taps or user i
 ### Place (backend → app)
 `measured` carries the **mean feature vector** so the personal model can re-score every place on the phone.
 `baseline_noise_db` / `baseline_source` are null outside regions with noise data. `baseline_source` is `"sonbase"` (Switzerland), `"eea"` (EU END maps) or null.
+`measured` and `score` are null until the place has at least one measurement. `score` is the generic per-dimension score for users with no personal model: **1 = calmest / most accessible, 0 = worst** (heuristics and thresholds in `backend/aggregate.py`; tune in Phase 2).
 ```json
 {
   "place_id": "osm:node/123456", "name": "Café X", "lat": 46.5191, "lon": 6.5668,
@@ -108,24 +109,29 @@ Log time spent in each stage; this is the battery/frugality evidence.
 
 ### API (Siddhi owns)
 - `GET /places?bbox=minLon,minLat,maxLon,maxLat` → list of Place
-- `POST /measurements` → stores one Measurement, recomputes that place's aggregates
-- `GET /heatmap?bbox=...&dim=noise` → GeoJSON grid for the heatmap layer
-- `GET /places/nearby?lat=..&lon=..&radius=300` → places sorted by distance, with mean features
-- `GET /stats` → places mapped, measurements taken, `sensory_friendly` tags found
-- `GET /coverage` → coarse global grid for the 3D globe (below). Never per-place
+- `POST /measurements` → stores one Measurement, recomputes that place's aggregates. **201** `{"stored": true, "place": Place | null}` (`place` is the updated place; null if `place_id` isn't a known place: the measurement is still stored and counted). **422** on any field not in the contract (privacy guard) or if `sound_classes` isn't exactly the 9 classes
+- `GET /heatmap?bbox=...&dim=noise` → GeoJSON grid for the heatmap layer (`dim`: noise | light | flicker | crowd). Empty FeatureCollection until the 50 m grid is built
+- `GET /places/nearby?lat=..&lon=..&radius=300` → places sorted by distance, with mean features (radius in m, max 5000)
+- `GET /stats` → `{"places_mapped": n, "measurements_taken": n, "sensory_friendly_tags": n}`
+- `GET /health` → `{"status": "ok"}`. Interactive API docs at `/docs`
+- `GET /coverage?res_deg=2` → coarse grid for the 3D globe (below). `res_deg=2` global, `res_deg=0.5` Europe. Never per-place
 
-### Scope and coverage (3D globe)
-| Layer | Coverage |
-|---|---|
-| Phone measurements, personal model | Global (measured wherever the phone is) |
-| `wheelchair=*` (OSM + accessibility.cloud) | Global |
-| `sensory_friendly` (OSM proposal tag) | Global but sparse; shown where present, not promised |
-| Baseline noise | Europe (EEA END), Switzerland in detail (sonBASE) |
-| Full pipeline (places, noise sampling, 50 m heatmap) | Lausanne (demo city) |
+### Scope and coverage (3D globe): three data tiers + demo city
+| Tier | Granularity | What's in it | Served by |
+|---|---|---|---|
+| **Global** | 2° grid cells | `wheelchair=*` / `sensory_friendly=*` counts, measurement counts | `/coverage?res_deg=2` |
+| **Europe** | 0.5° grid cells | same counts + where EEA END noise data exists | `/coverage?res_deg=0.5` |
+| **Switzerland** (minimum per-place scope) | Every named POI (est. 150–300k) | Place schema, OSM tags, `baseline_noise_db` from sonBASE (covers all of CH) | `/places`, `/places/nearby` |
+| **Lausanne** (demo city) | Per place + 50 m grid | Everything above + 50 m noise heatmap + live measurements | `/heatmap` |
 
-Pitch line: *measurements work anywhere, starter data covers Europe, Lausanne is the demo city.*
+Phone measurements and the personal model work anywhere: a measurement outside Switzerland is still stored and shows up in the coverage counts.
+`sensory_friendly` is a proposal tag: global but sparse; shown where present, never promised.
+**Build order:** Lausanne end to end first, then widen the same pipeline to all of Switzerland, then the Europe/global grids. A slip still leaves a working demo.
+Storage: SQLite (stdlib `sqlite3`, R-Tree index for bbox / nearby) for Swiss places + measurements; precomputed grids served as JSON files. No 50 m grid for all of CH (~16M cells).
 
-`GET /coverage` response (2° cells, `lat`/`lon` = cell centre; empty cells omitted):
+Pitch line: *measurements work anywhere, map data covers the world → Europe → every place in Switzerland, Lausanne in full detail.*
+
+`GET /coverage?res_deg=2` response (`lat`/`lon` = cell centre; empty cells omitted):
 ```json
 {
   "res_deg": 2.0,
@@ -141,31 +147,34 @@ Pitch line: *measurements work anywhere, starter data covers Europe, Lausanne is
 ## A. Siddhi: data and backend (until ~19:00)
 
 ### Gathering
-- [ ] Overpass query for the Lausanne bbox: `amenity`, `shop`, `leisure`, `tourism` POIs with `name` → `data/raw/osm_lausanne.json`
-- [ ] Count tags: `wheelchair=*`, `sensory_friendly=*`, `amenity=quiet_room`; post counts in chat by 14:00
-- [ ] Register for an accessibility.cloud app token; pull places for the same bbox → `data/raw/a11ycloud_lausanne.json`
-- [ ] Download sonBASE daytime road noise (layer `ch.bafu.laerm-strassenlaerm_tag`) and railway noise for Lausanne → `data/raw/sonbase/`
+- [x] Overpass query for the Lausanne bbox: `amenity`, `shop`, `leisure`, `tourism` POIs with `name` → `data/raw/osm_lausanne.json`
+- [x] Count tags: `wheelchair=*`, `sensory_friendly=*`, `amenity=quiet_room` for Lausanne / Switzerland / Europe / world (`data/scripts/count_tags.py` → `data/processed/tag_counts.json`); post counts in chat by 14:00
+- [ ] Switzerland POIs: Geofabrik `switzerland-latest.osm.pbf` filtered locally (more reliable than one huge Overpass query) → `data/raw/osm_switzerland/`
+- [ ] **Stretch, blocked:** accessibility.cloud app token. Sign-up app (v2.accessibility.cloud/sign-up) never finished loading on 21 Nov (laptop + phone on mobile data, normal + private). Retry later; once there's a token, `data/scripts/fetch_a11ycloud_lausanne.py` is ready → `data/raw/a11ycloud_lausanne.json`. Not on the critical path: OSM `wheelchair=*` covers the demo. NB: accessibilitycloud.com (no dot) is an unrelated web-testing product
+- [x] Download sonBASE daytime road noise (layer `ch.bafu.laerm-strassenlaerm_tag`) and railway noise for all of Switzerland → `data/raw/sonbase/`
 - [ ] Download opentransportdata.swiss accessibility data (stops, toilets, platforms) → `data/raw/prm/`
 - [ ] Optional: EEA END noise grid for Dublin
 
 ### Transformation
-- [ ] Normalise OSM + accessibility.cloud into the Place schema; dedupe on name + distance < 25 m
-- [ ] Reproject sonBASE to WGS84; sample noise at each place → `baseline_noise_db`
+- [x] Normalise OSM into the Place schema, drop non-venues, dedupe on name + category < 25 m (`build_places_lausanne.py`). accessibility.cloud merge pending a token
+- [x] Sample sonBASE at each place → `baseline_noise_db`. Rasters are 10 m, LV95 (EPSG:2056), float64, nodata -9999: transform place coords to LV95 (don't reproject the raster). Use the **median within ~25–50 m**, not the single cell (a POI point on the street-side façade reads 20 dB louder than its own courtyard). Combine road + rail energetically: 10·log10(10^(road/10) + 10^(rail/10)). Scripts: `fetch_sonbase.py`, `check_sonbase.py`; import `raster_env` before rasterio
 - [ ] Build a 50 m grid over Lausanne with baseline noise for the heatmap layer
 - [ ] Seed unmeasured places with a prior feature vector from category + `baseline_noise_db` (so the personal model can score them)
-- [ ] Write `data/processed/places_lausanne.geojson` and commit it (app must work offline)
-- [ ] Global coverage grid for the globe: 2° cell counts of `wheelchair=*` and `sensory_friendly=*` (taginfo / a planet extract or a pre-aggregated source; not per-place Overpass) + EEA noise coverage per cell → `data/processed/coverage.json` (commit it, small)
+- [x] Write `data/processed/places_lausanne.geojson` and commit it (app must work offline). 2,873 places, all with noise; Kotlin test `BundledPlacesTest` checks every feature decodes as Place
+- [ ] Widen to Switzerland: same normalise + sonBASE sampling for all Swiss POIs → `data/processed/places_switzerland.geojson` (check size; gitignore if > 50 MB and document how to rebuild)
+- [ ] Coverage grids: 2° global and 0.5° Europe cell counts of `wheelchair=*` and `sensory_friendly=*` (pre-aggregated source / extracts; not per-place Overpass) + EEA noise coverage per cell → `data/processed/coverage_2deg.json`, `coverage_0.5deg.json` (commit, small)
 
 ### Backend
-- [ ] FastAPI + SQLite (or plain JSON files): the endpoints above
-- [ ] `GET /coverage`: serve `coverage.json`, adding live `measurements` counts per cell
-- [ ] Aggregation: mean feature vector per place; generic per-dimension score in [0, 1] for users with no personal model
-- [ ] Seed script that loads `places_lausanne.geojson`
-- [ ] Run on a laptop reachable over a phone hotspot (eduroam may block device-to-device traffic)
+- [x] FastAPI + SQLite (stdlib `sqlite3`, no ORM, WAL mode, R-Tree index on place coordinates): the endpoints above. `backend/`, 12 pytest tests. Tables created on startup; schema change = delete the `.db` and re-seed. Never commit `*.db`
+- [x] `GET /coverage?res_deg=`: serves `data/processed/coverage_<res>deg.json` when built, otherwise counts places in the DB (Lausanne only for now); live `measurements` counts added per cell
+- [x] Aggregation: mean feature vector per place; generic per-dimension score in [0, 1] for users with no personal model (`backend/aggregate.py`; thresholds are first guesses)
+- [x] Seed: DB is created and seeded from `places_lausanne.geojson` on first start; `python db.py --reset` to wipe and re-seed. Add `places_switzerland.geojson` to `SEED_FILES` in `db.py` once built
+- [ ] Reachability: Cloudflare quick tunnel (`cloudflared tunnel --url http://localhost:8000`) so phones reach the laptop on any network; phone hotspot as fallback. Everyone tests against this one shared backend
 
 ### After ~19:00: help Christine
 - [ ] Take the app screens Christine hands over (likely Place detail, Privacy, Model screen UI)
-- [ ] Ktor client against your own API, plus the offline fallback using the bundled GeoJSON
+- [x] Ktor client against your own API: `KtorPlacesApi` in `shared/commonMain` (mock-engine tests + a live round-trip test). App picks the URL per platform (`composeApp/.../ApiConfig.kt`); `postMeasurement` now returns `MeasurementResult`
+- [ ] Offline fallback using the bundled GeoJSON (when the backend is unreachable)
 - [ ] Own `REUSED.md`: collect entries from everyone as they go
 
 ---
