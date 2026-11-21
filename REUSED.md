@@ -24,6 +24,11 @@ Everything not written during the event (pretrained models, datasets, libraries,
 | Geofabrik region index (`download.geofabrik.de/index-v1.json`) | Dataset | Geofabrik; boundaries derived from OSM (ODbL) | Country polygons to place per-country counts on the globe grid |
 | **sonBASE noise maps** (road + rail, day + night, 2021) | Dataset | © FOEN / BAFU, via data.geo.admin.ch (Swiss federal geodata; source attribution required) | `baseline_noise_db`, `baseline_noise_night_db`, the 50 m noise heatmap |
 | OpenStreetMap raster tiles (tile.openstreetmap.org) | Data / service | © OpenStreetMap contributors, ODbL; OSMF tile usage policy | Map background |
+| ESC-50 | Dataset | https://github.com/karolpiczak/ESC-50, CC BY-NC 3.0 | Audio classifier training/eval (fold 4 val, fold 5 test) |
+| UrbanSound8K | Dataset | https://zenodo.org/record/1203745, CC BY-NC 4.0 | Audio classifier training/eval (fold 8 val, folds 9–10 test) |
+| MUSAN | Dataset | https://www.openslr.org/17/, CC BY 4.0 | Speech and music classes; background noise for augmentation |
+| FSD50K (alarm, siren, crowd subset) | Dataset | https://zenodo.org/record/4060432, CC BY 4.0 (clips CC0 / CC BY / CC BY-NC / CC Sampling+, per clip in its metadata) | Extra `alarm_beep`, `siren` and `speech_crowd` training/eval data |
+| DEMAND (PCAFETER, PRESTO, PSTATION, SPSQUARE) | Dataset | https://zenodo.org/record/1227121, CC BY 4.0 | Real crowd ambience for `speech_crowd`; background noise |
 
 ## Built during the event
 
@@ -34,3 +39,4 @@ Everything not written during the event (pretrained models, datasets, libraries,
 | Backend API: all section 0 endpoints, privacy guard, aggregation and scores, measured heatmap layers, Swagger docs, tests | Siddhi (with Claude Code) | `backend/` |
 | Ktor client (`KtorPlacesApi`) and per-platform API configuration | Siddhi (with Claude Code) | `shared/`, `composeApp/` |
 | Canvas slippy map (tiles, markers, gestures) and map screen | Christine | `composeApp/src/commonMain/kotlin/ch/ciuin/app/` |
+| Audio dataset downloader | Emma | `ml/download_datasets.py` |
