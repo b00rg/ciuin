@@ -1,15 +1,15 @@
 package ch.ciuin.app
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import ch.ciuin.shared.model.Place
 
 /** Three-step rating, like the TCD Sense Map. LOW is always the "easy" end (calm / dim / quiet / accessible). */
 enum class Level { LOW, MEDIUM, HIGH }
 
-val LEVEL_LOW = Color(0xFF2E7D32)
+// Calm is a dark green: OSM draws parks in a pale green, so a light green band would vanish into the base map.
+val LEVEL_LOW = Color(0xFF1B5E20)
 val LEVEL_MEDIUM = Color(0xFFF9A825)
-val LEVEL_HIGH = Color(0xFFC62828)
+val LEVEL_HIGH = Color(0xFFD32F2F)
 val LEVEL_UNKNOWN = Color(0xFF9E9E9E)
 
 fun Level?.color(): Color = when (this) {
@@ -19,11 +19,11 @@ fun Level?.color(): Color = when (this) {
     null -> LEVEL_UNKNOWN
 }
 
-/** Continuous green → amber → red for the heatmap; [t] in [0, 1]. */
-fun heatColor(t: Double): Color {
-    val c = t.coerceIn(0.0, 1.0)
-    return if (c < 0.5) lerp(LEVEL_LOW, LEVEL_MEDIUM, (c / 0.5).toFloat())
-    else lerp(LEVEL_MEDIUM, LEVEL_HIGH, ((c - 0.5) / 0.5).toFloat())
+/** Heatmap band for a heat value from [Category.heat]: the Low/High thresholds sit at 0.25 / 0.75. */
+fun heatBand(t: Double): Level = when {
+    t < 0.25 -> Level.LOW
+    t > 0.75 -> Level.HIGH
+    else -> Level.MEDIUM
 }
 
 /**

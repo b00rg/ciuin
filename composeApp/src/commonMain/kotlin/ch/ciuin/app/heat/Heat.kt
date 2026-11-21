@@ -10,6 +10,7 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.ln
+import kotlin.math.log10
 import kotlin.math.pow
 
 /** One value at a point, in normalised Web Mercator coords (x, y in [0, 1], same as MapState). */
@@ -45,20 +46,37 @@ fun cellLevel(zoom: Double, lat: Double, dataResM: Double): Int {
 }
 
 /** Averages samples into a 2^level × 2^level grid; only non-empty cells are returned. */
-fun aggregate(samples: List<HeatSample>, level: Int): List<HeatCell> {
+/**
+ * How to average a category's raw values. Decibels are logarithmic, so Sound averages sound *energy*
+ * (50 dB and 70 dB average to ~67 dB, not 60): a loud street isn't hidden by quiet courtyards next to it.
+ * Everything else is a plain mean.
+ */
+class Averaging(val toLinear: (Double) -> Double, val fromLinear: (Double) -> Double) {
+    fun mean(values: List<Double>): Double? =
+        if (values.isEmpty()) null else fromLinear(values.sumOf(toLinear) / values.size)
+
+    companion object {
+        val PLAIN = Averaging({ it }, { it })
+        val DECIBELS = Averaging({ 10.0.pow(it / 10) }, { 10 * log10(it) })
+
+        fun of(category: Category) = if (category == Category.SOUND) DECIBELS else PLAIN
+    }
+}
+
+fun aggregate(samples: List<HeatSample>, level: Int, averaging: Averaging = Averaging.PLAIN): List<HeatCell> {
     val size = 1.0 / 2.0.pow(level)
     val sums = HashMap<Long, DoubleArray>() // key -> [sum, count]
     for (s in samples) {
         val cx = floor(s.x / size).toLong()
         val cy = floor(s.y / size).toLong()
         val acc = sums.getOrPut((cx shl 32) or (cy and 0xFFFFFFFFL)) { DoubleArray(2) }
-        acc[0] += s.value
+        acc[0] += averaging.toLinear(s.value)
         acc[1] += 1.0
     }
     return sums.map { (key, acc) ->
         val cx = key shr 32
         val cy = key and 0xFFFFFFFFL
-        HeatCell(cx * size, cy * size, size, acc[0] / acc[1], acc[1].toInt())
+        HeatCell(cx * size, cy * size, size, averaging.fromLinear(acc[0] / acc[1]), acc[1].toInt())
     }
 }
 
@@ -97,7 +115,7 @@ fun summarise(category: Category, places: List<Place>, grid: List<HeatPoint>, bo
     val placesIn = places.filter { inView(it.lat, it.lon) }
     val gridIn = if (category == Category.SOUND) grid.filter { inView(it.lat, it.lon) } else emptyList()
     val samples = samplesFor(category, placesIn, gridIn)
-    val mean = samples.takeIf { it.isNotEmpty() }?.let { s -> s.sumOf { it.value } / s.size }
+    val mean = Averaging.of(category).mean(samples.map { it.value })
 
     val sections = buildList {
         when (category) {

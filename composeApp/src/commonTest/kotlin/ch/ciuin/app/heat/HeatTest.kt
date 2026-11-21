@@ -67,6 +67,15 @@ class HeatTest {
     }
 
     @Test
+    fun soundAveragesEnergyNotDecibels() {
+        // 50 dB + 70 dB: energy mean ≈ 67 dB (a plain mean would say 60).
+        assertEquals(67.0, Averaging.DECIBELS.mean(listOf(50.0, 70.0))!!, 0.1)
+        val cell = aggregate(listOf(HeatSample(0.1, 0.1, 50.0), HeatSample(0.1, 0.1, 70.0)), 10, Averaging.of(Category.SOUND)).single()
+        assertEquals(67.0, cell.mean, 0.1)
+        assertEquals(60.0, Averaging.of(Category.CROWD).mean(listOf(50.0, 70.0)))
+    }
+
+    @Test
     fun noDataGivesNullMean() {
         val s = summarise(Category.LIGHT, listOf(place("a", 46.52, 6.63, baseline = 50.0)), emptyList(), null)
         assertNull(s.mean)
