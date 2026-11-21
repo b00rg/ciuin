@@ -48,13 +48,14 @@ class BundledPlacesTest {
         // Every place has an estimated prior: 9 classes summing to ~1, plausible values
         places.forEach { p ->
             val prior = assertNotNull(p.prior, "no prior for ${p.placeId}")
-            assertEquals(SoundClass.entries.map { it.label }.toSet(), prior.soundClasses.keys, p.placeId)
-            assertTrue(kotlin.math.abs(prior.soundClasses.values.sum() - 1.0) < 0.01, "sound mix sums to ${prior.soundClasses.values.sum()}")
-            assertTrue(prior.dbMean in 25.0..100.0 && prior.peopleCount >= 0, p.placeId)
+            val soundClasses = assertNotNull(prior.soundClasses, p.placeId)
+            assertEquals(SoundClass.entries.map { it.label }.toSet(), soundClasses.keys, p.placeId)
+            assertTrue(kotlin.math.abs(soundClasses.values.sum() - 1.0) < 0.01, "sound mix sums to ${soundClasses.values.sum()}")
+            assertTrue(assertNotNull(prior.dbMean) in 25.0..100.0 && assertNotNull(prior.peopleCount) >= 0, p.placeId)
             assertNull(p.measured, "bundled file must not claim measurements")
         }
         // Estimates should rank sensibly: libraries quieter than bars
-        fun meanDb(cat: String) = places.filter { it.category == cat }.map { it.prior!!.dbMean }.average()
+        fun meanDb(cat: String) = places.filter { it.category == cat }.map { assertNotNull(it.prior?.dbMean) }.average()
         assertTrue(meanDb("library") < meanDb("bar") - 10, "library ${meanDb("library")} vs bar ${meanDb("bar")}")
     }
 }

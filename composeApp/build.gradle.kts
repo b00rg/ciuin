@@ -42,6 +42,7 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation(libs.ktor.client.mock)
+            implementation(libs.kotlinx.coroutines.test)
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
@@ -58,7 +59,7 @@ kotlin {
 
 android {
     namespace = "ch.ciuin.app"
-    sourceSets.getByName("main").assets.srcDir(listenerAssets)
+    sourceSets.getByName("main").assets.srcDirs(listenerAssets, "src/androidMain/assets")
     androidResources.noCompress += "tflite"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     defaultConfig {

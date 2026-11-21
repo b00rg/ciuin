@@ -7,6 +7,10 @@ Everything not written during the event (pretrained models, datasets, libraries,
 | What | Kind | Source / licence | Used for |
 |---|---|---|---|
 | TensorFlow, Keras, LiteRT (`ai-edge-litert`) | Library | Google, Apache 2.0 | Audio model training, TFLite export and verification |
+| Quantized SSD MobileNet V1 COCO object detector | Model | Google, Apache 2.0. [Model card](https://www.kaggle.com/models/tensorflow/ssd-mobilenet-v1/tfLite/metadata/2), [published model](https://storage.googleapis.com/download.tensorflow.org/models/tflite/task_library/object_detection/android/lite-model_ssd_mobilenet_v1_1_metadata_2.tflite) | Android counts class 0 (person) on-device using the app's existing LiteRT dependency. The bundled model is 4,185,175 bytes. |
+| Camera2 and SensorManager | Platform APIs | [Android SDK](https://developer.android.com/reference/android/hardware/package-summary) | Android YUV frames and ambient light in lux (`TYPE_LIGHT`) |
+| AVFoundation and Vision | Platform frameworks | [Apple AVFoundation](https://developer.apple.com/documentation/avfoundation), [Vision human rectangle detector](https://developer.apple.com/documentation/vision/vndetecthumanrectanglesrequest) | iOS camera and microphone capture and Apple's on-device human detector. Apple supplies the model with the OS and does not publish its size. |
+| IES flicker index definition | Method | [U.S. Department of Energy review, §2.3](https://www.energy.gov/sites/default/files/2022-08/ssl-miller-etal-2022-LRT-flicker-review-tlm-stimulus-response.pdf) | Estimate the ratio of luminance area above the mean to total luminance area. The app reuses its own Stage 0 FFT implementation. |
 | YAMNet (pretrained, frozen) | Model | Google, Apache 2.0; https://www.kaggle.com/models/google/yamnet, trained on AudioSet | Teacher: audio embeddings, with our own classifier head trained on top |
 | YAMNet log-mel frontend parameters | Design (no code) | Google, Apache 2.0 | Window/hop/mel settings of the in-graph spectrogram, so student inputs match the teacher's |
 | Kotlin Multiplatform, Compose Multiplatform | Library | JetBrains, Apache 2.0 | App UI and shared code |

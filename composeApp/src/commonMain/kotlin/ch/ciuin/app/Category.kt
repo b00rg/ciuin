@@ -42,6 +42,7 @@ enum class Category(
         override fun raw(p: Place, personalScore: Double?): Double? = personalScore
 
         override fun detail(p: Place): String = when {
+            p.measured?.let { it.features != p.personalFeatures } == true -> "From measured and estimated place conditions"
             p.measured != null -> "From measured place conditions"
             p.prior != null -> "From estimated place conditions"
             else -> "No place conditions available"
@@ -52,21 +53,25 @@ enum class Category(
         override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.dbMean ?: p.baselineNoiseDb
 
         override fun detail(p: Place): String =
-            p.measured?.let { "${it.features.dbMean.fmt1()} dB measured" }
+            p.measured?.features?.dbMean?.let { "${it.fmt1()} dB measured" }
                 ?: p.baselineNoiseDb?.let { "${it.fmt1()} dB baseline (${p.baselineSource ?: "?"})" }
                 ?: "No data"
     },
     LIGHT("Light", "lux", Triple("Dim", "Moderate", "Bright"), 100.0, 500.0) {
         override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.luxMean
 
-        override fun detail(p: Place): String =
-            p.measured?.features?.let { "${it.luxMean.toInt()} lux · flicker ${it.flickerIndex.fmt2()}" } ?: "Not measured yet"
+        override fun detail(p: Place): String {
+            val readings = p.measured?.features ?: return "Not measured yet"
+            val lux = readings.luxMean?.let { "${it.toInt()} lux" } ?: "Lux unavailable"
+            val flicker = readings.flickerIndex?.let { "flicker ${it.fmt2()}" } ?: "flicker unavailable"
+            return "$lux · $flicker"
+        }
     },
     CROWD("Crowd", "people", Triple("Quiet", "Busy", "Crowded"), 3.5, 10.5) {
         override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.peopleCount?.toDouble()
 
         override fun detail(p: Place): String =
-            p.measured?.features?.let { "~${it.peopleCount} people" } ?: "Not measured yet"
+            p.measured?.features?.peopleCount?.let { "~$it people" } ?: "Not measured yet"
     },
     ACCESS("Access", "", Triple("Accessible", "Limited", "Not accessible"), 0.5, 1.5) {
         // OSM wheelchair=* tag as 0 (yes) / 1 (limited) / 2 (no), so an area average stays meaningful.

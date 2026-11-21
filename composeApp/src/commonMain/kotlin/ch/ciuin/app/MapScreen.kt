@@ -126,7 +126,7 @@ internal fun MapScreen(
     quietPlaceRoute: QuietPlaceRoute? = null,
     onClearQuietPlaceRoute: () -> Unit = {},
     quietPlaceRouteRequest: Int = 0,
-    onMeasure: (Place) -> Unit = {},
+    onMeasure: ((Place) -> Unit)? = null,
     refreshMs: Long = 2_000,
     walkingRoute: WalkingRoute? = null,
     walkingRouteLoading: Boolean = false,
@@ -320,7 +320,7 @@ internal fun MapScreen(
                         PlaceCard(
                             selected,
                             category,
-                            onMeasure = { onMeasure(selected) },
+                            onMeasure = onMeasure?.let { { it(selected) } },
                             onClose = { selectedId = null },
                             modifier = Modifier.heightIn(max = placeCardHeight),
                         ) {
@@ -548,7 +548,7 @@ private fun Dot(color: Color, sizeDp: Int) = Box(Modifier.size(sizeDp.dp).backgr
 private fun PlaceCard(
     place: Place,
     current: Category,
-    onMeasure: () -> Unit,
+    onMeasure: (() -> Unit)?,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     personalFeedback: @Composable () -> Unit,
@@ -598,7 +598,7 @@ private fun PlaceCard(
 
             Spacer(Modifier.size(4.dp))
             personalFeedback()
-            Button(onClick = onMeasure) { Text("Measure here") }
+            if (onMeasure != null) Button(onClick = onMeasure) { Text("Measure here") }
         }
     }
 }

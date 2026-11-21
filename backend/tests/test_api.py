@@ -6,7 +6,9 @@ from __future__ import annotations
 
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 
 import pytest
 
@@ -150,6 +152,69 @@ def test_measurement_requires_exactly_nine_sound_classes(client, a_place):
     assert client.post("/measurements", json=m).status_code == 422
 
 
+def test_partial_measurement_aggregates_only_available_readings(client, a_place):
+    pid, lat, lon = a_place["place_id"], a_place["lat"], a_place["lon"]
+    partial = measurement(pid, lat, lon)
+    partial.update(features=dict.fromkeys(FEATURE_KEYS) | {"people_count": 0}, flicker_hz=None)
+    first = client.post("/measurements", json=partial)
+    assert first.status_code == 201
+    place = first.json()["place"]
+    assert place["measured"]["features"] == partial["features"]
+    assert place["score"]["light"] is None
+    assert place["score"]["noise"] is None
+    assert place["score"]["crowd"] == 1.0
+    assert client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "light"}).json()["features"] == []
+
+    complete = measurement(pid, lat, lon, db_mean=60, people=8, lux=200)
+    second = client.post("/measurements", json=complete)
+    assert second.status_code == 201
+    assert second.json()["place"]["measured"] == {
+        "n": 2, "features": complete["features"] | {"people_count": 4},
+    }
+    light = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "light"}).json()["features"]
+    assert [f["properties"] for f in light] == [{"value": 200.0, "source": "measured", "n": 1}]
+    crowd = client.get("/heatmap", params={"bbox": LAUSANNE, "dim": "crowd"}).json()["features"]
+    assert [f["properties"] for f in crowd] == [{"value": 4.0, "source": "measured", "n": 2}]
+
+
+def test_measurement_requires_some_reading(client, a_place):
+    m = measurement(a_place["place_id"], a_place["lat"], a_place["lon"])
+    m.update(features=dict.fromkeys(FEATURE_KEYS), flicker_hz=None)
+    assert client.post("/measurements", json=m).status_code == 422
+
+
+def test_measurement_retry_stores_once(client, a_place):
+    m = measurement(a_place["place_id"], a_place["lat"], a_place["lon"])
+    m["measurement_id"] = "b5fe6af6-c207-4f90-8f30-4c90dc6cd71d"
+    first = client.post("/measurements", json=m)
+    assert first.status_code == 201
+    m["features"]["sound_classes"] = dict(reversed(m["features"]["sound_classes"].items()))
+    retry = client.post("/measurements", json=m)
+    assert retry.status_code == 201
+    assert retry.json() == first.json()
+
+    m["features"]["lux_mean"] += 1
+    assert client.post("/measurements", json=m).status_code == 409
+    assert client.get("/stats").json()["measurements_taken"] == 1
+
+
+def test_concurrent_measurement_retries_store_once(client, a_place):
+    m = measurement(a_place["place_id"], a_place["lat"], a_place["lon"])
+    m["measurement_id"] = "ec26a62d-12bd-4d3d-a181-b46965c8dde5"
+    workers = 8
+    ready = Barrier(workers)
+
+    def upload(_):
+        ready.wait(timeout=10)
+        response = client.post("/measurements", json=m)
+        assert response.status_code == 201
+        return response.json()["place"]["measured"]["n"]
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        assert list(pool.map(upload, range(workers))) == [1] * workers
+    assert client.get("/stats").json()["measurements_taken"] == 1
+
+
 def test_measurement_for_unknown_place_is_stored_not_attached(client):
     r = client.post("/measurements", json=measurement("osm:node/1", 40.7, -74.0)).json()
     assert r == {"stored": True, "place": None}
@@ -289,5 +354,5 @@ def test_existing_db_is_migrated_in_place(tmp_path):
     conn = sqlite3.connect(old)
     cols = {r[1] for r in conn.execute("PRAGMA table_info(places)")}
     assert {"baseline_noise_night_db", "osm_tags"} <= cols
-    assert conn.execute("SELECT COUNT(*) FROM measurements").fetchone()[0] == 1
+    assert conn.execute("SELECT measurement_id FROM measurements").fetchall() == [(None,)]
     conn.close()

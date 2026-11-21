@@ -50,12 +50,12 @@ data class MeasuredAggregate(
     val features: FeatureVector,
 )
 
-/** Generic per-dimension scores in [0, 1] for users without a personal model. */
+/** Generic per-dimension scores in [0, 1], with null for unavailable sensor readings. */
 @Serializable
 data class PlaceScore(
-    val noise: Double,
-    val light: Double,
-    val flicker: Double,
-    val crowd: Double,
+    val noise: Double?,
+    val light: Double?,
+    val flicker: Double?,
+    val crowd: Double?,
     val access: Double,
 )

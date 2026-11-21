@@ -15,6 +15,7 @@ import ch.ciuin.app.CiuinApplication
 import ch.ciuin.app.personal.LiveWindow
 import ch.ciuin.app.personal.PersonalModelSession
 import ch.ciuin.app.route.QuietPlaceRoute
+import ch.ciuin.shared.model.FeatureVector
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -142,12 +143,13 @@ class LiveListeningService : Service() {
     private suspend fun captureWindows() {
         val wakeLock = acquireWakeLock()
         try {
-            AndroidLiveListener(applicationContext).listen { window ->
-                if (activeService !== this) return@listen
-
+            app.audioWindows.collect { result ->
+                if (activeService !== this) return@collect
+                val audio = result.getOrThrow()
+                val window = FeatureVector(audio.dbMean, audio.dbPeak, audio.soundClasses)
                 val model = app.personalModel
-                val liveWindow = model.onLiveWindow(window) ?: return@listen
-                val score = liveWindow.score ?: return@listen
+                val liveWindow = model.onLiveWindow(window) ?: return@collect
+                val score = liveWindow.score ?: return@collect
                 if (app.overwhelmAlerts.onScore(score, SystemClock.elapsedRealtime())) {
                     postAlert(liveWindow, model.state.session)
                 }

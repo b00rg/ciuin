@@ -4,6 +4,10 @@
 <dict>
     <key>CFBundleDisplayName</key>
     <string>Ciúin</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Measure light flicker and count people in view. Camera frames stay on this device.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Measure sound levels for this place. Microphone audio stays on this device.</string>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>

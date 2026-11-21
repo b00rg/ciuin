@@ -48,7 +48,8 @@ class FallbackPlacesApi(
             fallback.call()
         }
 
-    private suspend fun flushPending() = pendingLock.withLock {
+    private suspend fun flushPending(alreadyStored: Measurement? = null) = pendingLock.withLock {
+        if (alreadyStored?.measurementId != null) pending.remove(alreadyStored)
         while (pending.isNotEmpty()) {
             try {
                 primary.postMeasurement(pending.first())
@@ -70,7 +71,7 @@ class FallbackPlacesApi(
         try {
             val result = primary.postMeasurement(m)
             _online.value = true
-            flushPending()
+            flushPending(m.takeIf { result.stored })
             result
         } catch (e: CancellationException) {
             throw e
@@ -79,7 +80,9 @@ class FallbackPlacesApi(
             throw e
         } catch (_: Exception) {
             _online.value = false
-            pendingLock.withLock { pending.addLast(m) }
+            pendingLock.withLock {
+                if (m.measurementId == null || m !in pending) pending.addLast(m)
+            }
             MeasurementResult(stored = false)
         }
 

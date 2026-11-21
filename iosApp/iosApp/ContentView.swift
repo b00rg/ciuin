@@ -4,7 +4,7 @@ import UIKit
 
 struct ContentView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIViewController {
-        MainViewControllerKt.MainViewController()
+        MainViewControllerKt.MainViewController(measurementDevices: MeasurementDevices())
     }
 
     func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}

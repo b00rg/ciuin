@@ -76,7 +76,8 @@ app = FastAPI(
 
 
 def get_conn() -> Iterator[sqlite3.Connection]:
-    with closing(db.connect()) as conn:
+    # FastAPI may create, use, and close this request's connection on different workers.
+    with closing(db.connect(check_same_thread=False)) as conn:
         yield conn
 
 
@@ -265,20 +266,36 @@ def nearby(
     status_code=status.HTTP_201_CREATED,
     tags=["measurements"],
     summary="Post one measurement",
-    responses={422: {"description": "A field outside the contract, or sound_classes isn't exactly the 9 classes"}},
+    responses={
+        409: {"description": "A different measurement already used this measurement_id"},
+        422: {"description": "Invalid measurement aggregates or sound class labels"},
+    },
 )
 def post_measurement(conn: Conn, m: Measurement) -> MeasurementResult:
     """Store one Measurement and recompute that place's mean features and scores.
 
-    A measurement for an unknown `place_id` is still stored (counts in `/stats` and `/coverage`),
-    and `place` comes back null. **Note:** "Try it out" writes to the real database."""
-    conn.execute(
+    Repeat the same `measurement_id` and payload to retry safely. A measurement for an unknown
+    `place_id` is still stored (counts in `/stats` and `/coverage`), and `place` comes back null.
+    **Note:** "Try it out" writes to the real database."""
+    inserted = conn.execute(
         """INSERT INTO measurements (place_id, lat, lon, timestamp, duration_s, features, flicker_hz,
-                                     model_variant, device) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                     model_variant, device, measurement_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(measurement_id) DO NOTHING""",
         (m.place_id, m.lat, m.lon, m.timestamp, m.duration_s, m.features.model_dump_json(), m.flicker_hz,
-         m.model_variant, m.device),
+         m.model_variant, m.device, m.measurement_id),
     )
-    recompute_place(conn, m.place_id)
+    if inserted.rowcount:
+        recompute_place(conn, m.place_id)
+    else:
+        row = conn.execute(
+            """SELECT place_id, lat, lon, timestamp, duration_s, features, flicker_hz, model_variant, device,
+                      measurement_id FROM measurements WHERE measurement_id = ?""",
+            (m.measurement_id,),
+        ).fetchone()
+        stored = dict(row)
+        stored["features"] = json.loads(stored["features"])
+        if Measurement.model_validate(stored) != m:
+            raise HTTPException(409, "measurement_id already belongs to a different measurement")
     conn.commit()
     row = conn.execute("SELECT * FROM places WHERE place_id = ?", (m.place_id,)).fetchone()
     return MeasurementResult(stored=True, place=to_place(row) if row else None)
@@ -347,8 +364,10 @@ def heatmap(
             (min_lat, max_lat, min_lon, max_lon),
         )
         for r in rows:
-            key_ = (math.floor(r["lat"] / CELL_DLAT), math.floor(r["lon"] / CELL_DLON))
-            cells.setdefault(key_, []).append(float(json.loads(r["features"])[field]))
+            value = json.loads(r["features"]).get(field)
+            if value is not None:
+                key_ = (math.floor(r["lat"] / CELL_DLAT), math.floor(r["lon"] / CELL_DLON))
+                cells.setdefault(key_, []).append(float(value))
         for (i, j), vals in cells.items():
             lat, lon = (i + 0.5) * CELL_DLAT, (j + 0.5) * CELL_DLON
             features.append(_cell_feature(

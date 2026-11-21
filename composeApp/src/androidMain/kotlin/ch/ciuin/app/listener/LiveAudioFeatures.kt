@@ -3,7 +3,7 @@ package ch.ciuin.app.listener
 import android.content.Context
 import android.media.MediaRecorder
 import ch.ciuin.shared.audio.Stage0AudioAnalyzer
-import ch.ciuin.shared.model.FeatureVector
+import ch.ciuin.app.measure.AudioSample
 import ch.ciuin.shared.model.SoundClass
 import org.tensorflow.lite.Interpreter
 import java.nio.channels.FileChannel
@@ -27,7 +27,7 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
         throw IllegalStateException("Could not load the on-device audio runtime", error)
     }
 
-    fun extract(window: FloatArray): FeatureVector {
+    fun extract(window: FloatArray): AudioSample {
         val metrics = analyzer.analyze(window)
         val dbMean = (metrics.levelDbfsA + nominalSplOffset).coerceAtLeast(0.0)
         val dbPeak = dbMean + peakAboveMean(window)
@@ -36,12 +36,17 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
         window.copyInto(modelWindow, startIndex = window.size - modelWindow.size)
         val power = modelWindow.sumOf { it.toDouble() * it } / modelWindow.size
         val soundClasses = if (power >= SILENCE_POWER) {
-            interpreter.run(input, output)
-            SoundClass.entries.associate { it.label to output[0][it.index].toDouble() }
+            try {
+                interpreter.run(input, output)
+                SoundClass.entries.associate { it.label to output[0][it.index].toDouble() }
+            } finally {
+                modelWindow.fill(0f)
+            }
         } else {
+            modelWindow.fill(0f)
             emptyMap()
         }
-        return FeatureVector(dbMean, dbPeak, soundClasses, luxMean = 0.0, flickerIndex = 0.0, peopleCount = 0)
+        return AudioSample(dbMean, dbPeak, soundClasses, "Student S")
     }
 
     override fun close() = interpreter.close()

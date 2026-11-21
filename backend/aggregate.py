@@ -7,6 +7,7 @@ tune them with the field measurements in Phase 2 (and tell the team: the map col
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
 
 from models import SOUND_CLASSES, FeatureVector, PlaceScore
 
@@ -22,28 +23,35 @@ def _clamp01(x: float) -> float:
     return max(0.0, min(1.0, x))
 
 
+def _mean(readings: Iterable[float | None], digits: int | None = None) -> float | None:
+    present = [reading for reading in readings if reading is not None]
+    return round(sum(present) / len(present), digits) if present else None
+
+
 def mean_features(vectors: list[FeatureVector]) -> FeatureVector:
-    n = len(vectors)
-    if n == 0:
+    if not vectors:
         raise ValueError("no vectors")
+    mixes = [v.sound_classes for v in vectors if v.sound_classes is not None]
     return FeatureVector(
-        db_mean=round(sum(v.db_mean for v in vectors) / n, 2),
-        db_peak=round(sum(v.db_peak for v in vectors) / n, 2),
-        sound_classes={c: round(sum(v.sound_classes[c] for v in vectors) / n, 4) for c in SOUND_CLASSES},
-        lux_mean=round(sum(v.lux_mean for v in vectors) / n, 1),
-        flicker_index=round(sum(v.flicker_index for v in vectors) / n, 4),
-        people_count=round(sum(v.people_count for v in vectors) / n),
+        db_mean=_mean((v.db_mean for v in vectors), 2),
+        db_peak=_mean((v.db_peak for v in vectors), 2),
+        sound_classes={c: round(sum(m[c] for m in mixes) / len(mixes), 4) for c in SOUND_CLASSES} if mixes else None,
+        lux_mean=_mean((v.lux_mean for v in vectors), 1),
+        flicker_index=_mean((v.flicker_index for v in vectors), 4),
+        people_count=_mean(v.people_count for v in vectors),
     )
 
 
+def _dimension_score(value: float | None, calm: float, busy: float) -> float | None:
+    return None if value is None else round(_clamp01(1 - (value - calm) / (busy - calm)), 3)
+
+
 def score(f: FeatureVector, wheelchair: str | None) -> PlaceScore:
-    noise = 1 - (f.db_mean - NOISE_QUIET_DB) / (NOISE_LOUD_DB - NOISE_QUIET_DB)
-    lux = max(f.lux_mean, 1.0)
-    light = 1 - (math.log10(lux) - math.log10(LUX_COMFORT)) / (math.log10(LUX_HARSH) - math.log10(LUX_COMFORT))
+    log_lux = None if f.lux_mean is None else math.log10(max(f.lux_mean, 1.0))
     return PlaceScore(
-        noise=round(_clamp01(noise), 3),
-        light=round(_clamp01(light), 3),
-        flicker=round(_clamp01(1 - f.flicker_index / FLICKER_BAD), 3),
-        crowd=round(_clamp01(1 - f.people_count / CROWD_BUSY), 3),
+        noise=_dimension_score(f.db_mean, NOISE_QUIET_DB, NOISE_LOUD_DB),
+        light=_dimension_score(log_lux, math.log10(LUX_COMFORT), math.log10(LUX_HARSH)),
+        flicker=_dimension_score(f.flicker_index, 0, FLICKER_BAD),
+        crowd=_dimension_score(f.people_count, 0, CROWD_BUSY),
         access=ACCESS.get(wheelchair or "", ACCESS_UNKNOWN),
     )

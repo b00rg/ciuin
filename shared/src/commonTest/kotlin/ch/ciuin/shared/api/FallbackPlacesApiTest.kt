@@ -65,6 +65,28 @@ class FallbackPlacesApiTest {
     }
 
     @Test
+    fun retryingTheSameCaptureQueuesAndPostsItOnce() = runTest {
+        var up = false
+        var accepted = 0
+        val engine = MockEngine {
+            if (!up) return@MockEngine respondError(HttpStatusCode.ServiceUnavailable)
+            accepted++
+            respond("""{"stored": true, "place": null}""", HttpStatusCode.Created, jsonHeaders)
+        }
+        val api = FallbackPlacesApi(KtorPlacesApi("http://backend:8000", engine), FakePlacesApi())
+        val capture = measurement.copy(measurementId = "66350103-a078-45ad-91ad-24a7a5a8cffa")
+
+        assertFalse(api.postMeasurement(capture).stored)
+        assertFalse(api.postMeasurement(capture).stored)
+        assertEquals(1, api.pendingCount())
+
+        up = true
+        assertTrue(api.postMeasurement(capture).stored)
+        assertEquals(0, api.pendingCount())
+        assertEquals(1, accepted)
+    }
+
+    @Test
     fun rejectedMeasurementIsThrownNotQueued() = runTest {
         val engine = MockEngine { respondError(HttpStatusCode.UnprocessableEntity) }
         val api = FallbackPlacesApi(KtorPlacesApi("http://backend:8000", engine), FakePlacesApi())
