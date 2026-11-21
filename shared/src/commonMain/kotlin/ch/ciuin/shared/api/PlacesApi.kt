@@ -13,8 +13,11 @@ import kotlinx.serialization.json.JsonObject
  * (5 hard-coded places, for UI work without a backend). Network/HTTP errors are thrown.
  */
 interface PlacesApi {
-    /** GET /places?bbox=minLon,minLat,maxLon,maxLat */
-    suspend fun places(bbox: BBox): List<Place>
+    /**
+     * GET /places?bbox=minLon,minLat,maxLon,maxLat[&at=]
+     * @param at ISO-8601 time to evaluate Place.openNow at (e.g. "2026-11-21T20:00:00Z"); null = now.
+     */
+    suspend fun places(bbox: BBox, at: String? = null): List<Place>
 
     /** POST /measurements -> the place with updated aggregates (null if place_id is unknown) */
     suspend fun postMeasurement(m: Measurement): MeasurementResult
@@ -22,8 +25,12 @@ interface PlacesApi {
     /** GET /heatmap?bbox=...&dim=noise -> GeoJSON grid */
     suspend fun heatmap(bbox: BBox, dim: String): JsonObject
 
-    /** GET /places/nearby?lat=..&lon=..&radius=300 -> places sorted by distance, with mean features */
-    suspend fun nearby(lat: Double, lon: Double, radiusM: Int = 300): List<Place>
+    /**
+     * GET /places/nearby?lat=..&lon=..&radius=300 -> places sorted by distance, with mean features.
+     * @param openOnly drop places known to be closed (unknown hours are kept). Use for the quiet-place pick.
+     * @param at ISO-8601 time for openNow / openOnly; null = now.
+     */
+    suspend fun nearby(lat: Double, lon: Double, radiusM: Int = 300, openOnly: Boolean = false, at: String? = null): List<Place>
 
     /** GET /stats */
     suspend fun stats(): Stats
