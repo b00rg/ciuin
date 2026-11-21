@@ -169,7 +169,7 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 - [x] `GET /coverage?res_deg=`: serves `data/processed/coverage_<res>deg.json` when built, otherwise counts places in the DB (Lausanne only for now); live `measurements` counts added per cell
 - [x] Aggregation: mean feature vector per place; generic per-dimension score in [0, 1] for users with no personal model (`backend/aggregate.py`; thresholds are first guesses)
 - [x] Seed: DB is created and seeded from `places_lausanne.geojson` on first start; `python db.py --reset` to wipe and re-seed. Add `places_switzerland.geojson` to `SEED_FILES` in `db.py` once built
-- [ ] Reachability: Cloudflare quick tunnel (`cloudflared tunnel --url http://localhost:8000`) so phones reach the laptop on any network; phone hotspot as fallback. Everyone tests against this one shared backend
+- [x] Reachability: Cloudflare quick tunnel (`cloudflared tunnel --protocol http2 --url http://127.0.0.1:8000`; QUIC is blocked here). Tested Android emulator → tunnel → laptop. URL changes on restart → rebuild the app; see backend/README.md so phones reach the laptop on any network; phone hotspot as fallback. Everyone tests against this one shared backend
 
 ### After ~19:00: help Christine
 - [ ] Take the app screens Christine hands over (likely Place detail, Privacy, Model screen UI)
