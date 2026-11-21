@@ -27,6 +27,18 @@ data class Place(
      * smoking, air_conditioning, live_music, level, toilets:wheelchair, website, ...). Absent keys = unknown.
      */
     @SerialName("osm_tags") val osmTags: Map<String, String> = emptyMap(),
+    /**
+     * Open right now (or at the `at` time the request asked for), from osm_tags["opening_hours"].
+     * null = unknown: no tag, or a format the backend doesn't evaluate (e.g. "by appointment").
+     * Computed by the backend; null in the bundled offline file.
+     */
+    @SerialName("open_now") val openNow: Boolean? = null,
+    /**
+     * ESTIMATED feature vector (category + outdoor noise + capacity), so the personal model can score
+     * places nobody has measured. Never present it as measured data: use [measured] when it exists,
+     * otherwise fall back to this (or blend, trusting [measured] more as its n grows).
+     */
+    val prior: FeatureVector? = null,
     val measured: MeasuredAggregate? = null,
     val score: PlaceScore? = null,
 )

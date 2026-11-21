@@ -8,6 +8,8 @@ import kotlinx.serialization.json.jsonObject
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -42,5 +44,17 @@ class BundledPlacesTest {
         val quieterAtNight = both.count { it.baselineNoiseNightDb!! < it.baselineNoiseDb!! }
         assertTrue(quieterAtNight > both.size * 0.95, "only $quieterAtNight/${both.size} quieter at night")
         assertTrue(places.count { "opening_hours" in it.osmTags } > 1000, "opening_hours coverage dropped")
+
+        // Every place has an estimated prior: 9 classes summing to ~1, plausible values
+        places.forEach { p ->
+            val prior = assertNotNull(p.prior, "no prior for ${p.placeId}")
+            assertEquals(SoundClass.entries.map { it.label }.toSet(), prior.soundClasses.keys, p.placeId)
+            assertTrue(kotlin.math.abs(prior.soundClasses.values.sum() - 1.0) < 0.01, "sound mix sums to ${prior.soundClasses.values.sum()}")
+            assertTrue(prior.dbMean in 25.0..100.0 && prior.peopleCount >= 0, p.placeId)
+            assertNull(p.measured, "bundled file must not claim measurements")
+        }
+        // Estimates should rank sensibly: libraries quieter than bars
+        fun meanDb(cat: String) = places.filter { it.category == cat }.map { it.prior!!.dbMean }.average()
+        assertTrue(meanDb("library") < meanDb("bar") - 10, "library ${meanDb("library")} vs bar ${meanDb("bar")}")
     }
 }

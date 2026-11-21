@@ -19,7 +19,8 @@ Everything not written during the event (pretrained models, datasets, libraries,
 | cloudflared (Cloudflare quick tunnel) | Tool / service | Cloudflare, Apache 2.0 (client) | Making the laptop backend reachable from phones |
 | **OpenStreetMap data** | Dataset | © OpenStreetMap contributors, **ODbL 1.0** | Places, categories, `wheelchair` and other tags. Attribution required; `data/processed/places_lausanne.geojson` is a derived database, so it is ODbL too |
 | Overpass API (overpass-api.de) | Service | Free public instance | Downloading Lausanne OSM places and counting tags |
-| taginfo (taginfo.openstreetmap.org, taginfo.geofabrik.de) | Service | Free public instances | Tag counts for world / Europe / Switzerland |
+| taginfo (taginfo.openstreetmap.org, taginfo.geofabrik.de) | Service | Free public instances | Tag counts for world / Europe / Switzerland; per-country `wheelchair` totals and planet distribution maps for the globe coverage grids |
+| Geofabrik region index (`download.geofabrik.de/index-v1.json`) | Dataset | Geofabrik; boundaries derived from OSM (ODbL) | Country polygons to place per-country counts on the globe grid |
 | **sonBASE noise maps** (road + rail, day + night, 2021) | Dataset | © FOEN / BAFU, via data.geo.admin.ch (Swiss federal geodata; source attribution required) | `baseline_noise_db`, `baseline_noise_night_db`, the 50 m noise heatmap |
 
 ## Built during the event

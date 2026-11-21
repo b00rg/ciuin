@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS places (
     baseline_noise_night_db REAL,
     baseline_source   TEXT,
     osm_tags          TEXT,                          -- JSON object of selected OSM tags
+    prior             TEXT,                          -- JSON FeatureVector, ESTIMATED (priors.py)
     n                 INTEGER NOT NULL DEFAULT 0,   -- number of measurements
     mean_features     TEXT,                          -- JSON FeatureVector, null until measured
     score             TEXT                           -- JSON PlaceScore, null until measured
@@ -80,6 +81,7 @@ def has_rtree(conn: sqlite3.Connection) -> bool:
 MIGRATIONS = [
     ("places", "baseline_noise_night_db", "REAL"),
     ("places", "osm_tags", "TEXT"),
+    ("places", "prior", "TEXT"),
 ]
 
 
@@ -109,20 +111,22 @@ def seed(conn: sqlite3.Connection, files: list[Path] = SEED_FILES) -> int:
             cur = conn.execute(
                 """INSERT INTO places (place_id, name, lat, lon, category, wheelchair, sensory_friendly,
                                        quiet_room, baseline_noise_db, baseline_noise_night_db,
-                                       baseline_source, osm_tags)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                       baseline_source, osm_tags, prior)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(place_id) DO UPDATE SET
                      name=excluded.name, lat=excluded.lat, lon=excluded.lon, category=excluded.category,
                      wheelchair=excluded.wheelchair, sensory_friendly=excluded.sensory_friendly,
                      quiet_room=excluded.quiet_room, baseline_noise_db=excluded.baseline_noise_db,
                      baseline_noise_night_db=excluded.baseline_noise_night_db,
-                     baseline_source=excluded.baseline_source, osm_tags=excluded.osm_tags
+                     baseline_source=excluded.baseline_source, osm_tags=excluded.osm_tags,
+                     prior=excluded.prior
                    RETURNING id""",
                 (
                     p["place_id"], p["name"], p["lat"], p["lon"], p["category"], p.get("wheelchair"),
                     p.get("sensory_friendly"), int(bool(p.get("quiet_room"))), p.get("baseline_noise_db"),
                     p.get("baseline_noise_night_db"), p.get("baseline_source"),
                     json.dumps(p.get("osm_tags") or {}, ensure_ascii=False),
+                    json.dumps(p["prior"]) if p.get("prior") else None,
                 ),
             )
             rowid = cur.fetchone()[0]

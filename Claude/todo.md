@@ -67,6 +67,8 @@ Only aggregates. **Never** raw audio, images, embeddings, trigger taps or user i
 `measured` carries the **mean feature vector** so the personal model can re-score every place on the phone.
 `baseline_noise_db` (day, 06–22) / `baseline_noise_night_db` (night, 22–06) / `baseline_source` are null outside regions with noise data. They are **outdoor** road+rail noise around the place, not the room inside. `baseline_source` is `"sonbase"` (Switzerland), `"eea"` (EU END maps) or null.
 `osm_tags` (added 21 Nov, optional, default `{}`): selected raw OSM tags. Lausanne coverage: `opening_hours` 53%, `website` 39%, `cuisine` 14%, `outdoor_seating` 11%, `indoor_seating` 10%, `brand` 10%, `level` 6%, `smoking` 2%, `toilets:wheelchair` 1%, `capacity`, `air_conditioning`, `live_music` (rare). Absent key = unknown.
+`open_now` (added 21 Nov, optional): computed by the backend from `osm_tags.opening_hours` at request time (Europe/Zurich), `true`/`false`, or `null` = unknown (no tag, or e.g. "by appointment"). ~97% of Lausanne's opening hours are understood. Not in the bundled offline file.
+`prior` (added 21 Nov, optional): an **estimated** FeatureVector for every place (category group + outdoor noise through the façade + `capacity`; `data/scripts/priors.py`), so the personal model can score places nobody has measured. Never show it as measured data: use `measured` when present, otherwise `prior` (or blend, trusting `measured` more as `n` grows). Values are first guesses: **Emma to tune** in `priors.py`.
 `measured` and `score` are null until the place has at least one measurement. `score` is the generic per-dimension score for users with no personal model: **1 = calmest / most accessible, 0 = worst** (heuristics and thresholds in `backend/aggregate.py`; tune in Phase 2).
 ```json
 {
@@ -110,21 +112,22 @@ ml/export/
 Log time spent in each stage; this is the battery/frugality evidence.
 
 ### API (Siddhi owns)
-- `GET /places?bbox=minLon,minLat,maxLon,maxLat` → list of Place
+- `GET /places?bbox=minLon,minLat,maxLon,maxLat[&at=ISO-8601]` → list of Place. `open_now` is evaluated at `at` (default now)
 - `POST /measurements` → stores one Measurement, recomputes that place's aggregates. **201** `{"stored": true, "place": Place | null}` (`place` is the updated place; null if `place_id` isn't a known place: the measurement is still stored and counted). **422** on any field not in the contract (privacy guard) or if `sound_classes` isn't exactly the 9 classes
 - `GET /heatmap?bbox=...&dim=noise&period=day` → GeoJSON FeatureCollection of 50 m cells: Point features at cell centres (draw 50 m squares), `properties: {"value": x, "source": "sonbase" | "measured", "n": count (measured only)}`, plus top-level `"cell_m": 50`.
   - `dim=noise`: sonBASE outdoor noise in dB(A), `period=day` (06–22) or `night` (22–06). Lausanne only (~10.8k cells)
   - `dim=light | flicker | crowd`: mean of the **measurements** in each cell (lux, flicker index, people count). Empty until phones measure; works anywhere
-- `GET /places/nearby?lat=..&lon=..&radius=300` → places sorted by distance, with mean features (radius in m, max 5000)
+- `GET /places/nearby?lat=..&lon=..&radius=300[&at=…][&open_only=true]` → places sorted by distance, with mean features (radius in m, max 5000). `open_only` drops places known to be closed (unknown hours stay)
 - `GET /stats` → `{"places_mapped": n, "measurements_taken": n, "sensory_friendly_tags": n}`
 - `GET /health` → `{"status": "ok"}`. Interactive API docs at `/docs`
-- `GET /coverage?res_deg=2` → coarse grid for the 3D globe (below). `res_deg=2` global, `res_deg=0.5` Europe. Never per-place
+- `GET /meta` → attribution the app **must show** (`attribution[].required`: "© OpenStreetMap contributors", sonBASE © FOEN), data sources, counts and freshness
+- `GET /coverage?res_deg=2` → coarse grid for the 3D globe (below). `res_deg=2` global, `res_deg=1` Europe. Never per-place
 
 ### Scope and coverage (3D globe): three data tiers + demo city
 | Tier | Granularity | What's in it | Served by |
 |---|---|---|---|
 | **Global** | 2° grid cells | `wheelchair=*` / `sensory_friendly=*` counts, measurement counts | `/coverage?res_deg=2` |
-| **Europe** | 0.5° grid cells | same counts + where EEA END noise data exists | `/coverage?res_deg=0.5` |
+| **Europe** | 1° grid cells (source data is 1°, finer would be fake detail) | same counts (EEA noise coverage not added yet) | `/coverage?res_deg=1` |
 | **Switzerland** (minimum per-place scope) | Every named POI (est. 150–300k) | Place schema, OSM tags, `baseline_noise_db` from sonBASE (covers all of CH) | `/places`, `/places/nearby` |
 | **Lausanne** (demo city) | Per place + 50 m grid | Everything above + 50 m noise heatmap + live measurements | `/heatmap` |
 
@@ -153,7 +156,7 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 ### Gathering
 - [x] Overpass query for the Lausanne bbox: `amenity`, `shop`, `leisure`, `tourism` POIs with `name` → `data/raw/osm_lausanne.json`
 - [x] Count tags: `wheelchair=*`, `sensory_friendly=*`, `amenity=quiet_room` for Lausanne / Switzerland / Europe / world (`data/scripts/count_tags.py` → `data/processed/tag_counts.json`); post counts in chat by 14:00
-- [ ] Switzerland POIs: Geofabrik `switzerland-latest.osm.pbf` filtered locally (more reliable than one huge Overpass query) → `data/raw/osm_switzerland/`
+- [ ] **Stretch:** Switzerland POIs: Geofabrik `switzerland-latest.osm.pbf` filtered locally (more reliable than one huge Overpass query) → `data/raw/osm_switzerland/`
 - [ ] **Stretch, blocked:** accessibility.cloud app token. Sign-up app (v2.accessibility.cloud/sign-up) never finished loading on 21 Nov (laptop + phone on mobile data, normal + private). Retry later; once there's a token, `data/scripts/fetch_a11ycloud_lausanne.py` is ready → `data/raw/a11ycloud_lausanne.json`. Not on the critical path: OSM `wheelchair=*` covers the demo. NB: accessibilitycloud.com (no dot) is an unrelated web-testing product
 - [x] Download sonBASE daytime road noise (layer `ch.bafu.laerm-strassenlaerm_tag`) and railway noise for all of Switzerland → `data/raw/sonbase/`
 - [ ] Download opentransportdata.swiss accessibility data (stops, toilets, platforms) → `data/raw/prm/`
@@ -163,10 +166,10 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 - [x] Normalise OSM into the Place schema, drop non-venues, dedupe on name + category < 25 m (`build_places_lausanne.py`). accessibility.cloud merge pending a token
 - [x] Sample sonBASE at each place → `baseline_noise_db`. Rasters are 10 m, LV95 (EPSG:2056), float64, nodata -9999: transform place coords to LV95 (don't reproject the raster). Use the **median within ~25–50 m**, not the single cell (a POI point on the street-side façade reads 20 dB louder than its own courtyard). Combine road + rail energetically: 10·log10(10^(road/10) + 10^(rail/10)). Scripts: `fetch_sonbase.py`, `check_sonbase.py`; import `raster_env` before rasterio
 - [x] Build a 50 m grid over Lausanne with baseline noise for the heatmap layer: day + night, 10,812 cells (`build_heatmap_lausanne.py` → `data/processed/heatmap_lausanne_noise.geojson`). Night layers of sonBASE added; places carry `baseline_noise_night_db` + `osm_tags`
-- [ ] Seed unmeasured places with a prior feature vector from category + `baseline_noise_db` (so the personal model can score them)
+- [x] Seed unmeasured places with a prior feature vector: `prior` field (team decision 21 Nov: separate field, not `measured` with n=0), `priors.py`
 - [x] Write `data/processed/places_lausanne.geojson` and commit it (app must work offline). 2,873 places, all with noise; Kotlin test `BundledPlacesTest` checks every feature decodes as Place
-- [ ] Widen to Switzerland: same normalise + sonBASE sampling for all Swiss POIs → `data/processed/places_switzerland.geojson` (check size; gitignore if > 50 MB and document how to rebuild)
-- [ ] Coverage grids: 2° global and 0.5° Europe cell counts of `wheelchair=*` and `sensory_friendly=*` (pre-aggregated source / extracts; not per-place Overpass) + EEA noise coverage per cell → `data/processed/coverage_2deg.json`, `coverage_0.5deg.json` (commit, small)
+- [ ] **Stretch (team decision 21 Nov: MVP first):** Widen to Switzerland: same normalise + sonBASE sampling for all Swiss POIs → `data/processed/places_switzerland.geojson` (check size; gitignore if > 50 MB and document how to rebuild)
+- [x] Coverage grids: `build_coverage.py` → `coverage_2deg.json` (global, 2,919 cells) + `coverage_1deg.json` (Europe, 1,503 cells; 1° because the source maps are 1°). `wheelchair` per cell = each country's real total (Geofabrik taginfo) spread over its tagged 1° cells (estimate; country totals exact, 98.8% of the planet total placed). `sensory_friendly` exact from Overpass (143 worldwide)
 
 ### Backend
 - [x] FastAPI + SQLite (stdlib `sqlite3`, no ORM, WAL mode, R-Tree index on place coordinates): the endpoints above. `backend/`, 12 pytest tests. Tables created on startup; schema change = delete the `.db` and re-seed. Never commit `*.db`

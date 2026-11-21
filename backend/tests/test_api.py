@@ -16,8 +16,12 @@ LAUSANNE = "6.58,46.50,6.67,46.54"
 # Section 0 key sets (Claude/todo.md). If these change, the Kotlin classes must change too.
 PLACE_KEYS = {
     "place_id", "name", "lat", "lon", "category", "wheelchair", "sensory_friendly", "quiet_room",
-    "baseline_noise_db", "baseline_noise_night_db", "baseline_source", "osm_tags", "measured", "score",
+    "baseline_noise_db", "baseline_noise_night_db", "baseline_source", "osm_tags", "open_now", "prior",
+    "measured", "score",
 }
+STARBUCKS = "osm:node/911106747"  # opening_hours "Mo-Sa 07:00-19:00; Su 11:00-19:00"
+SAT_10_LOCAL = "2026-11-21T09:00:00Z"  # Saturday 10:00 in Lausanne (CET)
+SAT_22_LOCAL = "2026-11-21T21:00:00Z"  # Saturday 22:00
 FEATURE_KEYS = {"db_mean", "db_peak", "sound_classes", "lux_mean", "flicker_index", "people_count"}
 SOUND = ["speech_crowd", "music", "traffic", "siren", "construction", "alarm_beep", "dog", "machinery_hum", "other"]
 
@@ -174,6 +178,48 @@ def test_places_carry_night_noise_and_osm_tags(client):
     assert len(both) > 2000
     assert sum(p["baseline_noise_night_db"] < p["baseline_noise_db"] for p in both) > 0.95 * len(both)
     assert sum("opening_hours" in p["osm_tags"] for p in places) > 1000
+
+
+def test_open_now_follows_opening_hours_and_at(client):
+    def starbucks(at):
+        ps = client.get("/places/nearby", params={"lat": 46.522522, "lon": 6.630265, "radius": 30, "at": at}).json()
+        return next(p for p in ps if p["place_id"] == STARBUCKS)
+
+    assert starbucks(SAT_10_LOCAL)["open_now"] is True
+    assert starbucks(SAT_22_LOCAL)["open_now"] is False
+    everyone = client.get("/places", params={"bbox": LAUSANNE, "at": SAT_10_LOCAL}).json()
+    known = [p for p in everyone if p["open_now"] is not None]
+    assert len(known) > 1000  # ~1,475 places with parseable hours
+    assert all(p["open_now"] is None for p in everyone if "opening_hours" not in p["osm_tags"])
+    assert client.get("/places", params={"bbox": LAUSANNE, "at": "saturday"}).status_code == 422
+
+
+def test_nearby_open_only_drops_closed_keeps_unknown(client):
+    params = {"lat": 46.5236, "lon": 6.6327, "radius": 400, "at": SAT_22_LOCAL}
+    allp = client.get("/places/nearby", params=params).json()
+    openp = client.get("/places/nearby", params=params | {"open_only": True}).json()
+    assert any(p["open_now"] is False for p in allp)
+    assert all(p["open_now"] is not False for p in openp)
+    assert {p["place_id"] for p in openp} == {p["place_id"] for p in allp if p["open_now"] is not False}
+
+
+def test_prior_is_separate_from_measured(client, a_place):
+    """Unmeasured places carry an estimate in `prior` and null `measured`; measuring fills `measured`
+    and leaves `prior` untouched, so estimates and real data can't be confused."""
+    assert a_place["measured"] is None and a_place["prior"] is not None
+    assert set(a_place["prior"]) == FEATURE_KEYS and set(a_place["prior"]["sound_classes"]) == set(SOUND)
+    r = client.post("/measurements", json=measurement(a_place["place_id"], a_place["lat"], a_place["lon"], db_mean=50)).json()
+    assert r["place"]["measured"]["n"] == 1 and r["place"]["measured"]["features"]["db_mean"] == 50
+    assert r["place"]["prior"] == a_place["prior"]
+
+
+def test_meta_lists_required_attribution_and_data(client):
+    m = client.get("/meta").json()
+    texts = [a["text"] for a in m["attribution"] if a["required"]]
+    assert "© OpenStreetMap contributors" in texts
+    assert any("sonBASE" in t for t in texts)
+    assert m["data"]["places"]["count"] > 2000
+    assert m["data"]["heatmap_noise"]["available"] and m["data"]["heatmap_noise"]["cell_m"] == 50
 
 
 def test_heatmap_noise_day_and_night(client):

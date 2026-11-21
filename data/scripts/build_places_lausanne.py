@@ -12,6 +12,8 @@ Steps
   4. Dedupe: same normalised name + category within 25 m (OSM often has a shop as node + building).
   5. baseline_noise_db (day, 06-22) and baseline_noise_night_db (22-06) = median of road+rail noise
      (energetic sum per 10 m cell) over cells within 25 m, widened to 50 m if none (noise_grid.py).
+  6. prior = ESTIMATED feature vector from category group + baseline noise + capacity (priors.py),
+     so the personal model can score unmeasured places. Never shown as measured data.
 
 Needs data/requirements.txt and all four sonBASE rasters (fetch_sonbase.py). Run from the repo root:
   data/.venv/Scripts/python data/scripts/build_places_lausanne.py   (Windows)
@@ -30,6 +32,7 @@ from pathlib import Path
 
 import numpy as np
 from noise_grid import NoiseGrid
+from priors import group_of, prior_for
 
 DATA = Path(__file__).resolve().parents[1]
 OSM = DATA / "raw" / "osm_lausanne.json"
@@ -92,6 +95,7 @@ def to_place(el: dict) -> dict:
         "baseline_noise_night_db": None,
         "baseline_source": None,
         "osm_tags": {k: tags[k] for k in KEEP_TAGS if k in tags},
+        "prior": None,  # estimated feature vector, filled after noise sampling (priors.py)
         "measured": None,
         "score": None,
         "_n_tags": len(tags),  # dedupe priority only; stripped before writing
@@ -152,6 +156,7 @@ def main() -> int:
         p["baseline_noise_db"] = day.median_near(p["lat"], p["lon"])
         p["baseline_noise_night_db"] = night.median_near(p["lat"], p["lon"])
         p["baseline_source"] = "sonbase" if p["baseline_noise_db"] is not None else None
+        p["prior"] = prior_for(p)
 
     places.sort(key=lambda p: p["place_id"])
     features = [
@@ -185,6 +190,10 @@ def main() -> int:
     print(f"noise night ({len(nn):,}): {pct(nn)}")
     print(f"day - night:        median {np.median(drop):.1f} dB quieter at night")
     print(f"osm_tags kept:      {', '.join(f'{k} {v}' for k, v in tag_cov.most_common())}")
+    groups = Counter(group_of(p["category"]) for p in places)
+    print(f"prior groups:       {', '.join(f'{g} {n}' for g, n in groups.most_common())}")
+    pd = [p["prior"]["db_mean"] for p in places]
+    print(f"prior dB:           {pct(pd)}")
     print(f"wrote {OUT.relative_to(DATA.parent)} ({OUT.stat().st_size / 1e6:.2f} MB)")
     return 0
 
