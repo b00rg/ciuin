@@ -13,6 +13,7 @@ python3 ml/class_weights.py       # recompute loss weights + the table below
 python3 -m pytest ml/tests        # preprocessing tests
 python3 ml/teacher.py             # teacher: YAMNet embeddings + MLP head -> export/results.json
 python3 ml/export_teacher.py      # teacher as a reference .tflite (same signature as the students)
+python3 ml/soft_labels.py         # cache teacher logits per window for distillation (#4)
 ```
 
 ## Preprocessing
