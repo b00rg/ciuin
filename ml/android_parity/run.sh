@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 4 || $# -gt 5 || ${5:-trace} != trace ]]; then
+if [[ $# != 4 && ! ( $# == 5 && $5 == trace ) && ! ( $# == 6 && $5 == benchmark ) ]]; then
     printf 'Usage: %s ADB_SERIAL {1.4.2|2.4.0} MODEL.tflite OUTPUT_PREFIX [trace]\n' "$0" >&2
+    printf '       %s ADB_SERIAL 2.4.0 FP32.tflite OUTPUT_DIRECTORY benchmark INT8.tflite\n' "$0" >&2
     exit 2
 fi
 
@@ -32,6 +33,21 @@ if [[ ! -f "$model" ]]; then
     printf 'Model file does not exist: %s\n' "$model" >&2
     exit 2
 fi
+if [[ $mode == benchmark ]]; then
+    if [[ $version != 2.4.0 || $threads != 1 || ! -f $6 ]]; then
+        printf 'Benchmark mode requires LiteRT 2.4.0, one thread, and an INT8 model file.\n' >&2
+        exit 2
+    fi
+    if [[ -e $prefix/setup.log || -e $prefix/events.tsv ]]; then
+        printf 'Choose a new benchmark output directory: %s\n' "$prefix" >&2
+        exit 2
+    fi
+    mkdir -p "$prefix"
+    log="$prefix/setup.log"
+else
+    mkdir -p "$(dirname "$prefix")"
+    log="$prefix.log"
+fi
 
 runner_dir=$(cd "$(dirname "$0")" && pwd)
 repo_dir=$(cd "$runner_dir/../.." && pwd)
@@ -46,10 +62,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-mkdir -p "$(dirname "$prefix")" "$stage/libs"
+mkdir -p "$stage/libs"
 exec 3>&1
-exec > "$prefix.log" 2>&1
-trap 'printf "Android parity failed. See %s.log\n" "$prefix" >&3' ERR
+exec > "$log" 2>&1
+trap 'printf "Android runner failed. See %s\n" "$log" >&3' ERR
 
 device_abi=$(adb -s "$serial" shell getprop ro.product.cpu.abi | tr -d '\r')
 test -n "$device_abi"
@@ -90,6 +106,12 @@ download_aar litert-api "$api_sha"
 adb -s "$serial" install "$stage/build/outputs/apk/debug/android-parity-debug.apk"
 installed=true
 adb -s "$serial" shell run-as "$package" mkdir -p files
+if [[ $mode == benchmark ]]; then
+    printf 'Benchmark outputs will be saved in %s\n' "$prefix" >&3
+    "${CIUIN_BENCHMARK_PYTHON:-python3}" "$runner_dir/benchmark_runs.py" \
+        "$serial" "$package" "$model" "$6" "$prefix" "$litert_sha" "$api_sha" >&3
+    exit
+fi
 adb -s "$serial" shell -T "run-as $package sh -c 'cat > files/model.tflite'" < "$model"
 adb -s "$serial" shell am instrument -r -w -e mode "$mode" -e version "$version" \
     -e threads "$threads" "$package/ch.ciuin.parity.AudioParity" | tee "$stage/instrumentation.log"

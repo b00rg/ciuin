@@ -29,3 +29,18 @@ python3 ml/trace_student_s_int8.py compare "$model" "$out/trace.tflite" "$out/tr
 ```
 
 Each trace writes a JSON manifest and about 193 MB of raw waveform and tensor bytes in the matching `.bin` file. The comparison reuses the exact captured waveform and checks whether exposing the tensors changed the original model's probability output.
+
+## Student S benchmark
+
+Use a Python 3.13 environment with `ml/requirements.txt` and ai-edge-litert 2.4.0. Run from the repository root with the same JDK, SDK, and ADB setup as the parity runner.
+
+```sh
+out=$(mktemp -d)
+ml/android_parity/run.sh emulator-5554 2.4.0 ml/export/audio-student-s.tflite "$out" \
+    benchmark ml/export/audio-student-s-int8.tflite
+python3 ml/android_parity/compare_benchmark.py "$out" --output "$out/summary.json"
+```
+
+Set `CIUIN_BENCHMARK_PYTHON` to the Python executable if it differs from `python3`. The runner stages the exact model files and references from host LiteRT, builds one APK, and uses a fresh instrumentation process for each model run. It alternates pair order across six rounds. Each process warms up on three passes of the same 65 Kotlin-preprocessed windows, then times 20 passes. The runner verifies the staged model SHA-256 with ADB before each launch and records attempts in `events.tsv`. The checksum reads the staged file outside the benchmark process and warms the guest page cache.
+
+The load timer covers the LiteRT file constructor and explicit tensor allocation. WAV decoding, Kotlin preprocessing, reference validation and report writing are outside the timed inference calls. The APK validates all nine scores after each call. It captures the process's pre-model `VmRSS` and `VmHWM` and reads the peak `VmHWM` after inference, before serializing the report. Use `CIUIN_ANDROID_BENCHMARK_PILOT=1` and `--rounds 1` on the comparison command for a single diagnostic pair.

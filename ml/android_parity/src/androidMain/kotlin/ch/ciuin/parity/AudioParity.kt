@@ -44,7 +44,7 @@ class AudioParity : Instrumentation() {
 
     private fun runModel(): Int {
         val mode = checkNotNull(arguments.getString("mode"))
-        check(mode in setOf("parity", "trace"))
+        check(mode in setOf("parity", "trace", "benchmark"))
         val version = checkNotNull(arguments.getString("version"))
         val threads = checkNotNull(arguments.getString("threads"))
         val threadLabel = when (threads) {
@@ -62,27 +62,33 @@ class AudioParity : Instrumentation() {
         check(names.size == 10 && assets.list("").orEmpty().filter { it.endsWith(".wav") }.sorted() == names.sorted())
 
         val model = File(targetContext.filesDir, "model.tflite")
+        val runtime = "LiteRT $version built-in CPU kernels ($threadLabel, XNNPACK disabled)"
+        val options = Interpreter.Options().setUseXNNPACK(false)
+        if (threads == "1") options.setNumThreads(1)
+        val outputFile = File(targetContext.filesDir, "output.json")
+        if (mode == "benchmark") {
+            check(version == "2.4.0" && threads == "1") { "Benchmark requires LiteRT 2.4.0 with one CPU thread" }
+            val report = benchmarkModel(model, options, assets, fixture, arguments, runtime)
+            outputFile.writeText(report.toString())
+            return report.getJSONObject("benchmark").getInt("measured_inferences")
+        }
+
         val modelSha256 = MessageDigest.getInstance("SHA-256")
             .digest(model.readBytes()).joinToString("") { "%02x".format(it) }
         val output = JSONObject()
             .put("model_sha256", modelSha256)
-            .put("runtime", "LiteRT $version built-in CPU kernels ($threadLabel, XNNPACK disabled)")
+            .put("runtime", runtime)
             .put("classes", JSONArray(labels))
-        val options = Interpreter.Options().setUseXNNPACK(false)
-        if (threads == "1") options.setNumThreads(1)
         val count = Interpreter(model, options).use { interpreter ->
             interpreter.allocateTensors()
-            check(interpreter.inputTensorCount == 1 && interpreter.outputTensorCount > 0)
-            val input = interpreter.getInputTensor(0)
-            check(input.dataType() == DataType.FLOAT32)
-            check(input.shape().contentEquals(intArrayOf(1, AudioPreprocessor.WINDOW)))
+            val input = checkWaveformInput(interpreter)
             if (mode == "trace") {
                 captureTrace(assets, interpreter, input, names, output)
             } else {
                 classifyClips(assets, interpreter, names, output)
             }
         }
-        File(targetContext.filesDir, "output.json").writeText(output.toString())
+        outputFile.writeText(output.toString())
         return count
     }
 
@@ -92,13 +98,7 @@ class AudioParity : Instrumentation() {
         names: List<String>,
         output: JSONObject,
     ): Int {
-        check(interpreter.outputTensorCount == 1)
-        check(interpreter.signatureKeys.contentEquals(arrayOf("serving_default")))
-        check(interpreter.getSignatureInputs("serving_default").contentEquals(arrayOf("waveform")))
-        check(interpreter.getSignatureOutputs("serving_default").contentEquals(arrayOf("probabilities")))
-        val probabilitiesTensor = interpreter.getOutputTensor(0)
-        check(probabilitiesTensor.dataType() == DataType.FLOAT32)
-        check(probabilitiesTensor.shape().contentEquals(intArrayOf(1, SoundClass.COUNT)))
+        checkProbabilityOutput(interpreter)
 
         val clips = JSONArray()
         var windowCount = 0
@@ -125,13 +125,6 @@ class AudioParity : Instrumentation() {
         }
         output.put("clips", clips)
         return windowCount
-    }
-
-    private fun probabilityJson(probabilities: Map<SoundClass, Float>, key: String): JSONObject {
-        val values = SoundClass.entries.map { probabilities.getValue(it).toDouble() }
-        check(values.all { it in 0.0..1.0 } && abs(values.sum() - 1.0) <= 1e-5)
-        return JSONObject().put("top_class", SoundClass.entries.maxBy { probabilities.getValue(it) }.label)
-            .put(key, JSONArray(values))
     }
 
     private fun captureTrace(
@@ -194,38 +187,64 @@ class AudioParity : Instrumentation() {
         buffer.clear()
         while (buffer.hasRemaining()) channel.write(buffer)
     }
-    private fun readPcm16(assets: AssetManager, name: String): FloatArray {
-        val wav = ByteBuffer.wrap(assets.open(name).use { it.readBytes() }).order(ByteOrder.LITTLE_ENDIAN)
-        check(wav.tag() == "RIFF")
-        wav.int
-        check(wav.tag() == "WAVE")
-        var sampleRate = 0
-        var channels = 0
-        while (wav.remaining() >= 8) {
-            val tag = wav.tag()
-            val size = wav.int
-            val start = wav.position()
-            check(size >= 0 && size <= wav.remaining()) { "$name invalid WAV chunk $tag" }
-            when (tag) {
-                "fmt " -> {
-                    check(size >= 16 && wav.short.toInt() == 1) { "$name expected PCM" }
-                    channels = wav.short.toInt()
-                    sampleRate = wav.int
-                    wav.int
-                    wav.short
-                    check(wav.short.toInt() == 16) { "$name expected 16-bit PCM" }
-                }
-                "data" -> {
-                    check(channels == 1 && sampleRate == AudioPreprocessor.SAMPLE_RATE)
-                    check(size % 2 == 0)
-                    val pcm = ShortArray(size / 2) { wav.short }
-                    return AudioPreprocessor.pcm16(pcm, sampleRate, channels)
-                }
-            }
-            wav.position(start + size + (size and 1))
-        }
-        error("$name missing WAV data")
-    }
-
-    private fun ByteBuffer.tag(): String = String(ByteArray(4).also { get(it) }, Charsets.US_ASCII)
 }
+
+internal fun checkWaveformInput(interpreter: Interpreter): Tensor {
+    check(interpreter.inputTensorCount == 1 && interpreter.outputTensorCount > 0)
+    val input = interpreter.getInputTensor(0)
+    check(input.dataType() == DataType.FLOAT32)
+    check(input.shape().contentEquals(intArrayOf(1, AudioPreprocessor.WINDOW)))
+    return input
+}
+
+internal fun checkProbabilityOutput(interpreter: Interpreter) {
+    check(interpreter.outputTensorCount == 1)
+    check(interpreter.signatureKeys.contentEquals(arrayOf("serving_default")))
+    check(interpreter.getSignatureInputs("serving_default").contentEquals(arrayOf("waveform")))
+    check(interpreter.getSignatureOutputs("serving_default").contentEquals(arrayOf("probabilities")))
+    val probabilities = interpreter.getOutputTensor(0)
+    check(probabilities.dataType() == DataType.FLOAT32)
+    check(probabilities.shape().contentEquals(intArrayOf(1, SoundClass.COUNT)))
+}
+
+internal fun probabilityJson(probabilities: Map<SoundClass, Float>, key: String): JSONObject {
+    val values = SoundClass.entries.map { probabilities.getValue(it).toDouble() }
+    check(values.all { it in 0.0..1.0 } && abs(values.sum() - 1.0) <= 1e-5)
+    return JSONObject().put("top_class", SoundClass.entries.maxBy { probabilities.getValue(it) }.label)
+        .put(key, JSONArray(values))
+}
+
+internal fun readPcm16(assets: AssetManager, name: String): FloatArray {
+    val wav = ByteBuffer.wrap(assets.open(name).use { it.readBytes() }).order(ByteOrder.LITTLE_ENDIAN)
+    check(wav.tag() == "RIFF")
+    wav.int
+    check(wav.tag() == "WAVE")
+    var sampleRate = 0
+    var channels = 0
+    while (wav.remaining() >= 8) {
+        val tag = wav.tag()
+        val size = wav.int
+        val start = wav.position()
+        check(size >= 0 && size <= wav.remaining()) { "$name invalid WAV chunk $tag" }
+        when (tag) {
+            "fmt " -> {
+                check(size >= 16 && wav.short.toInt() == 1) { "$name expected PCM" }
+                channels = wav.short.toInt()
+                sampleRate = wav.int
+                wav.int
+                wav.short
+                check(wav.short.toInt() == 16) { "$name expected 16-bit PCM" }
+            }
+            "data" -> {
+                check(channels == 1 && sampleRate == AudioPreprocessor.SAMPLE_RATE)
+                check(size % 2 == 0)
+                val pcm = ShortArray(size / 2) { wav.short }
+                return AudioPreprocessor.pcm16(pcm, sampleRate, channels)
+            }
+        }
+        wav.position(start + size + (size and 1))
+    }
+    error("$name missing WAV data")
+}
+
+private fun ByteBuffer.tag(): String = String(ByteArray(4).also { get(it) }, Charsets.US_ASCII)

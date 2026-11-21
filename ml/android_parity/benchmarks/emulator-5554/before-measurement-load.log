@@ -1,0 +1,54 @@
+Sat Nov 21 18:11:13 CET 2026
+18:11  up 2 days, 16:17, 2 users, load averages: 14.66 12.08 9.36
+10
+4
+0.73 1.65 1.49 1/1991 10714
+cpu  15530 6910 31359 379365 1609 18563 1152 0 0 0
+cpu0 3246 1538 7400 94193 368 6357 684 0 0 0
+cpu1 3915 1694 8442 94857 385 4087 163 0 0 0
+cpu2 4359 1918 7274 95332 403 4128 138 0 0 0
+cpu3 4008 1758 8241 94981 451 3989 166 0 0 0
+Processes: 815 total, 10 running, 1 stuck, 804 sleeping, 7526 threads 
+2026/11/21 18:11:15
+Load Avg: 15.64, 12.32, 9.46 
+CPU usage: 61.40% user, 33.37% sys, 5.22% idle 
+SharedLibs: 336M resident, 71M data, 69M linkedit.
+MemRegions: 1533075 total, 5266M resident, 108M private, 3427M shared.
+PhysMem: 23G used (4673M wired, 9564M compressor), 188M unused.
+VM: 510T vsize, 57G framework vsize, 1586782(0) swapins, 2933054(0) swapouts.
+Networks: packets: 295928958/270G in, 171571129/150G out.
+Disks: 27249495/635G read, 26994404/436G written.
+
+PID    COMMAND          %CPU #TH
+99633  Cursor Helper    0.0  24 
+99630  Cursor Helper (P 0.0  16 
+99617  Cursor Helper (P 0.0  12 
+99574  Cursor Helper    0.0  22 
+99573  Cursor Helper (P 0.0  55 
+99572  com.apple.Safari 0.0  3  
+99571  Cursor Helper    0.0  22 
+99570  Cursor Helper    0.0  24 
+99569  Cursor Helper (P 0.0  33 
+99551  Cursor Helper (R 0.0  20 
+Processes: 818 total, 14 running, 1 stuck, 803 sleeping, 7628 threads 
+2026/11/21 18:11:16
+Load Avg: 15.64, 12.32, 9.46 
+CPU usage: 61.56% user, 25.65% sys, 12.78% idle 
+SharedLibs: 336M resident, 71M data, 69M linkedit.
+MemRegions: 465 total, 72M resident, 108M private, 3429M shared.
+PhysMem: 23G used (4429M wired, 9599M compressor), 168M unused.
+VM: 511T vsize, 57G framework vsize, 1587230(448) swapins, 2933054(0) swapouts.
+Networks: packets: 295931864/270G in, 171573372/150G out.
+Disks: 27252060/635G read, 26994954/436G written.
+
+PID    COMMAND          %CPU #TH   
+30201  java             84.3 42/3  
+0      kernel_task      79.7 771/12
+40589  Codex (Aperitif  66.2 29    
+12366  qemu-system-aarc 59.6 156/7 
+799    avconferenced    52.1 15    
+414    WindowServer     51.0 28    
+35152  Spotify Helper   16.5 25/2  
+40562  codex            14.6 46    
+579    coreaudiod       14.4 18/1  
+35158  Spotify Helper ( 12.2 26/1  

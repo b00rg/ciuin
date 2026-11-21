@@ -1,0 +1,37 @@
+Tasks: 306 total,   1 running, 305 sleeping,   0 stopped,   0 zombie
+  Mem:  2531992K total,  2138584K used,   393408K free,    17168K buffers
+ Swap:  1898988K total,   432384K used,  1466604K free,  1053908K cached
+400%cpu  38%user  23%nice  58%sys 250%idle   4%iow  27%irq   0%sirq   0%host
+  PID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ ARGS
+  566 system       18  -2  21G 331M 219M S 53.8  13.3   1:21.09 system_server
+ 6365 u0_a140      20   0  16G 164M 123M S 23.0   6.6   0:07.26 com.google.android.apps.wellbeing
+ 1532 u0_a144      20   0  17G 197M 144M S 11.5   7.9   0:11.38 com.google.android.gms
+ 1243 u0_a144      20   0  17G 209M 151M S 11.5   8.4   0:19.05 com.google.android.gms.persistent
+  395 system       -3  -8  10G 5.3M 4.6M S  7.6   0.2   1:17.12 android.hardware.graphics.composer3-service.ranchu
+ 1231 u0_a177      20   0  16G 147M  97M S  3.8   5.9   0:17.69 com.google.android.apps.nexuslauncher
+  944 u0_a179      20   0  17G 215M 140M S  3.8   8.6   0:29.92 com.android.systemui
+10508 shell        20   0  10G 4.8M 4.0M R  0.0   0.1   0:00.02 top -b -n 2 -d 1 -m 12
+10244 u0_a139      20   0  16G  78M  56M S  0.0   3.1   0:00.04 com.google.android.configupdater
+10181 artd         20   0  10G  11M 9.3M S  0.0   0.4   0:00.03 artd
+10134 root         20   0    0    0    0 I  0.0   0.0   0:01.29 [kworker/0:0-virtio_vsock]
+ 6898 root         20   0    0    0    0 I  0.0   0.0   0:00.98 [kworker/0:3-virtio_vsock]
+
+
+
+Tasks: 306 total,   1 running, 305 sleeping,   0 stopped,   0 zombie
+  Mem:  2531992K total,  2143624K used,   388368K free,    17224K buffers
+ Swap:  1898988K total,   426240K used,  1472748K free,  1053972K cached
+400%cpu   3%user   1%nice   7%sys 382%idle   1%iow   6%irq   0%sirq   0%host
+  PID USER         PR  NI VIRT  RES  SHR S[%CPU] %MEM     TIME+ ARGS
+  566 system       18  -2  21G 262M 167M S  3.0  10.5   1:21.23 system_server
+ 1478 u0_a143      20   0  17G 189M 138M S  2.0   7.6   0:05.74 com.google.android.googlequicksearchbox:interactor
+10134 root         20   0    0    0    0 I  1.0   0.0   0:01.29 [kworker/0:0-virtio_vsock]
+ 1506 u0_a143      16  -4  34G 220M 198M S  1.0   8.8   0:12.54 com.google.android.googlequicksearchbox:search
+ 1446 u0_a132      20   0  17G 221M 163M S  1.0   8.9   0:06.64 com.google.android.as
+  443 logd         30  10  10G 3.6M 3.3M S  1.0   0.1   0:08.36 logcat -f /dev/hvc1 *:V
+  387 system       20   0  10G 4.3M 4.2M S  1.0   0.1   0:06.79 android.hardware.sensors-service.multihal
+10508 shell        20   0  10G 5.1M 4.0M R  0.0   0.2   0:00.02 top -b -n 2 -d 1 -m 12
+10244 u0_a139      20   0  16G  78M  56M S  0.0   3.1   0:00.04 com.google.android.configupdater
+10181 artd         20   0  10G  11M 9.3M S  0.0   0.4   0:00.03 artd
+ 6898 root         20   0    0    0    0 I  0.0   0.0   0:00.98 [kworker/0:3-virtio_vsock]
+ 6634 root          0 -20    0    0    0 I  0.0   0.0   0:00.01 [kworker/u9:1-fscrypt_read_queue]

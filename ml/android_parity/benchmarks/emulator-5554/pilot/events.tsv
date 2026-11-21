@@ -1,0 +1,3 @@
+round	position	model	attempt	status	filename
+1	1	fp32	1	success	round-01-pos-1-fp32-attempt-1.json
+1	2	int8	1	success	round-01-pos-2-int8-attempt-1.json
