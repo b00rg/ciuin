@@ -56,6 +56,7 @@ There are no Flex / Select-TF ops and no variables. Real students add more of th
 |---|---|
 | `audio-dummy.tflite` | Untrained (random weights, fixed seed), correct signature, ~0.9 MB. **Its predictions are meaningless**; use it only to wire up loading, inference and the class mapping |
 | `labels.txt` | Class names, one per line, in output order |
+| `audio-teacher.tflite` | Teacher (YAMNet + MLP head, ~4.3M params, 15 MB), same signature. **Reference only**, not for phones: compare a student against it on the desktop target. Matches the Python teacher to ~2e-6. TFLite instead of ONNX (tf2onnx doesn't support TF 2.21 / Python 3.13); LiteRT runs it on desktop too |
 | `../verify_tflite.py` | `python3 ml/verify_tflite.py <model.tflite>` checks any model against this contract |
 
 App-side preprocessing (capture, mono, 16 kHz, windowing, averaging): [`preprocess.md`](preprocess.md).
