@@ -69,3 +69,20 @@ App-side preprocessing (capture, mono, 16 kHz, windowing, averaging): [`preproce
 | `test_clips/` | 10 test-split clips (16 kHz mono 16-bit WAV) + `expected.json`: per-window and clip probabilities **from this exact `.tflite`**. On the phone, the top class must match and probabilities should agree within ~1e-3 |
 | `calibration.npy` | 200 training windows, float32 `[200, 15600]`, spread over the 9 classes: the representative dataset for int8 post-training quantisation |
 | `results.json` | Teacher and student scores (accuracy, macro-F1, per class); add per-device latency rows here |
+
+### Handoff 2 files
+
+Same signature for every model: `waveform [1, 15600]` in, `probabilities [1, 9]` out. **Replaces the Handoff 1 S**: re-run the parity check and int8 quantisation on the new files.
+
+| File | Params | MACs / window | What |
+|---|---:|---:|---|
+| `audio-student-s.tflite` | 68k | 29.5M | Retrained with FSD50K + augmentation. Test macro-F1 0.671 (Handoff 1 S: 0.532 on the same test split) |
+| `audio-student-m.tflite` | 259k | 50.0M | Same architecture, 2× wide |
+| `audio-student-l.tflite` | 1.0M | 128.3M | Same architecture, 4× wide |
+| `audio-teacher.tflite` | 4.3M | | Reference only, retrained with FSD50K |
+| `test_clips/expected.json` | | | Regenerated **from the new S**. Same 10 WAVs |
+| `calibration.npy` | | | **New** 200 training windows (199 differ from Handoff 1): FSD50K is now in the pool, so the alarm / siren / crowd sounds are represented. Re-quantise with this one |
+
+21.4M of each model's MACs are the in-graph log-mel frontend (the STFT is a plain conv). TFLite's `RFFT2D` builtin, which the teacher already uses, would cut that a lot: the biggest speed-up available for the always-on stage 1.
+
+Scores, params, size and MACs for every model are in `results.json`. The test split grew from 2,057 to 3,116 clips when FSD50K joined, so compare models only within one handoff (or use `audio-student-s-handoff1`, the old S re-scored on the new split).

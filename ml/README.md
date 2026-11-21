@@ -50,6 +50,8 @@ python3 ml/personal_model.py      # personal trigger model: tune on synthetic us
 - Loss: `alpha · T² · KL(teacher_T ‖ student_T) + (1 − alpha) · w_c · CE`, default alpha 0.5, T 3; class weights on the CE term only
 - Epoch chosen on val clip-level macro-F1; test scored once
 - For S it also writes `export/test_clips/` (expected outputs computed from the exported `.tflite`) and `export/calibration.npy`
+- Augmentation (on by default, `--no-augment` to turn off) works on the cached log-mels in the power domain, where sounds add: ±6 dB gain, ±0.24 s circular shift, background noise at 3–20 dB SNR on half the batch (MUSAN noise once indexed, else DEMAND), and mixup (λ ~ Beta(0.4, 0.4), folded to ≥ 0.5)
+- `python3 ml/macs.py --write` adds multiply-accumulates per window to `results.json`
 
 ## Personal trigger model
 
