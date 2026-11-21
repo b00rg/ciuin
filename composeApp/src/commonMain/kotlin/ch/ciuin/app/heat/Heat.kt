@@ -27,8 +27,15 @@ data class ViewBounds(val x0: Double, val y0: Double, val x1: Double, val y1: Do
  * Raw samples for a category. Sound uses the baseline grid (road + rail combined) plus every place
  * (its measured dB, else its sonBASE baseline); the other layers only exist where places have data.
  */
-fun samplesFor(category: Category, places: List<Place>, grid: List<HeatPoint>): List<HeatSample> {
-    val fromPlaces = places.mapNotNull { p -> category.raw(p)?.let { HeatSample(lonToX(p.lon), latToY(p.lat), it) } }
+fun samplesFor(
+    category: Category,
+    places: List<Place>,
+    grid: List<HeatPoint>,
+    personalScores: Map<String, Double> = emptyMap(),
+): List<HeatSample> {
+    val fromPlaces = places.mapNotNull { p ->
+        category.raw(p, personalScores[p.placeId])?.let { HeatSample(lonToX(p.lon), latToY(p.lat), it) }
+    }
     if (category != Category.SOUND) return fromPlaces
     return grid.mapNotNull { g -> g.combinedDb?.let { HeatSample(lonToX(g.lon), latToY(g.lat), it) } } + fromPlaces
 }
@@ -92,11 +99,17 @@ private val SOUND_GROUPS: List<Pair<String, List<SoundClass>>> = listOf(
  * Sound: road vs rail share of the baseline noise energy + the mix of sound types we measured.
  * Access: share of places that are accessible / limited / not.
  */
-fun summarise(category: Category, places: List<Place>, grid: List<HeatPoint>, bounds: ViewBounds?): AreaSummary {
+fun summarise(
+    category: Category,
+    places: List<Place>,
+    grid: List<HeatPoint>,
+    bounds: ViewBounds?,
+    personalScores: Map<String, Double> = emptyMap(),
+): AreaSummary {
     fun inView(lat: Double, lon: Double) = bounds == null || HeatSample(lonToX(lon), latToY(lat), 0.0) in bounds
     val placesIn = places.filter { inView(it.lat, it.lon) }
     val gridIn = if (category == Category.SOUND) grid.filter { inView(it.lat, it.lon) } else emptyList()
-    val samples = samplesFor(category, placesIn, gridIn)
+    val samples = samplesFor(category, placesIn, gridIn, personalScores)
     val mean = samples.takeIf { it.isNotEmpty() }?.let { s -> s.sumOf { it.value } / s.size }
 
     val sections = buildList {
@@ -131,7 +144,7 @@ fun summarise(category: Category, places: List<Place>, grid: List<HeatPoint>, bo
                     )))
                 }
             }
-            Category.LIGHT, Category.CROWD -> Unit // mean + count is the whole story for now
+            Category.LIGHT, Category.CROWD, Category.PERSONAL -> Unit
         }
     }
     return AreaSummary(mean, samples.size, sections)

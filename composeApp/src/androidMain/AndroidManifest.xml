@@ -1,10 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
 
     <!-- usesCleartextTraffic: plain http to the laptop backend (emulator 10.0.2.2, hotspot IP).
          The Cloudflare tunnel is https and doesn't need it. Hackathon setting; revisit for release. -->
     <application
+        android:name=".CiuinApplication"
         android:usesCleartextTraffic="true"
         android:label="@string/app_name"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
@@ -16,5 +27,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity-alias
+            android:name=".QuietPlaceRouteEntry"
+            android:exported="false"
+            android:targetActivity=".MainActivity" />
+        <service
+            android:name=".listener.LiveListeningService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|location" />
     </application>
 </manifest>
