@@ -1,0 +1,129 @@
+# Sensory Map audio classes and how each source dataset maps onto them.
+#
+# `classes` is in model output order: index i is softmax output i.
+# Must match the SoundClass enum in
+# shared/src/commonMain/kotlin/ch/ciuin/shared/model/SoundClass.kt.
+# Changing the order or names breaks the model handoff contract
+# (output float32 [1, 9]); tell Paramveer and Christine first.
+#
+# There is no "quiet" class: the cascade reports quiet when stage 0
+# (dB + spectral flux) stays asleep and no model runs.
+#
+# Check this file with: python3 ml/check_labels.py
+
+classes:
+  - speech_crowd
+  - music
+  - traffic
+  - siren
+  - construction
+  - alarm_beep
+  - dog
+  - machinery_hum
+  - other
+
+# How much a mistake on each class matters, independent of how much data
+# it has. Multiplied with a data-balancing term by ml/class_weights.py to
+# get the loss weights. 1.0 = neutral.
+#   3.0  alert-critical: sudden, piercing, the cascade must not miss them
+#   2.0  common overload triggers: loud, impulsive or hard to tune out
+#   1.5  frequent background triggers
+#   1.0  usually tolerable
+#   0.5  catch-all: confusing two "other" sounds costs nothing
+importance:
+  siren: 3.0          # alert signal; missing one is the worst failure
+  alarm_beep: 3.0     # alert signal; high-pitched, and only 40 training clips
+  construction: 2.0   # drilling/jackhammer: loud, impulsive, long-lasting
+  speech_crowd: 2.0   # crowd babble is one of the most reported triggers
+  dog: 1.5            # sudden barking startles
+  traffic: 1.5        # constant and loud near roads
+  music: 1.0          # often chosen by the listener; tolerable at normal levels
+  machinery_hum: 1.0  # steady hum; matters for some users, low intensity
+  other: 0.5          # catch-all, keeps the model from forcing a class
+
+# Source class -> our class. Every source class must appear exactly once.
+mapping:
+  # ESC-50 (50 classes, `category` column of meta/esc50.csv)
+  esc50:
+    # Animals
+    dog: dog
+    rooster: other
+    pig: other
+    cow: other
+    frog: other
+    cat: other
+    hen: other
+    insects: other
+    sheep: other
+    crow: other
+    # Natural soundscapes and water
+    rain: other
+    sea_waves: other
+    crackling_fire: other
+    crickets: other
+    chirping_birds: other
+    water_drops: other
+    wind: other
+    pouring_water: other
+    toilet_flush: other
+    thunderstorm: other
+    # Human, non-speech
+    crying_baby: other
+    sneezing: other
+    clapping: other
+    breathing: other
+    coughing: other
+    footsteps: other
+    laughing: other
+    brushing_teeth: other
+    snoring: other
+    drinking_sipping: other
+    # Interior / domestic
+    door_wood_knock: other
+    mouse_click: other
+    keyboard_typing: other
+    door_wood_creaks: other
+    can_opening: other
+    washing_machine: machinery_hum
+    vacuum_cleaner: machinery_hum
+    clock_alarm: alarm_beep
+    clock_tick: other
+    glass_breaking: other
+    # Exterior / urban
+    helicopter: traffic
+    chainsaw: construction
+    siren: siren
+    car_horn: traffic
+    engine: traffic
+    train: traffic
+    church_bells: other
+    airplane: traffic
+    fireworks: other
+    hand_saw: construction
+
+  # UrbanSound8K (10 classes, `class` column of metadata/UrbanSound8K.csv)
+  us8k:
+    air_conditioner: machinery_hum
+    car_horn: traffic
+    children_playing: speech_crowd
+    dog_bark: dog
+    drilling: construction
+    engine_idling: traffic
+    gun_shot: other
+    jackhammer: construction
+    siren: siren
+    street_music: music
+
+  # MUSAN (top-level folders)
+  musan:
+    speech: speech_crowd
+    music: music
+    noise: null  # unlabelled mix: background-noise augmentation only, not a training class
+
+# Calls worth revisiting once we see per-class results:
+# - children_playing -> speech_crowd: crowd voices, but often shrieks/play noise
+# - helicopter / airplane / train -> traffic: transport noise; could move to other
+# - chainsaw / hand_saw -> construction: closest match, no ESC-50 drill/jackhammer
+# - car_horn -> traffic, not alarm_beep: horns are part of street noise
+# - laughing / clapping -> other: crowd-adjacent, but single-source clips
+# - MUSAN speech is single read speech, not a crowd: babble synthesis (add-on) fixes this
