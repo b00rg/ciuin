@@ -114,3 +114,12 @@ def test_real_urbansound8k_files():
         assert y.dtype == np.float32 and y.ndim == 1
         assert abs(len(y) - info.frames / info.samplerate * pp.SAMPLE_RATE) <= 2
         assert np.abs(y).max() <= 1.0
+
+
+def test_active_window_starts_match_windows():
+    x = np.concatenate([tone(500, pp.SAMPLE_RATE, 2.0), np.zeros(2 * pp.SAMPLE_RATE, np.float32),
+                        tone(800, pp.SAMPLE_RATE, 1.5)])
+    starts, w = pp.active_window_starts(x)
+    assert len(starts) == len(w)
+    for s, win in zip(starts, w):
+        assert np.array_equal(win, x[s:s + pp.WINDOW])
