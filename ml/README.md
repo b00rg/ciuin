@@ -11,11 +11,16 @@ python3 ml/check_labels.py        # validate labels.yaml, regenerate labels.txt
 python3 ml/build_index.py         # clip index with splits -> data/processed/audio_index.sqlite
 python3 ml/class_weights.py       # recompute loss weights + the table below
 python3 -m pytest ml/tests        # preprocessing tests
+python3 ml/personal_model.py      # personal trigger model: tune on synthetic users, write spec data (#8)
 ```
 
 ## Preprocessing
 
 `ml/preprocess.py` loads any clip as 16 kHz mono float, cuts 0.975 s windows (0.5 s hop), skips windows below −60 dBFS and averages window probabilities into a clip score. Training and evaluation use it; [`export/preprocess.md`](export/preprocess.md) is the same thing written for the Kotlin port. Change both together.
+
+## Personal trigger model
+
+`ml/personal_model.py` prototypes the on-phone model (logistic regression on 14 features, L2 toward a preset) on synthetic users, picks its hyperparameters and writes test vectors for the Kotlin port. Spec: [`export/personal_model.md`](export/personal_model.md).
 
 ## Classes
 
