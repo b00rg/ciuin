@@ -10,7 +10,7 @@ python3 ml/download_datasets.py   # ~21 GB into data/raw/audio/ (gitignored)
 python3 ml/check_labels.py        # validate labels.yaml, regenerate labels.txt
 python3 ml/build_index.py         # clip index with splits -> data/processed/audio_index.sqlite
 python3 ml/class_weights.py       # recompute loss weights + the table below
-python3 -m pytest ml/tests        # preprocessing tests
+python3 -m pytest ml/tests        # preprocessing + Handoff 1 tests (SLOW=1 also re-scores the test split)
 python3 ml/teacher.py             # teacher: YAMNet embeddings + MLP head -> export/results.json
 python3 ml/export_teacher.py      # teacher as a reference .tflite (same signature as the students)
 python3 ml/soft_labels.py         # cache teacher logits per window for distillation (#4)
