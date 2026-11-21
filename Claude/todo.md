@@ -148,7 +148,7 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 - [ ] Overpass query for the Lausanne bbox: `amenity`, `shop`, `leisure`, `tourism` POIs with `name` → `data/raw/osm_lausanne.json`
 - [ ] Count tags: `wheelchair=*`, `sensory_friendly=*`, `amenity=quiet_room` for Lausanne / Switzerland / Europe / world (`data/scripts/count_tags.py` → `data/processed/tag_counts.json`); post counts in chat by 14:00
 - [ ] Switzerland POIs: Geofabrik `switzerland-latest.osm.pbf` filtered locally (more reliable than one huge Overpass query) → `data/raw/osm_switzerland/`
-- [ ] Register for an accessibility.cloud app token; pull places for the same bbox → `data/raw/a11ycloud_lausanne.json`
+- [ ] **Stretch, blocked:** accessibility.cloud app token. Sign-up app (v2.accessibility.cloud/sign-up) never finished loading on 21 Nov (laptop + phone on mobile data, normal + private). Retry later; once there's a token, `data/scripts/fetch_a11ycloud_lausanne.py` is ready → `data/raw/a11ycloud_lausanne.json`. Not on the critical path: OSM `wheelchair=*` covers the demo. NB: accessibilitycloud.com (no dot) is an unrelated web-testing product
 - [ ] Download sonBASE daytime road noise (layer `ch.bafu.laerm-strassenlaerm_tag`) and railway noise for all of Switzerland → `data/raw/sonbase/`
 - [ ] Download opentransportdata.swiss accessibility data (stops, toilets, platforms) → `data/raw/prm/`
 - [ ] Optional: EEA END noise grid for Dublin
