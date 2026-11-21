@@ -10,9 +10,13 @@ python3 ml/download_datasets.py   # ~21 GB into data/raw/audio/ (gitignored)
 python3 ml/check_labels.py        # validate labels.yaml, regenerate labels.txt
 python3 ml/build_index.py         # clip index with splits -> data/processed/audio_index.sqlite
 python3 ml/class_weights.py       # recompute loss weights + the table below
-python3 -m pytest ml/tests        # preprocessing tests
+python3 -m pytest ml/tests        # preprocessing + Handoff 1 tests (SLOW=1 also re-scores the test split)
 python3 ml/teacher.py             # teacher: YAMNet embeddings + MLP head -> export/results.json
 python3 ml/export_teacher.py      # teacher as a reference .tflite (same signature as the students)
+python3 ml/soft_labels.py         # cache teacher logits per window for distillation (#4)
+python3 ml/student.py             # S student: distil, export .tflite, test clips, calibration set
+python3 ml/student.py --hard      # hard-label baseline, no teacher (#15)
+python3 ml/cascade_rule.py        # stage 1 -> 2 escalation rule -> export/cascade.json (#6)
 ```
 
 ## Preprocessing
@@ -27,6 +31,22 @@ python3 ml/export_teacher.py      # teacher as a reference .tflite (same signatu
 - Trained with the loss weights below; the epoch is chosen on **val** clip-level macro-F1, and **test** is scored once
 - Scores go to `export/results.json` under `teacher`, including per-class F1 and which datasets were missing at training time
 - The window cache and the head are what #4 uses for the students' soft labels
+
+## Students
+
+`ml/student.py`: a depthwise-separable CNN on the in-graph log-mel, distilled from the teacher. One architecture, three widths:
+
+| Size | `--width` | Params | Ships as |
+|---|---:|---:|---|
+| S | 1 | 68k | `export/audio-student-s.tflite` |
+| M | 2 | 259k | `export/audio-student-m.tflite` |
+| L | 4 | 1.0M | `export/audio-student-l.tflite` |
+
+- Trains on cached log-mels of the teacher's windows (`data/cache/student/`), since the frontend is fixed; the exported model wraps the frontend back around the CNN, so it still takes raw audio
+- Teacher targets come from the cached logits (`soft_labels.py`, #4), so the teacher never runs during training
+- Loss: `alpha · T² · KL(teacher_T ‖ student_T) + (1 − alpha) · w_c · CE`, default alpha 0.5, T 3; class weights on the CE term only
+- Epoch chosen on val clip-level macro-F1; test scored once
+- For S it also writes `export/test_clips/` (expected outputs computed from the exported `.tflite`) and `export/calibration.npy`
 
 ## Classes
 

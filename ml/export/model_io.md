@@ -54,11 +54,18 @@ There are no Flex / Select-TF ops and no variables. Real students add more of th
 
 | File | What |
 |---|---|
-| `audio-dummy.tflite` | Untrained (random weights, fixed seed), correct signature, ~0.9 MB. **Its predictions are meaningless**; use it only to wire up loading, inference and the class mapping |
+| `audio-dummy.tflite` | Untrained (random weights, fixed seed), correct signature, ~0.9 MB. **Its predictions are meaningless**; superseded by `audio-student-s.tflite` |
 | `labels.txt` | Class names, one per line, in output order |
 | `audio-teacher.tflite` | Teacher (YAMNet + MLP head, ~4.3M params, 15 MB), same signature. **Reference only**, not for phones: compare a student against it on the desktop target. Matches the Python teacher to ~2e-6. TFLite instead of ONNX (tf2onnx doesn't support TF 2.21 / Python 3.13); LiteRT runs it on desktop too |
 | `../verify_tflite.py` | `python3 ml/verify_tflite.py <model.tflite>` checks any model against this contract |
 
 App-side preprocessing (capture, mono, 16 kHz, windowing, averaging): [`preprocess.md`](preprocess.md).
 
-Coming at Handoff 1: the first real student and `test_clips/` for parity checks.
+### Handoff 1 files
+
+| File | What |
+|---|---|
+| `audio-student-s.tflite` | First real model: small student (~68k params), fp32, same signature as the dummy. Scores in `results.json` |
+| `test_clips/` | 10 test-split clips (16 kHz mono 16-bit WAV) + `expected.json`: per-window and clip probabilities **from this exact `.tflite`**. On the phone, the top class must match and probabilities should agree within ~1e-3 |
+| `calibration.npy` | 200 training windows, float32 `[200, 15600]`, spread over the 9 classes: the representative dataset for int8 post-training quantisation |
+| `results.json` | Teacher and student scores (accuracy, macro-F1, per class); add per-device latency rows here |
