@@ -22,7 +22,15 @@ python3 ml/personal_model.py      # personal trigger model: tune on synthetic us
 
 ## Preprocessing
 
-`ml/preprocess.py` loads any clip as 16 kHz mono float, cuts 0.975 s windows (0.5 s hop), skips windows below −60 dBFS and averages window probabilities into a clip score. Training and evaluation use it; [`export/preprocess.md`](export/preprocess.md) is the same thing written for the Kotlin port. Change both together.
+`ml/preprocess.py` loads clips as 16 kHz mono float, cuts 0.975 s windows (0.5 s hop), skips windows below −60 dBFS and averages window probabilities into a clip score. The Python and shared Kotlin implementations follow the same [preprocessing contract](export/preprocess.md).
+
+Run the Kotlin handoff parity test from the repo root with JDK 17 and a Python environment containing `ai-edge-litert` and `numpy`:
+
+```sh
+CIUIN_LITERT_PYTHON="$PWD/.venv/bin/python" ./gradlew :shared:desktopTest --tests '*AudioParityTest' --rerun
+```
+
+The test feeds Kotlin's windows from all ten bundled WAVs to `audio-student-s.tflite` and checks their start samples, window and clip probabilities within 0.001, and clip top classes against `expected.json`.
 
 ## Teacher
 
