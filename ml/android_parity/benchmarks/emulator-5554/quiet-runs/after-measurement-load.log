@@ -19,15 +19,6 @@ VM: 509T vsize, 57G framework vsize, 1660061(0) swapins, 3005399(0) swapouts.
 Networks: packets: 296236881/270G in, 171851083/150G out.
 Disks: 27392197/641G read, 27060450/439G written.
 
-PID    COMMAND          %CPU #TH
-99633  Cursor Helper    0.0  24 
-99630  Cursor Helper (P 0.0  15 
-99617  Cursor Helper (P 0.0  11 
-99574  Cursor Helper    0.0  22 
-99573  Cursor Helper (P 0.0  55 
-99572  com.apple.Safari 0.0  4  
-99571  Cursor Helper    0.0  22 
-99570  Cursor Helper    0.0  24 
 Processes: 812 total, 6 running, 806 sleeping, 7183 threads 
 2026/11/21 18:14:28
 Load Avg: 9.30, 11.18, 9.59 
@@ -38,13 +29,3 @@ PhysMem: 23G used (4259M wired, 10G compressor), 130M unused.
 VM: 508T vsize, 57G framework vsize, 1660109(48) swapins, 3005399(0) swapouts.
 Networks: packets: 296237492/270G in, 171855446/150G out.
 Disks: 27392779/641G read, 27060620/439G written.
-
-PID    COMMAND          %CPU #TH   
-414    WindowServer     52.3 39    
-0      kernel_task      47.6 771/10
-799    avconferenced    45.2 14/2  
-35152  Spotify Helper   26.0 24    
-907    Alcove           18.5 15    
-35158  Spotify Helper ( 18.4 24    
-40510  ChatGPT          11.2 72/1  
-35085  VTEncoderXPCServ 10.6 7     

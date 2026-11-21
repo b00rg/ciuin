@@ -19,17 +19,6 @@ VM: 511T vsize, 57G framework vsize, 1607697(0) swapins, 2933054(0) swapouts.
 Networks: packets: 295989551/270G in, 171634299/150G out.
 Disks: 27286160/636G read, 27003655/437G written.
 
-PID    COMMAND          %CPU #TH
-99633  Cursor Helper    0.0  24 
-99630  Cursor Helper (P 0.0  15 
-99617  Cursor Helper (P 0.0  11 
-99574  Cursor Helper    0.0  22 
-99573  Cursor Helper (P 0.0  55 
-99572  com.apple.Safari 0.0  3  
-99571  Cursor Helper    0.0  22 
-99570  Cursor Helper    0.0  24 
-99569  Cursor Helper (P 0.0  33 
-99551  Cursor Helper (R 0.0  20 
 Processes: 821 total, 4 running, 817 sleeping, 7289 threads 
 2026/11/21 18:11:58
 Load Avg: 15.42, 12.84, 9.79 
@@ -42,13 +31,4 @@ Networks: packets: 295991321/270G in, 171636620/150G out.
 Disks: 27286556/636G read, 27003758/437G written.
 
 PID    COMMAND          %CPU #TH   
-799    avconferenced    40.5 15/1  
-414    WindowServer     37.4 24    
-0      kernel_task      29.3 771/10
 12366  qemu-system-aarc 28.8 152/2 
-579    coreaudiod       19.7 23    
-907    Alcove           17.0 9     
-35158  Spotify Helper ( 13.2 25    
-35152  Spotify Helper   12.4 24    
-43716  top              6.1  1/1   
-564    com.apple.Driver 3.9  8     

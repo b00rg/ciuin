@@ -1,4 +1,4 @@
-Model: /Users/paramveer/.codex/worktrees/920a/ciuin/ml/export/audio-student-s.tflite sha256=250b5a9f0e4409315413c18230e71083591ad106715541d76f0edd9a4dc99022
+Model: <repo-root>/ml/export/audio-student-s.tflite sha256=250b5a9f0e4409315413c18230e71083591ad106715541d76f0edd9a4dc99022
 Host runtime: LiteRT 2.4.0 built-in CPU kernels
 FP32 fixture -> host candidate
   00_speech_crowd.wav: starts=[0, 8000, 16000, 24000, 32000, 40000, 48000, 48400], clip top=speech_crowd -> speech_crowd

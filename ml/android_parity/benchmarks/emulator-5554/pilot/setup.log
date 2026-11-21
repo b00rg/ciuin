@@ -3,8 +3,8 @@ ABI: arm64-v8a
 API level: 35
 LiteRT 2.4.0 built-in CPU kernels (1 thread, XNNPACK disabled)
 Source model SHA-256: 250b5a9f0e4409315413c18230e71083591ad106715541d76f0edd9a4dc99022  ml/export/audio-student-s.tflite
-/var/folders/7l/h2_g1hnd1g1ghvxh35xsy3tr0000gn/T//ciuin-android-parity.bOXPnzE0HS/libs/litert.aar: OK
-/var/folders/7l/h2_g1hnd1g1ghvxh35xsy3tr0000gn/T//ciuin-android-parity.bOXPnzE0HS/libs/litert-api.aar: OK
+<benchmark-stage>/libs/litert.aar: OK
+<benchmark-stage>/libs/litert-api.aar: OK
 > Task :preBuild UP-TO-DATE
 > Task :preDebugBuild UP-TO-DATE
 > Task :mergeDebugNativeDebugMetadata NO-SOURCE
@@ -53,7 +53,7 @@ Unable to strip the following libraries, packaging them as they are: libLiteRt.s
 > Task :createDebugApkListingFileRedirect
 > Task :assembleDebug
 
-[Incubating] Problems report is available at: file:///private/var/folders/7l/h2_g1hnd1g1ghvxh35xsy3tr0000gn/T/ciuin-android-parity.bOXPnzE0HS/build/reports/problems/problems-report.html
+[Incubating] Problems report is available at: <benchmark-stage>/build/reports/problems/problems-report.html
 
 Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
 

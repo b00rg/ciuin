@@ -19,15 +19,6 @@ VM: 507T vsize, 57G framework vsize, 1656484(0) swapins, 3005399(0) swapouts.
 Networks: packets: 296079324/270G in, 171728426/150G out.
 Disks: 27361703/640G read, 27042266/439G written.
 
-PID    COMMAND          %CPU #TH
-99633  Cursor Helper    0.0  24 
-99630  Cursor Helper (P 0.0  15 
-99617  Cursor Helper (P 0.0  11 
-99574  Cursor Helper    0.0  22 
-99573  Cursor Helper (P 0.0  55 
-99572  com.apple.Safari 0.0  4  
-99571  Cursor Helper    0.0  22 
-99570  Cursor Helper    0.0  24 
 Processes: 813 total, 4 running, 809 sleeping, 7062 threads 
 2026/11/21 18:13:52
 Load Avg: 11.24, 11.66, 9.68 
@@ -41,10 +32,3 @@ Disks: 27364178/640G read, 27042277/439G written.
 
 PID    COMMAND          %CPU #TH   
 12366  qemu-system-aarc 61.4 120   
-414    WindowServer     31.2 31    
-40589  Codex (Aperitif  24.6 29    
-0      kernel_task      20.1 771/10
-579    coreaudiod       15.4 11    
-2585   MTLCompilerServi 12.5 2/1   
-95408  Grok Bot         8.2  52    
-40525  Codex (Aperitif) 6.3  27    
