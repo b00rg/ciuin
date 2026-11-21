@@ -1,7 +1,9 @@
 """SQLite storage (stdlib sqlite3, no ORM). Tables are created on startup; to change the schema,
 delete the .db file and re-seed. Never commit *.db.
 
-Also a CLI:  python db.py --reset   (wipe and re-seed from data/processed/places_lausanne.geojson)
+Also a CLI:
+  python db.py --reseed   refresh places from the GeoJSON after rebuilding it; measurements are kept
+  python db.py --reset    wipe everything and re-seed (measurements are lost)
 """
 
 from __future__ import annotations
@@ -29,7 +31,9 @@ CREATE TABLE IF NOT EXISTS places (
     sensory_friendly  TEXT,
     quiet_room        INTEGER NOT NULL DEFAULT 0,
     baseline_noise_db REAL,
+    baseline_noise_night_db REAL,
     baseline_source   TEXT,
+    osm_tags          TEXT,                          -- JSON object of selected OSM tags
     n                 INTEGER NOT NULL DEFAULT 0,   -- number of measurements
     mean_features     TEXT,                          -- JSON FeatureVector, null until measured
     score             TEXT                           -- JSON PlaceScore, null until measured
@@ -71,8 +75,20 @@ def has_rtree(conn: sqlite3.Connection) -> bool:
     return conn.execute("SELECT 1 FROM sqlite_master WHERE name='places_rtree'").fetchone() is not None
 
 
+# Columns added after the first release: (table, column, type). init() adds any that are missing,
+# so an existing ciuin.db upgrades in place without losing measurements. Append, never edit.
+MIGRATIONS = [
+    ("places", "baseline_noise_night_db", "REAL"),
+    ("places", "osm_tags", "TEXT"),
+]
+
+
 def init(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    for table, column, sqltype in MIGRATIONS:
+        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in cols:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {sqltype}")
     try:
         conn.execute(RTREE)
     except sqlite3.OperationalError:
@@ -92,18 +108,21 @@ def seed(conn: sqlite3.Connection, files: list[Path] = SEED_FILES) -> int:
             p = feat["properties"]
             cur = conn.execute(
                 """INSERT INTO places (place_id, name, lat, lon, category, wheelchair, sensory_friendly,
-                                       quiet_room, baseline_noise_db, baseline_source)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                       quiet_room, baseline_noise_db, baseline_noise_night_db,
+                                       baseline_source, osm_tags)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(place_id) DO UPDATE SET
                      name=excluded.name, lat=excluded.lat, lon=excluded.lon, category=excluded.category,
                      wheelchair=excluded.wheelchair, sensory_friendly=excluded.sensory_friendly,
                      quiet_room=excluded.quiet_room, baseline_noise_db=excluded.baseline_noise_db,
-                     baseline_source=excluded.baseline_source
+                     baseline_noise_night_db=excluded.baseline_noise_night_db,
+                     baseline_source=excluded.baseline_source, osm_tags=excluded.osm_tags
                    RETURNING id""",
                 (
                     p["place_id"], p["name"], p["lat"], p["lon"], p["category"], p.get("wheelchair"),
                     p.get("sensory_friendly"), int(bool(p.get("quiet_room"))), p.get("baseline_noise_db"),
-                    p.get("baseline_source"),
+                    p.get("baseline_noise_night_db"), p.get("baseline_source"),
+                    json.dumps(p.get("osm_tags") or {}, ensure_ascii=False),
                 ),
             )
             rowid = cur.fetchone()[0]
@@ -127,6 +146,10 @@ def ensure_ready() -> None:
 
 
 def main() -> int:
+    if "--reseed" in sys.argv:  # refresh places from the GeoJSON, keep measurements
+        with closing(connect()) as conn:
+            init(conn)
+            print(f"re-seeded {seed(conn)} places (measurements kept)")
     if "--reset" in sys.argv:
         for suffix in ("", "-wal", "-shm"):
             Path(str(db_path()) + suffix).unlink(missing_ok=True)

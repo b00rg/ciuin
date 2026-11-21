@@ -131,7 +131,9 @@ def to_place(row: sqlite3.Row) -> Place:
         sensory_friendly=row["sensory_friendly"],
         quiet_room=bool(row["quiet_room"]),
         baseline_noise_db=row["baseline_noise_db"],
+        baseline_noise_night_db=row["baseline_noise_night_db"],
         baseline_source=row["baseline_source"],
+        osm_tags=json.loads(row["osm_tags"]) if row["osm_tags"] else {},
         measured=measured,
         score=PlaceScore.model_validate_json(row["score"]) if row["score"] else None,
     )
@@ -203,25 +205,72 @@ def post_measurement(conn: Conn, m: Measurement) -> MeasurementResult:
     return MeasurementResult(stored=True, place=to_place(row) if row else None)
 
 
+HEATMAP_CELL_M = 50
+# 50 m in degrees at Lausanne's latitude (46.5° N); used to bin measurements into heatmap cells
+CELL_DLAT = HEATMAP_CELL_M / 111_320
+CELL_DLON = HEATMAP_CELL_M / (111_320 * math.cos(math.radians(46.5)))
+MEASURED_DIMS = {"light": "lux_mean", "flicker": "flicker_index", "crowd": "people_count"}
+_noise_grid_cache: dict[str, object] = {}
+
+
+def _noise_grid() -> list[dict]:
+    f = PROCESSED / "heatmap_lausanne_noise.geojson"
+    if not f.is_file():
+        return []
+    mtime = f.stat().st_mtime
+    if _noise_grid_cache.get("mtime") != mtime:  # reload when the file is rebuilt
+        _noise_grid_cache.update(mtime=mtime, features=json.loads(f.read_text(encoding="utf-8"))["features"])
+    return _noise_grid_cache["features"]  # type: ignore[return-value]
+
+
+def _cell_feature(lon: float, lat: float, props: dict) -> dict:
+    return {"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]}, "properties": props}
+
+
 @app.get("/heatmap", tags=["map layers"], summary="Heatmap grid (GeoJSON)")
 def heatmap(
+    conn: Conn,
     bbox: Annotated[str, BBOX_QUERY],
     dim: Annotated[str, Query(pattern="^(noise|light|flicker|crowd)$")] = "noise",
+    period: Annotated[str, Query(pattern="^(day|night)$", description="noise only: day 06-22, night 22-06")] = "day",
 ) -> dict:
-    """GeoJSON grid for the heatmap layer, from data/processed/heatmap_lausanne_<dim>.geojson.
-    Returns an empty FeatureCollection until that file is built (todo.md: 50 m grid task)."""
+    """GeoJSON FeatureCollection of 50 m cells (Points at cell centres; draw 50 m squares).
+    Every feature has `properties.value` and `properties.source`:
+
+    * `dim=noise`: outdoor road+rail noise in dB(A) from sonBASE (`source: "sonbase"`), day or night.
+      Lausanne only (data/processed/heatmap_lausanne_noise.geojson).
+    * `dim=light|flicker|crowd`: mean of the **measurements** in each cell (`source: "measured"`, plus `n`):
+      lux, flicker index, people count. Empty until phones measure; works anywhere, not just Lausanne.
+    """
     min_lon, min_lat, max_lon, max_lat = parse_bbox(bbox)
-    f = PROCESSED / f"heatmap_lausanne_{dim}.geojson"
-    if not f.is_file():
-        return {"type": "FeatureCollection", "features": []}
-    grid = json.loads(f.read_text(encoding="utf-8"))
+    inside = lambda lon, lat: min_lon <= lon <= max_lon and min_lat <= lat <= max_lat  # noqa: E731
+    features: list[dict] = []
 
-    def inside(feat: dict) -> bool:
-        coords = feat["geometry"]["coordinates"]
-        lon, lat = coords[:2] if feat["geometry"]["type"] == "Point" else coords[0][0][:2]
-        return min_lon <= lon <= max_lon and min_lat <= lat <= max_lat
+    if dim == "noise":
+        key = f"noise_{period}_db"
+        for f in _noise_grid():
+            lon, lat = f["geometry"]["coordinates"][:2]
+            v = f["properties"].get(key)
+            if v is not None and inside(lon, lat):
+                features.append(_cell_feature(lon, lat, {"value": v, "source": "sonbase"}))
+    else:
+        field = MEASURED_DIMS[dim]
+        cells: dict[tuple[int, int], list[float]] = {}
+        rows = conn.execute(
+            "SELECT lat, lon, features FROM measurements WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?",
+            (min_lat, max_lat, min_lon, max_lon),
+        )
+        for r in rows:
+            key_ = (math.floor(r["lat"] / CELL_DLAT), math.floor(r["lon"] / CELL_DLON))
+            cells.setdefault(key_, []).append(float(json.loads(r["features"])[field]))
+        for (i, j), vals in cells.items():
+            lat, lon = (i + 0.5) * CELL_DLAT, (j + 0.5) * CELL_DLON
+            features.append(_cell_feature(
+                round(lon, 6), round(lat, 6),
+                {"value": round(sum(vals) / len(vals), 3), "source": "measured", "n": len(vals)},
+            ))
 
-    return {"type": "FeatureCollection", "features": [x for x in grid["features"] if inside(x)]}
+    return {"type": "FeatureCollection", "dim": dim, "period": period, "cell_m": HEATMAP_CELL_M, "features": features}
 
 
 @app.get("/stats", response_model=Stats, tags=["map layers"], summary="Counts for the gap badge")

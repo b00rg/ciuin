@@ -8,13 +8,12 @@ Steps
   1. Load data/raw/osm_lausanne.json (fetch_osm_lausanne.py).
   2. Drop non-venues (parking, car sharing, ATMs, ...). Parks, viewpoints, sports centres and
      playgrounds stay: they matter on a sensory map (quiet refuges / loud spots).
-  3. Map OSM tags to the Place schema.
+  3. Map OSM tags to the Place schema; keep the sensory/access-relevant OSM tags in `osm_tags`.
   4. Dedupe: same normalised name + category within 25 m (OSM often has a shop as node + building).
-  5. baseline_noise_db = median of road+rail daytime noise (energetic sum per 10 m cell) over cells
-     within 25 m; widen to 50 m if none. Cells without road data (mostly building footprints) are
-     skipped; missing rail = no rail contribution.
+  5. baseline_noise_db (day, 06-22) and baseline_noise_night_db (22-06) = median of road+rail noise
+     (energetic sum per 10 m cell) over cells within 25 m, widened to 50 m if none (noise_grid.py).
 
-Needs data/requirements.txt. Run from the repo root:
+Needs data/requirements.txt and all four sonBASE rasters (fetch_sonbase.py). Run from the repo root:
   data/.venv/Scripts/python data/scripts/build_places_lausanne.py   (Windows)
   data/.venv/bin/python data/scripts/build_places_lausanne.py       (macOS/Linux)
 """
@@ -29,16 +28,11 @@ import unicodedata
 from collections import Counter
 from pathlib import Path
 
-import raster_env  # noqa: F401  (must come before rasterio; see raster_env.py)
 import numpy as np
-import rasterio
-from rasterio.warp import transform
-from rasterio.windows import from_bounds
+from noise_grid import NoiseGrid
 
 DATA = Path(__file__).resolve().parents[1]
 OSM = DATA / "raw" / "osm_lausanne.json"
-ROAD = DATA / "raw" / "sonbase" / "road_day_2056.tif"
-RAIL = DATA / "raw" / "sonbase" / "rail_day_2056.tif"
 OUT = DATA / "processed" / "places_lausanne.geojson"
 
 CATEGORY_KEYS = ("amenity", "shop", "leisure", "tourism")
@@ -58,10 +52,15 @@ DROP = {
     "shop": {"vacant"},
 }
 
+# OSM tags kept per place (sensory / access / "when is it busy"). Coverage in Lausanne, 21 Nov:
+# opening_hours 51%, website 38%, cuisine 12%, brand 11%, outdoor_seating 10%, indoor_seating 9%,
+# level 6%, capacity 3%, smoking 2%, toilets:wheelchair 1%, air_conditioning 0.5%, live_music <0.1%.
+KEEP_TAGS = (
+    "opening_hours", "cuisine", "brand", "outdoor_seating", "indoor_seating", "capacity", "level",
+    "smoking", "air_conditioning", "live_music", "toilets:wheelchair", "wheelchair:description", "website",
+)
+
 DEDUPE_M = 25.0
-RADIUS_M = 25.0
-RADIUS_FALLBACK_M = 50.0
-MARGIN_M = 200.0  # read the rasters a bit beyond the bbox so edge places get full neighbourhoods
 
 
 def category_of(tags: dict) -> tuple[str, str] | None:
@@ -79,7 +78,7 @@ def keep(tags: dict) -> bool:
 def to_place(el: dict) -> dict:
     tags = el["tags"]
     c = el.get("center") or el
-    key, value = category_of(tags)  # type: ignore[misc]
+    _, value = category_of(tags)  # type: ignore[misc]
     return {
         "place_id": f"osm:{el['type']}/{el['id']}",
         "name": tags["name"].strip(),
@@ -90,12 +89,12 @@ def to_place(el: dict) -> dict:
         "sensory_friendly": tags.get("sensory_friendly"),
         "quiet_room": tags.get("amenity") == "quiet_room" or tags.get("quiet_room") == "yes",
         "baseline_noise_db": None,
+        "baseline_noise_night_db": None,
         "baseline_source": None,
+        "osm_tags": {k: tags[k] for k in KEEP_TAGS if k in tags},
         "measured": None,
         "score": None,
-        # not part of Place; stripped before writing, used for dedupe priority only
-        "_n_tags": len(tags),
-        "_category_key": key,
+        "_n_tags": len(tags),  # dedupe priority only; stripped before writing
     }
 
 
@@ -112,7 +111,7 @@ def metres(a: dict, b: dict) -> float:
 
 
 def dedupe(places: list[dict]) -> tuple[list[dict], int]:
-    """Keep the richest-tagged element among same name + category within DEDUPE_M."""
+    """Keep the richest-tagged element among same name + category within DEDUPE_M; merge the rest in."""
     groups: dict[tuple[str, str], list[dict]] = {}
     for p in places:
         groups.setdefault((norm_name(p["name"]), p["category"]), []).append(p)
@@ -121,62 +120,22 @@ def dedupe(places: list[dict]) -> tuple[list[dict], int]:
         group.sort(key=lambda p: -p["_n_tags"])
         chosen: list[dict] = []
         for p in group:
-            if all(metres(p, q) > DEDUPE_M for q in chosen):
+            q = next((q for q in chosen if metres(p, q) <= DEDUPE_M), None)
+            if q is None:
                 chosen.append(p)
-            else:  # merge useful tags the duplicate has and the kept one lacks
-                q = next(q for q in chosen if metres(p, q) <= DEDUPE_M)
-                for f in ("wheelchair", "sensory_friendly"):
-                    q[f] = q[f] or p[f]
-                q["quiet_room"] = q["quiet_room"] or p["quiet_room"]
+                continue
+            for f in ("wheelchair", "sensory_friendly"):
+                q[f] = q[f] or p[f]
+            q["quiet_room"] = q["quiet_room"] or p["quiet_room"]
+            q["osm_tags"] = p["osm_tags"] | q["osm_tags"]  # kept element's values win
         kept.extend(chosen)
     return kept, len(places) - len(kept)
 
 
-class NoiseGrid:
-    """Road + rail daytime noise over the bbox, combined per 10 m cell (both grids are aligned)."""
-
-    def __init__(self, bbox: tuple[float, float, float, float]):
-        s, w, n, e = bbox
-        with rasterio.open(ROAD) as road, rasterio.open(RAIL) as rail:
-            if road.res != rail.res:
-                raise SystemExit(f"road/rail resolution differ: {road.res} vs {rail.res}")
-            self.crs = road.crs
-            xs, ys = transform("EPSG:4326", road.crs, [w, e, w, e], [s, s, n, n])
-            left, right = min(xs) - MARGIN_M, max(xs) + MARGIN_M
-            bottom, top = min(ys) - MARGIN_M, max(ys) + MARGIN_M
-            # Snap to the road grid so both windows cover the same cells
-            win = from_bounds(left, bottom, right, top, road.transform).round_offsets().round_lengths()
-            self.transform = road.window_transform(win)
-            r = road.read(1, window=win, boundless=True, fill_value=road.nodata).astype("float64")
-            l, b, rt, t = rasterio.windows.bounds(win, road.transform)
-            rwin = from_bounds(l, b, rt, t, rail.transform).round_offsets().round_lengths()
-            q = rail.read(1, window=rwin, boundless=True, fill_value=rail.nodata).astype("float64")
-            if q.shape != r.shape:
-                raise SystemExit(f"road/rail windows not aligned: {r.shape} vs {q.shape}")
-            road_ok = (r != road.nodata) & np.isfinite(r) & (r > 0)
-            rail_ok = (q != rail.nodata) & np.isfinite(q) & (q > 0)
-        energy = np.where(road_ok, 10 ** (np.where(road_ok, r, 0) / 10), 0.0)
-        energy += np.where(road_ok & rail_ok, 10 ** (np.where(rail_ok, q, 0) / 10), 0.0)
-        self.db = np.where(road_ok, 10 * np.log10(np.maximum(energy, 1e-12)), np.nan)
-        self.res = abs(self.transform.a)
-
-    def median_near(self, lat: float, lon: float) -> float | None:
-        (x,), (y,) = transform("EPSG:4326", self.crs, [lon], [lat])
-        col, row = ~self.transform * (x, y)
-        for radius in (RADIUS_M, RADIUS_FALLBACK_M):
-            k = int(math.ceil(radius / self.res))
-            r0, r1 = int(row) - k, int(row) + k + 1
-            c0, c1 = int(col) - k, int(col) + k + 1
-            if r0 < 0 or c0 < 0 or r1 > self.db.shape[0] or c1 > self.db.shape[1]:
-                return None
-            block = self.db[r0:r1, c0:c1]
-            rr, cc = np.mgrid[r0:r1, c0:c1]
-            # distance from the point to each cell centre
-            d = np.hypot((cc + 0.5 - col) * self.res, (rr + 0.5 - row) * self.res)
-            vals = block[(d <= radius) & np.isfinite(block)]
-            if vals.size:
-                return round(float(np.median(vals)), 1)
-        return None
+def pct(values: list[float]) -> str:
+    a = np.array(values)
+    p5, p50, p95 = np.percentile(a, [5, 50, 95])
+    return f"min {a.min():.1f}  p5 {p5:.1f}  median {p50:.1f}  p95 {p95:.1f}  max {a.max():.1f}"
 
 
 def main() -> int:
@@ -188,18 +147,21 @@ def main() -> int:
     dropped = Counter("=".join(category_of(el["tags"]) or ("?", "?")) for el in elements if not keep(el["tags"]))
     places, n_dupes = dedupe([to_place(el) for el in kept_els])
 
-    grid = NoiseGrid(bbox)  # type: ignore[arg-type]
+    day, night = NoiseGrid(bbox, "day"), NoiseGrid(bbox, "night")  # type: ignore[arg-type]
     for p in places:
-        db = grid.median_near(p["lat"], p["lon"])
-        p["baseline_noise_db"] = db
-        p["baseline_source"] = "sonbase" if db is not None else None
+        p["baseline_noise_db"] = day.median_near(p["lat"], p["lon"])
+        p["baseline_noise_night_db"] = night.median_near(p["lat"], p["lon"])
+        p["baseline_source"] = "sonbase" if p["baseline_noise_db"] is not None else None
 
     places.sort(key=lambda p: p["place_id"])
-    features = []
-    for p in places:
-        props = {k: v for k, v in p.items() if not k.startswith("_")}
-        features.append({"type": "Feature", "geometry": {"type": "Point", "coordinates": [p["lon"], p["lat"]]}, "properties": props})
-
+    features = [
+        {
+            "type": "Feature",
+            "geometry": {"type": "Point", "coordinates": [p["lon"], p["lat"]]},
+            "properties": {k: v for k, v in p.items() if not k.startswith("_")},
+        }
+        for p in places
+    ]
     out = {
         "type": "FeatureCollection",
         "name": "places_lausanne",
@@ -210,18 +172,19 @@ def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
 
-    noise = np.array([p["baseline_noise_db"] for p in places if p["baseline_noise_db"] is not None])
-    cats = Counter(p["category"] for p in places)
+    d = [p["baseline_noise_db"] for p in places if p["baseline_noise_db"] is not None]
+    nn = [p["baseline_noise_night_db"] for p in places if p["baseline_noise_night_db"] is not None]
+    drop = [p["baseline_noise_db"] - p["baseline_noise_night_db"] for p in places
+            if p["baseline_noise_db"] is not None and p["baseline_noise_night_db"] is not None]
+    tag_cov = Counter(k for p in places for k in p["osm_tags"])
     print(f"OSM named elements: {len(elements):,}")
     print(f"dropped non-venues: {sum(dropped.values()):,}  (top: {', '.join(f'{k} {v}' for k, v in dropped.most_common(6))})")
     print(f"merged duplicates:  {n_dupes:,}")
-    print(f"places written:     {len(places):,}")
-    print(f"with wheelchair:    {sum(1 for p in places if p['wheelchair']):,}")
-    print(f"with noise:         {noise.size:,} ({100 * noise.size / len(places):.1f}%)")
-    if noise.size:
-        p5, p50, p95 = np.percentile(noise, [5, 50, 95])
-        print(f"noise dB(A):        min {noise.min():.1f}  p5 {p5:.1f}  median {p50:.1f}  p95 {p95:.1f}  max {noise.max():.1f}")
-    print(f"top categories:     {', '.join(f'{c} {n}' for c, n in cats.most_common(8))}")
+    print(f"places written:     {len(places):,}  (with wheelchair: {sum(1 for p in places if p['wheelchair']):,})")
+    print(f"noise day   ({len(d):,}): {pct(d)}")
+    print(f"noise night ({len(nn):,}): {pct(nn)}")
+    print(f"day - night:        median {np.median(drop):.1f} dB quieter at night")
+    print(f"osm_tags kept:      {', '.join(f'{k} {v}' for k, v in tag_cov.most_common())}")
     print(f"wrote {OUT.relative_to(DATA.parent)} ({OUT.stat().st_size / 1e6:.2f} MB)")
     return 0
 

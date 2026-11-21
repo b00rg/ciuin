@@ -16,9 +16,17 @@ data class Place(
     /** OSM sensory_friendly tag value, or null when untagged. */
     @SerialName("sensory_friendly") val sensoryFriendly: String? = null,
     @SerialName("quiet_room") val quietRoom: Boolean = false,
+    /** Outdoor road+rail noise around the place, daytime 06-22, dB(A). */
     @SerialName("baseline_noise_db") val baselineNoiseDb: Double? = null,
+    /** Same, night 22-06. */
+    @SerialName("baseline_noise_night_db") val baselineNoiseNightDb: Double? = null,
     /** "sonbase", "eea" or null outside regions with noise data. */
     @SerialName("baseline_source") val baselineSource: String? = null,
+    /**
+     * Selected raw OSM tags (opening_hours, outdoor_seating, indoor_seating, capacity, cuisine, brand,
+     * smoking, air_conditioning, live_music, level, toilets:wheelchair, website, ...). Absent keys = unknown.
+     */
+    @SerialName("osm_tags") val osmTags: Map<String, String> = emptyMap(),
     val measured: MeasuredAggregate? = null,
     val score: PlaceScore? = null,
 )

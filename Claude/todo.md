@@ -65,14 +65,16 @@ Only aggregates. **Never** raw audio, images, embeddings, trigger taps or user i
 
 ### Place (backend → app)
 `measured` carries the **mean feature vector** so the personal model can re-score every place on the phone.
-`baseline_noise_db` / `baseline_source` are null outside regions with noise data. `baseline_source` is `"sonbase"` (Switzerland), `"eea"` (EU END maps) or null.
+`baseline_noise_db` (day, 06–22) / `baseline_noise_night_db` (night, 22–06) / `baseline_source` are null outside regions with noise data. They are **outdoor** road+rail noise around the place, not the room inside. `baseline_source` is `"sonbase"` (Switzerland), `"eea"` (EU END maps) or null.
+`osm_tags` (added 21 Nov, optional, default `{}`): selected raw OSM tags. Lausanne coverage: `opening_hours` 53%, `website` 39%, `cuisine` 14%, `outdoor_seating` 11%, `indoor_seating` 10%, `brand` 10%, `level` 6%, `smoking` 2%, `toilets:wheelchair` 1%, `capacity`, `air_conditioning`, `live_music` (rare). Absent key = unknown.
 `measured` and `score` are null until the place has at least one measurement. `score` is the generic per-dimension score for users with no personal model: **1 = calmest / most accessible, 0 = worst** (heuristics and thresholds in `backend/aggregate.py`; tune in Phase 2).
 ```json
 {
   "place_id": "osm:node/123456", "name": "Café X", "lat": 46.5191, "lon": 6.5668,
   "category": "cafe",
   "wheelchair": "yes", "sensory_friendly": null, "quiet_room": false,
-  "baseline_noise_db": 58, "baseline_source": "sonbase",
+  "baseline_noise_db": 58, "baseline_noise_night_db": 47.5, "baseline_source": "sonbase",
+  "osm_tags": {"opening_hours": "Mo-Sa 07:00-19:00", "outdoor_seating": "yes", "cuisine": "coffee_shop"},
   "measured": {"n": 4, "features": { "...": "mean feature vector" }},
   "score": {"noise": 0.4, "light": 0.8, "flicker": 0.9, "crowd": 0.6, "access": 1.0}
 }
@@ -110,7 +112,9 @@ Log time spent in each stage; this is the battery/frugality evidence.
 ### API (Siddhi owns)
 - `GET /places?bbox=minLon,minLat,maxLon,maxLat` → list of Place
 - `POST /measurements` → stores one Measurement, recomputes that place's aggregates. **201** `{"stored": true, "place": Place | null}` (`place` is the updated place; null if `place_id` isn't a known place: the measurement is still stored and counted). **422** on any field not in the contract (privacy guard) or if `sound_classes` isn't exactly the 9 classes
-- `GET /heatmap?bbox=...&dim=noise` → GeoJSON grid for the heatmap layer (`dim`: noise | light | flicker | crowd). Empty FeatureCollection until the 50 m grid is built
+- `GET /heatmap?bbox=...&dim=noise&period=day` → GeoJSON FeatureCollection of 50 m cells: Point features at cell centres (draw 50 m squares), `properties: {"value": x, "source": "sonbase" | "measured", "n": count (measured only)}`, plus top-level `"cell_m": 50`.
+  - `dim=noise`: sonBASE outdoor noise in dB(A), `period=day` (06–22) or `night` (22–06). Lausanne only (~10.8k cells)
+  - `dim=light | flicker | crowd`: mean of the **measurements** in each cell (lux, flicker index, people count). Empty until phones measure; works anywhere
 - `GET /places/nearby?lat=..&lon=..&radius=300` → places sorted by distance, with mean features (radius in m, max 5000)
 - `GET /stats` → `{"places_mapped": n, "measurements_taken": n, "sensory_friendly_tags": n}`
 - `GET /health` → `{"status": "ok"}`. Interactive API docs at `/docs`
@@ -158,7 +162,7 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 ### Transformation
 - [x] Normalise OSM into the Place schema, drop non-venues, dedupe on name + category < 25 m (`build_places_lausanne.py`). accessibility.cloud merge pending a token
 - [x] Sample sonBASE at each place → `baseline_noise_db`. Rasters are 10 m, LV95 (EPSG:2056), float64, nodata -9999: transform place coords to LV95 (don't reproject the raster). Use the **median within ~25–50 m**, not the single cell (a POI point on the street-side façade reads 20 dB louder than its own courtyard). Combine road + rail energetically: 10·log10(10^(road/10) + 10^(rail/10)). Scripts: `fetch_sonbase.py`, `check_sonbase.py`; import `raster_env` before rasterio
-- [ ] Build a 50 m grid over Lausanne with baseline noise for the heatmap layer
+- [x] Build a 50 m grid over Lausanne with baseline noise for the heatmap layer: day + night, 10,812 cells (`build_heatmap_lausanne.py` → `data/processed/heatmap_lausanne_noise.geojson`). Night layers of sonBASE added; places carry `baseline_noise_night_db` + `osm_tags`
 - [ ] Seed unmeasured places with a prior feature vector from category + `baseline_noise_db` (so the personal model can score them)
 - [x] Write `data/processed/places_lausanne.geojson` and commit it (app must work offline). 2,873 places, all with noise; Kotlin test `BundledPlacesTest` checks every feature decodes as Place
 - [ ] Widen to Switzerland: same normalise + sonBASE sampling for all Swiss POIs → `data/processed/places_switzerland.geojson` (check size; gitignore if > 50 MB and document how to rebuild)
@@ -175,7 +179,7 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 - [ ] Take the app screens Christine hands over (likely Place detail, Privacy, Model screen UI)
 - [x] Ktor client against your own API: `KtorPlacesApi` in `shared/commonMain` (mock-engine tests + a live round-trip test). App picks the URL per platform (`composeApp/.../ApiConfig.kt`); `postMeasurement` now returns `MeasurementResult`
 - [ ] Offline fallback using the bundled GeoJSON (when the backend is unreachable)
-- [ ] Own `REUSED.md`: collect entries from everyone as they go
+- [ ] Own `REUSED.md`: collect entries from everyone as they go (data sources, backend + app libraries added 21 Nov; keep adding)
 
 ---
 

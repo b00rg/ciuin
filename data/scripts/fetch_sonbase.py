@@ -1,7 +1,7 @@
-"""Download sonBASE daytime road + railway noise for all of Switzerland (todo.md section A).
+"""Download sonBASE road + railway noise, day and night, for all of Switzerland (todo.md section A).
 
 Source: FOEN/BAFU via data.geo.admin.ch STAC. Each layer is one cloud-optimised GeoTIFF in
-LV95 (EPSG:2056), values = Lr day in dB(A). ~553 MB (road) + ~174 MB (rail).
+LV95 (EPSG:2056), values = Lr day (06-22) / Lr night (22-06) in dB(A). ~1.5 GB for all four.
 Downloads resume if interrupted (HTTP Range). Files go to data/raw/sonbase/ (gitignored).
 
 Stdlib only. Run from the repo root:
@@ -22,6 +22,9 @@ OUT_DIR = Path(__file__).resolve().parents[1] / "raw" / "sonbase"
 LAYERS = {
     "road_day": "https://data.geo.admin.ch/ch.bafu.laerm-strassenlaerm_tag/laerm-strassenlaerm_tag/laerm-strassenlaerm_tag_2056.tif",
     "rail_day": "https://data.geo.admin.ch/ch.bafu.laerm-bahnlaerm_tag/laerm-bahnlaerm_tag/laerm-bahnlaerm_tag_2056.tif",
+    # Night = 22:00-06:00 (Lr night)
+    "road_night": "https://data.geo.admin.ch/ch.bafu.laerm-strassenlaerm_nacht/laerm-strassenlaerm_nacht/laerm-strassenlaerm_nacht_2056.tif",
+    "rail_night": "https://data.geo.admin.ch/ch.bafu.laerm-bahnlaerm_nacht/laerm-bahnlaerm_nacht/laerm-bahnlaerm_nacht_2056.tif",
 }
 CHUNK = 1 << 20  # 1 MiB
 

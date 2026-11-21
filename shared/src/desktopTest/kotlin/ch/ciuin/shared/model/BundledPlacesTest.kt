@@ -36,5 +36,11 @@ class BundledPlacesTest {
             assertEquals("sonbase", it.baselineSource, it.placeId)
             assertTrue(it.baselineNoiseDb!! in 20.0..95.0, "implausible noise at ${it.placeId}: ${it.baselineNoiseDb}")
         }
+        // Night (22-06) is quieter than day (06-22) almost everywhere
+        val both = places.filter { it.baselineNoiseDb != null && it.baselineNoiseNightDb != null }
+        assertTrue(both.size > 1000, "few places with day+night noise: ${both.size}")
+        val quieterAtNight = both.count { it.baselineNoiseNightDb!! < it.baselineNoiseDb!! }
+        assertTrue(quieterAtNight > both.size * 0.95, "only $quieterAtNight/${both.size} quieter at night")
+        assertTrue(places.count { "opening_hours" in it.osmTags } > 1000, "opening_hours coverage dropped")
     }
 }
