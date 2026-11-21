@@ -41,6 +41,9 @@ env/
 # Data: raw downloads stay local
 data/raw/*
 !data/raw/.gitkeep
+# Clip index: rebuilt from the downloaded audio by ml/build_index.py
+data/processed/audio_index.sqlite*
+data/processed/audio_index.tmp
 
 # Model files over 50 MB. Git can't filter by size, so:
 #  - known-large artefacts are listed here, and

@@ -8,6 +8,7 @@ Training side of the audio classifier: datasets, label mapping, class weights, t
 pip install -r ml/requirements.txt
 python3 ml/download_datasets.py   # ~21 GB into data/raw/audio/ (gitignored)
 python3 ml/check_labels.py        # validate labels.yaml, regenerate labels.txt
+python3 ml/build_index.py         # clip index with splits -> data/processed/audio_index.sqlite
 python3 ml/class_weights.py       # recompute loss weights + the table below
 ```
 
@@ -84,3 +85,26 @@ Never split within a dataset fold.
 | DEMAND | first ~80% of each recording | next ~10% | last ~10% |
 
 DEMAND has 16 near-identical mic channels per recording, so it is split by time, not by channel; otherwise the same moment leaks into train and test.
+
+### Clip index
+
+`ml/build_index.py` writes every clip, with its class and split, to `data/processed/audio_index.sqlite` (gitignored; rebuild it from the downloaded data). Training, evaluation and `class_weights.py` all read from it, so they always agree on the split. It refuses to write an index where a fold spans two splits, a file appears in two splits, or time segments overlap.
+
+| Column | Meaning |
+|---|---|
+| `path`, `start_s`, `end_s` | File relative to `data/raw/audio/`, and the segment to use (DEMAND recordings are split into time segments) |
+| `dataset`, `source_label`, `fold` | Where the clip came from |
+| `class`, `class_index` | Our class and its model output index; NULL for noise-only clips |
+| `split` | `train`, `val` or `test` |
+| `use` | `classify`, or `noise` for MUSAN noise (background augmentation only) |
+| `sample_rate`, `channels`, `licence` | From the file header; licence per clip for FSD50K |
+
+```python
+import sqlite3
+db = sqlite3.connect("data/processed/audio_index.sqlite")
+train = db.execute("SELECT path, start_s, end_s, class_index FROM clips "
+                   "WHERE split = 'train' AND use = 'classify'").fetchall()
+print(db.execute("SELECT * FROM class_counts").fetchall())  # clips + minutes per split and class
+```
+
+Re-run `build_index.py` whenever another dataset finishes downloading; a clip's split never changes between runs.

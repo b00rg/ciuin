@@ -2,5 +2,6 @@
 #   python3.13 -m venv .venv && .venv/bin/pip install -r ml/requirements.txt
 numpy
 pyyaml>=6
+soundfile
 tensorflow==2.21.*
 ai-edge-litert
