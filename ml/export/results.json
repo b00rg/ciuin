@@ -1,0 +1,166 @@
+{
+  "teacher": {
+    "model": "YAMNet embeddings (frozen, AudioSet-pretrained) + MLP head 1024-512-9",
+    "params": 4280786,
+    "size_mb": 24.7,
+    "accuracy": 0.7948,
+    "macro_f1": 0.7857,
+    "eval": "clip-level (mean of window probabilities), test split; selected on val macro-F1",
+    "test": {
+      "accuracy": 0.7948,
+      "macro_f1": 0.7857,
+      "per_class_f1": {
+        "speech_crowd": 0.8114,
+        "music": 0.8771,
+        "traffic": 0.7434,
+        "siren": 0.8024,
+        "construction": 0.8729,
+        "alarm_beep": 0.875,
+        "dog": 0.776,
+        "machinery_hum": 0.4756,
+        "other": 0.8379
+      },
+      "n_clips": 2057,
+      "per_dataset_accuracy": {
+        "demand": 1.0,
+        "esc50": 0.795,
+        "us8k": 0.7943
+      }
+    },
+    "val": {
+      "accuracy": 0.8074,
+      "macro_f1": 0.7987,
+      "per_class_f1": {
+        "speech_crowd": 0.724,
+        "music": 0.7822,
+        "traffic": 0.716,
+        "siren": 0.8687,
+        "construction": 0.8694,
+        "alarm_beep": 1.0,
+        "dog": 0.8837,
+        "machinery_hum": 0.4431,
+        "other": 0.9015
+      },
+      "n_clips": 1210,
+      "per_dataset_accuracy": {
+        "demand": 1.0,
+        "esc50": 0.8125,
+        "us8k": 0.804
+      }
+    },
+    "trained_without": [
+      "MUSAN",
+      "FSD50K"
+    ],
+    "class_weights": {
+      "speech_crowd": 1.31,
+      "music": 0.74,
+      "traffic": 0.85,
+      "siren": 2.2,
+      "construction": 1.01,
+      "alarm_beep": 10.05,
+      "dog": 1.09,
+      "machinery_hum": 0.71,
+      "other": 0.28
+    },
+    "trained_at": "2026-11-21T15:47:49+0100"
+  },
+  "audio-student-s": {
+    "model": "depthwise-separable CNN, width x1, in-graph log-mel frontend",
+    "params": 68461,
+    "size_mb": 1.17,
+    "accuracy": 0.72,
+    "macro_f1": 0.7046,
+    "eval": "clip-level (mean of window probabilities), test split; fp32 Keras weights",
+    "test": {
+      "accuracy": 0.72,
+      "macro_f1": 0.7046,
+      "per_class_f1": {
+        "speech_crowd": 0.7307,
+        "music": 0.7403,
+        "traffic": 0.7402,
+        "siren": 0.7712,
+        "construction": 0.7931,
+        "alarm_beep": 0.8571,
+        "dog": 0.7222,
+        "machinery_hum": 0.2568,
+        "other": 0.7299
+      },
+      "n_clips": 2057
+    },
+    "val": {
+      "accuracy": 0.7529,
+      "macro_f1": 0.7288,
+      "per_class_f1": {
+        "speech_crowd": 0.6995,
+        "music": 0.7273,
+        "traffic": 0.6892,
+        "siren": 0.7041,
+        "construction": 0.7872,
+        "alarm_beep": 0.8571,
+        "dog": 0.8298,
+        "machinery_hum": 0.4267,
+        "other": 0.838
+      },
+      "n_clips": 1210
+    },
+    "distillation": {
+      "teacher": "teacher",
+      "alpha": 0.5,
+      "temperature": 3.0,
+      "epochs": 12
+    },
+    "trained_without": [
+      "MUSAN",
+      "FSD50K"
+    ],
+    "trained_at": "2026-11-21T16:59:50+0100"
+  },
+  "audio-student-s-hard": {
+    "model": "depthwise-separable CNN, width x1, in-graph log-mel frontend (hard-label baseline, no distillation)",
+    "params": 68461,
+    "size_mb": 1.17,
+    "accuracy": 0.6996,
+    "macro_f1": 0.6758,
+    "eval": "clip-level (mean of window probabilities), test split; fp32 Keras weights",
+    "test": {
+      "accuracy": 0.6996,
+      "macro_f1": 0.6758,
+      "per_class_f1": {
+        "speech_crowd": 0.6275,
+        "music": 0.7322,
+        "traffic": 0.7753,
+        "siren": 0.6952,
+        "construction": 0.7983,
+        "alarm_beep": 0.7143,
+        "dog": 0.7156,
+        "machinery_hum": 0.3113,
+        "other": 0.7127
+      },
+      "n_clips": 2057
+    },
+    "val": {
+      "accuracy": 0.6934,
+      "macro_f1": 0.6795,
+      "per_class_f1": {
+        "speech_crowd": 0.6374,
+        "music": 0.6489,
+        "traffic": 0.7216,
+        "siren": 0.8144,
+        "construction": 0.7222,
+        "alarm_beep": 0.7692,
+        "dog": 0.7342,
+        "machinery_hum": 0.3333,
+        "other": 0.734
+      },
+      "n_clips": 1210
+    },
+    "distillation": null,
+    "epochs": 12,
+    "trained_without": [
+      "MUSAN",
+      "FSD50K"
+    ],
+    "trained_at": "2026-11-21T17:21:57+0100"
+  }
+}

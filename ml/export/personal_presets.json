@@ -1,0 +1,96 @@
+{
+  "features": [
+    "noise",
+    "peak",
+    "sound_speech_crowd",
+    "sound_music",
+    "sound_traffic",
+    "sound_siren",
+    "sound_construction",
+    "sound_alarm_beep",
+    "sound_dog",
+    "sound_machinery_hum",
+    "sound_other",
+    "light",
+    "flicker",
+    "crowd"
+  ],
+  "presets": {
+    "autism_friendly": {
+      "bias": -6.0,
+      "weights": {
+        "noise": 4.0,
+        "peak": 2.0,
+        "sound_speech_crowd": 1.0,
+        "sound_music": 0.5,
+        "sound_traffic": 0.5,
+        "sound_siren": 3.0,
+        "sound_construction": 2.5,
+        "sound_alarm_beep": 3.0,
+        "sound_dog": 1.5,
+        "sound_machinery_hum": 1.0,
+        "sound_other": 0.0,
+        "light": 1.0,
+        "flicker": 3.0,
+        "crowd": 2.0
+      }
+    },
+    "sound_sensitive": {
+      "bias": -6.0,
+      "weights": {
+        "noise": 5.0,
+        "peak": 2.5,
+        "sound_speech_crowd": 1.0,
+        "sound_music": 0.8,
+        "sound_traffic": 0.8,
+        "sound_siren": 3.0,
+        "sound_construction": 3.0,
+        "sound_alarm_beep": 3.0,
+        "sound_dog": 2.0,
+        "sound_machinery_hum": 1.5,
+        "sound_other": 0.0,
+        "light": 0.3,
+        "flicker": 1.0,
+        "crowd": 1.0
+      }
+    },
+    "light_sensitive": {
+      "bias": -6.0,
+      "weights": {
+        "noise": 2.0,
+        "peak": 1.0,
+        "sound_speech_crowd": 0.0,
+        "sound_music": 0.0,
+        "sound_traffic": 0.0,
+        "sound_siren": 1.5,
+        "sound_construction": 1.0,
+        "sound_alarm_beep": 1.5,
+        "sound_dog": 0.0,
+        "sound_machinery_hum": 0.0,
+        "sound_other": 0.0,
+        "light": 3.0,
+        "flicker": 10.0,
+        "crowd": 1.0
+      }
+    },
+    "crowd_sensitive": {
+      "bias": -6.5,
+      "weights": {
+        "noise": 2.5,
+        "peak": 1.0,
+        "sound_speech_crowd": 2.5,
+        "sound_music": 1.0,
+        "sound_traffic": 0.0,
+        "sound_siren": 1.5,
+        "sound_construction": 0.0,
+        "sound_alarm_beep": 1.5,
+        "sound_dog": 0.0,
+        "sound_machinery_hum": 0.0,
+        "sound_other": 0.0,
+        "light": 0.5,
+        "flicker": 1.0,
+        "crowd": 4.0
+      }
+    }
+  }
+}
