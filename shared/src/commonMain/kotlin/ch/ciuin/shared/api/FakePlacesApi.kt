@@ -40,5 +40,5 @@ class FakePlacesApi : PlacesApi {
 
     override suspend fun stats(): Stats = Stats(placesMapped = all.size, measurementsTaken = 0, sensoryFriendlyTags = 0)
 
-    override suspend fun coverage(): Coverage = fakeCoverage
+    override suspend fun coverage(resDeg: Double): Coverage = fakeCoverage.copy(resDeg = resDeg)
 }

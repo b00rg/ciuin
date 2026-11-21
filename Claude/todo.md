@@ -112,20 +112,24 @@ Log time spent in each stage; this is the battery/frugality evidence.
 - `GET /heatmap?bbox=...&dim=noise` → GeoJSON grid for the heatmap layer
 - `GET /places/nearby?lat=..&lon=..&radius=300` → places sorted by distance, with mean features
 - `GET /stats` → places mapped, measurements taken, `sensory_friendly` tags found
-- `GET /coverage` → coarse global grid for the 3D globe (below). Never per-place
+- `GET /coverage?res_deg=2` → coarse grid for the 3D globe (below). `res_deg=2` global, `res_deg=0.5` Europe. Never per-place
 
-### Scope and coverage (3D globe)
-| Layer | Coverage |
-|---|---|
-| Phone measurements, personal model | Global (measured wherever the phone is) |
-| `wheelchair=*` (OSM + accessibility.cloud) | Global |
-| `sensory_friendly` (OSM proposal tag) | Global but sparse; shown where present, not promised |
-| Baseline noise | Europe (EEA END), Switzerland in detail (sonBASE) |
-| Full pipeline (places, noise sampling, 50 m heatmap) | Lausanne (demo city) |
+### Scope and coverage (3D globe): three data tiers + demo city
+| Tier | Granularity | What's in it | Served by |
+|---|---|---|---|
+| **Global** | 2° grid cells | `wheelchair=*` / `sensory_friendly=*` counts, measurement counts | `/coverage?res_deg=2` |
+| **Europe** | 0.5° grid cells | same counts + where EEA END noise data exists | `/coverage?res_deg=0.5` |
+| **Switzerland** (minimum per-place scope) | Every named POI (est. 150–300k) | Place schema, OSM tags, `baseline_noise_db` from sonBASE (covers all of CH) | `/places`, `/places/nearby` |
+| **Lausanne** (demo city) | Per place + 50 m grid | Everything above + 50 m noise heatmap + live measurements | `/heatmap` |
 
-Pitch line: *measurements work anywhere, starter data covers Europe, Lausanne is the demo city.*
+Phone measurements and the personal model work anywhere: a measurement outside Switzerland is still stored and shows up in the coverage counts.
+`sensory_friendly` is a proposal tag: global but sparse; shown where present, never promised.
+**Build order:** Lausanne end to end first, then widen the same pipeline to all of Switzerland, then the Europe/global grids. A slip still leaves a working demo.
+Storage: SQLite (stdlib `sqlite3`, R-Tree index for bbox / nearby) for Swiss places + measurements; precomputed grids served as JSON files. No 50 m grid for all of CH (~16M cells).
 
-`GET /coverage` response (2° cells, `lat`/`lon` = cell centre; empty cells omitted):
+Pitch line: *measurements work anywhere, map data covers the world → Europe → every place in Switzerland, Lausanne in full detail.*
+
+`GET /coverage?res_deg=2` response (`lat`/`lon` = cell centre; empty cells omitted):
 ```json
 {
   "res_deg": 2.0,
@@ -142,9 +146,10 @@ Pitch line: *measurements work anywhere, starter data covers Europe, Lausanne is
 
 ### Gathering
 - [ ] Overpass query for the Lausanne bbox: `amenity`, `shop`, `leisure`, `tourism` POIs with `name` → `data/raw/osm_lausanne.json`
-- [ ] Count tags: `wheelchair=*`, `sensory_friendly=*`, `amenity=quiet_room`; post counts in chat by 14:00
+- [ ] Count tags: `wheelchair=*`, `sensory_friendly=*`, `amenity=quiet_room` for Lausanne / Switzerland / Europe / world (`data/scripts/count_tags.py` → `data/processed/tag_counts.json`); post counts in chat by 14:00
+- [ ] Switzerland POIs: Geofabrik `switzerland-latest.osm.pbf` filtered locally (more reliable than one huge Overpass query) → `data/raw/osm_switzerland/`
 - [ ] Register for an accessibility.cloud app token; pull places for the same bbox → `data/raw/a11ycloud_lausanne.json`
-- [ ] Download sonBASE daytime road noise (layer `ch.bafu.laerm-strassenlaerm_tag`) and railway noise for Lausanne → `data/raw/sonbase/`
+- [ ] Download sonBASE daytime road noise (layer `ch.bafu.laerm-strassenlaerm_tag`) and railway noise for all of Switzerland → `data/raw/sonbase/`
 - [ ] Download opentransportdata.swiss accessibility data (stops, toilets, platforms) → `data/raw/prm/`
 - [ ] Optional: EEA END noise grid for Dublin
 
@@ -154,14 +159,15 @@ Pitch line: *measurements work anywhere, starter data covers Europe, Lausanne is
 - [ ] Build a 50 m grid over Lausanne with baseline noise for the heatmap layer
 - [ ] Seed unmeasured places with a prior feature vector from category + `baseline_noise_db` (so the personal model can score them)
 - [ ] Write `data/processed/places_lausanne.geojson` and commit it (app must work offline)
-- [ ] Global coverage grid for the globe: 2° cell counts of `wheelchair=*` and `sensory_friendly=*` (taginfo / a planet extract or a pre-aggregated source; not per-place Overpass) + EEA noise coverage per cell → `data/processed/coverage.json` (commit it, small)
+- [ ] Widen to Switzerland: same normalise + sonBASE sampling for all Swiss POIs → `data/processed/places_switzerland.geojson` (check size; gitignore if > 50 MB and document how to rebuild)
+- [ ] Coverage grids: 2° global and 0.5° Europe cell counts of `wheelchair=*` and `sensory_friendly=*` (pre-aggregated source / extracts; not per-place Overpass) + EEA noise coverage per cell → `data/processed/coverage_2deg.json`, `coverage_0.5deg.json` (commit, small)
 
 ### Backend
-- [ ] FastAPI + SQLite (or plain JSON files): the endpoints above
-- [ ] `GET /coverage`: serve `coverage.json`, adding live `measurements` counts per cell
+- [ ] FastAPI + SQLite (stdlib `sqlite3`, no ORM, WAL mode, R-Tree index on place coordinates): the endpoints above. Tables created on startup; schema change = delete the `.db` and re-seed. Never commit `*.db`
+- [ ] `GET /coverage?res_deg=`: serve the matching coverage file, adding live `measurements` counts per cell
 - [ ] Aggregation: mean feature vector per place; generic per-dimension score in [0, 1] for users with no personal model
-- [ ] Seed script that loads `places_lausanne.geojson`
-- [ ] Run on a laptop reachable over a phone hotspot (eduroam may block device-to-device traffic)
+- [ ] Seed script that loads `places_lausanne.geojson` (then `places_switzerland.geojson`)
+- [ ] Reachability: Cloudflare quick tunnel (`cloudflared tunnel --url http://localhost:8000`) so phones reach the laptop on any network; phone hotspot as fallback. Everyone tests against this one shared backend
 
 ### After ~19:00: help Christine
 - [ ] Take the app screens Christine hands over (likely Place detail, Privacy, Model screen UI)

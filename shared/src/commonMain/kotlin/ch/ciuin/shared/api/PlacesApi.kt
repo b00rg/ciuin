@@ -27,8 +27,8 @@ interface PlacesApi {
     /** GET /stats */
     suspend fun stats(): Stats
 
-    /** GET /coverage -> coarse global grid for the 3D globe */
-    suspend fun coverage(): Coverage
+    /** GET /coverage?res_deg= -> coarse grid for the 3D globe: 2.0 = global tier, 0.5 = Europe tier */
+    suspend fun coverage(resDeg: Double = 2.0): Coverage
 }
 
 data class BBox(val minLon: Double, val minLat: Double, val maxLon: Double, val maxLat: Double) {
