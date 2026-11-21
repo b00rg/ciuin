@@ -57,6 +57,8 @@ ml/checkpoints/
 *.pth
 *.h5
 *.npy
+# Handoff 1: ~200 preprocessed clips for Paramveer's int8 calibration (~12 MB)
+!ml/export/calibration.npy
 # --- large model files (auto, scripts/ignore-large-models.sh) ---
 
 # Local databases (rebuild with the seed script)
