@@ -6,6 +6,26 @@ plugins {
     alias(libs.plugins.androidLibrary)
 }
 
+val personalPresetExport = rootProject.layout.projectDirectory.file("ml/export/personal_presets.json")
+val personalPresetSources = layout.buildDirectory.dir("generated/personalPresets/kotlin")
+val generatePersonalPresets by tasks.registering {
+    inputs.file(personalPresetExport).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(personalPresetSources)
+
+    doLast {
+        // Embed the same preset export in both targets without platform resource loading.
+        val source = personalPresetSources.get().file("PersonalPresetsExport.kt").asFile
+        source.parentFile.mkdirs()
+        val quotes = "\"\"\""
+        source.writeText(
+            "package ch.ciuin.shared.personal\n\n" +
+                "internal const val personalPresetsJson = $quotes\n" +
+                personalPresetExport.asFile.readText().trim() + "\n" +
+                "$quotes\n",
+        )
+    }
+}
+
 kotlin {
     androidTarget {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
@@ -13,6 +33,9 @@ kotlin {
     jvm("desktop")
 
     sourceSets {
+        commonMain {
+            kotlin.srcDir(generatePersonalPresets)
+        }
         commonMain.dependencies {
             api(libs.kotlinx.coroutines.core)
             api(libs.kotlinx.serialization.json)
@@ -34,6 +57,11 @@ kotlin {
             }
         }
     }
+}
+
+tasks.named("desktopTest") {
+    inputs.file(rootProject.layout.projectDirectory.file("ml/export/personal_model_test.json"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 val desktopMainCompilation = kotlin.targets.getByName("desktop").compilations.getByName("main")

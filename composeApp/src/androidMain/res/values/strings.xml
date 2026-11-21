@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">Ciúin</string>
+    <string name="live_listening_channel">Live listening</string>
+    <string name="live_listening_title">Ciúin is listening</string>
+    <string name="live_listening_description">Scoring live audio on this device.</string>
+    <string name="live_listening_stop">Stop listening</string>
+    <string name="overwhelm_alert_channel">Overwhelm alerts</string>
+    <string name="overwhelm_alert_title">Above your alert threshold</string>
+    <string name="overwhelm_alert_description">Open the map to see your live score.</string>
+    <string name="overwhelm_alert_quiet_place">Nearby suggestion: %1$s, %2$d m away. Tap for directions.</string>
+    <string name="overwhelm_alert_too_much">Too much</string>
+    <string name="overwhelm_alert_this_is_fine">This is fine</string>
+    <string name="overwhelm_alert_snooze">Snooze 10 min</string>
+    <string name="overwhelm_alert_feedback_saved">Feedback saved on this device.</string>
+    <string name="overwhelm_alert_feedback_failed">Couldn\'t save feedback. Try again.</string>
 </resources>
