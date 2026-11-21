@@ -15,7 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerEventType
@@ -31,19 +31,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import kotlin.math.floor
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.sin
 import kotlin.math.roundToInt
 
 /** One pin on the map. [color] is decided by the caller (e.g. from the user's p_overwhelm). */
 data class MapMarker(val id: String, val lat: Double, val lon: Double, val label: String, val color: Color)
 
-private const val HEAT_ALPHA = 0.55f
+/** One heatmap hexagon: centre ([x], [y]) and circumradius [radius] in normalised coords (see [MapState]). */
+data class HeatHex(val x: Double, val y: Double, val radius: Double, val color: Color)
+
+private const val HEAT_ALPHA = 0.7f
+
+/** Hexagons are drawn slightly smaller than their bin, leaving a thin gap: the crisp honeycomb look. */
+private const val HEX_FILL = 0.88f
 
 /** White wash over the base map so the heatmap stands out from the map's own colours (parks, roads). */
 private const val BASEMAP_VEIL = 0.35f
 
 /** Place names are drawn from this zoom on (and always for the selected place). */
-private const val LABELS_ZOOM = 17.0
+private const val LABELS_ZOOM = 18.0
 
 private const val TILE_PX = 256
 private const val MAX_TILE_ZOOM = 19
@@ -61,7 +70,7 @@ fun MapView(
     selectedId: String?,
     onMarkerTap: (MapMarker?) -> Unit,
     modifier: Modifier = Modifier,
-    heat: HeatLayer? = null,
+    heat: List<HeatHex> = emptyList(),
     tileUrl: String = TileCache.OSM_TILES,
 ) {
     val scope = rememberCoroutineScope()
@@ -114,23 +123,27 @@ fun MapView(
     ) {
         drawRect(BACKGROUND)
         drawTiles(state, cache, tilePx)
-        if (heat != null) drawRect(Color.White, alpha = BASEMAP_VEIL)
-        if (heat != null) {
-            // Banded image stretched over the map; light filtering just softens the pixel steps on band edges.
+        if (heat.isNotEmpty()) {
+            drawRect(Color.White, alpha = BASEMAP_VEIL)
             val w = state.worldSize(tilePx)
-            val left = (size.width / 2.0 + (heat.x - state.centerX) * w).roundToInt()
-            val top = (size.height / 2.0 + (heat.y - state.centerY) * w).roundToInt()
-            val pxPerPixel = heat.pixelSize * w
-            drawImage(
-                heat.image,
-                dstOffset = IntOffset(left, top),
-                dstSize = IntSize(
-                    (heat.image.width * pxPerPixel).roundToInt().coerceAtLeast(1),
-                    (heat.image.height * pxPerPixel).roundToInt().coerceAtLeast(1),
-                ),
-                alpha = HEAT_ALPHA,
-                filterQuality = FilterQuality.Low,
-            )
+            val path = Path()
+            for (h in heat) {
+                val cx = (size.width / 2.0 + (h.x - state.centerX) * w).toFloat()
+                val cy = (size.height / 2.0 + (h.y - state.centerY) * w).toFloat()
+                val r = (h.radius * w).toFloat()
+                if (cx < -r || cy < -r || cx > size.width + r || cy > size.height + r) continue
+                path.reset()
+                val rr = r * HEX_FILL
+                for (i in 0 until 6) {
+                    // Pointy-top: corners at 30°, 90°, 150°, ...
+                    val a = (PI / 180 * (60 * i - 30)).toFloat()
+                    val px = cx + rr * cos(a)
+                    val py = cy + rr * sin(a)
+                    if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+                }
+                path.close()
+                drawPath(path, h.color, alpha = HEAT_ALPHA)
+            }
         }
 
         // Pass 1: dots.

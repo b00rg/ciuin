@@ -38,7 +38,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -52,12 +51,12 @@ import androidx.compose.ui.unit.dp
 import ch.ciuin.app.heat.AreaSummary
 import ch.ciuin.app.heat.Averaging
 import ch.ciuin.app.heat.ViewBounds
-import ch.ciuin.app.heat.aggregate
+import ch.ciuin.app.heat.aggregateHex
 import ch.ciuin.app.heat.cellLevel
+import ch.ciuin.app.heat.hexRadius
 import ch.ciuin.app.heat.samplesFor
 import ch.ciuin.app.heat.summarise
-import ch.ciuin.app.map.HeatLayer
-import ch.ciuin.app.map.buildHeatLayer
+import ch.ciuin.app.map.HeatHex
 import ch.ciuin.app.map.MapMarker
 import ch.ciuin.app.map.MapState
 import ch.ciuin.app.map.MapView
@@ -85,7 +84,7 @@ private const val CITY_ZOOM = 14.0
 private const val CITY_OVERVIEW_ZOOM = 13.0
 
 /** Place markers appear from this zoom on: street level, where the city centre's dots stop crowding. */
-private const val MARKERS_ZOOM = 17.0
+private const val MARKERS_ZOOM = 18.0
 
 /** Used for cell sizing when the grid doesn't say (and when there's no grid: places are ~this dense). */
 private const val DEFAULT_RES_M = 50.0
@@ -152,10 +151,10 @@ fun MapScreen(
 
     val samples = remember(category, places, grid) { samplesFor(category, places, grid) }
     val level = cellLevel(mapState.zoom, CITY_LAT, gridResM)
-    // Built off the main thread (it interpolates ~1M pixels); the old layer stays up until the new one is ready.
-    val heat by produceState<HeatLayer?>(null, samples, level, category) {
-        value = withContext(Dispatchers.Default) {
-            buildHeatLayer(aggregate(samples, level, Averaging.of(category)), value = { category.heat(it) }, band = { heatBand(it).color() })
+    // Honeycomb: hexagons shrink as you zoom in (never finer than the data); each is one solid band colour.
+    val heat = remember(samples, level, category) {
+        aggregateHex(samples, hexRadius(level), Averaging.of(category)).map {
+            HeatHex(it.x, it.y, it.radius, heatBand(category.heat(it.mean)).color())
         }
     }
 
