@@ -146,56 +146,86 @@ Log time spent in each stage; this is the battery/frugality evidence.
 ## B1. Emma: audio ML training
 
 ### Data
-- [ ] **Start the UrbanSound8K download now** (6 GB, Zenodo record 1203745)
-- [ ] Download ESC-50 (~600 MB) and SONYC-UST (evaluation only)
-- [ ] Map ESC-50 and UrbanSound8K labels onto our 8 classes (speech/crowd, music, traffic, siren, construction, alarm/beeping, dog, quiet) → `ml/labels.yaml`
-- [ ] Respect predefined folds (ESC-50 5 folds, US8K 10 folds) to avoid train/test leakage
+- [ ] **Start the UrbanSound8K download now** (~6 GB, Zenodo record 1203745)
+- [ ] Download ESC-50 (~600 MB) and **MUSAN** (speech, music and noise; check size first). Needed because ESC-50 and US8K have almost no speech and little music
+- [ ] Map labels onto our **9 classes** → `ml/labels.yaml`: speech_crowd, music, traffic, siren, construction, alarm_beep, dog, machinery_hum, other
+  - No "quiet" class: the cascade reports quiet when stage 0 stays asleep
+  - `machinery_hum`: US8K `air_conditioner`, ESC-50 `vacuum_cleaner` / `washing_machine`
+  - `other`: every unmapped ESC-50 class + `gun_shot`, so the model isn't forced into one of the 8
+- [ ] Folds: test = ESC-50 fold 5 + US8K folds 9–10; validation = ESC-50 fold 4 + US8K fold 8; train = the rest. MUSAN split by file with a fixed seed. Never split within a fold
+
+### Contract (→ Handoff 0 at 15:00, with Paramveer and Christine)
+- [ ] Agree model input/output: input `float32 [1, 15600]` raw 16 kHz mono waveform in [-1, 1]; output `float32 [1, 9]` softmax; `labels.txt`
+- [ ] **Spectrogram inside the model graph** (STFT as Conv1d with fixed weights + mel matrix multiply), so the app never computes spectrograms. Prove it exports to TFLite and runs on a phone
+- [ ] Hand over a dummy `.tflite` with the exact input/output signature
 
 ### Classifier (→ Handoff 1 at 17:00)
-- [ ] **Teacher:** fine-tune a strong pretrained audio model (e.g. PANNs CNN14 or YAMNet with a bigger head) on our 8 classes. Size doesn't matter; accuracy does
-- [ ] Record baseline accuracy and macro-F1
-- [ ] Write `preprocess.md` so Paramveer can reproduce the input pipeline exactly
-- [ ] Train a first small student quickly (see below) and export it + 10 test clips with expected outputs, so Paramveer can start porting
+- [ ] **Teacher:** frozen YAMNet embeddings + trained MLP head (embeddings precomputed once, fast). Upgrade to PANNs CNN14 only if time allows. Teacher stays offline; size doesn't matter, accuracy does
+- [ ] Record teacher accuracy and macro-F1 → `results.json`
+- [ ] Write `preprocess.md`: resampling, mono downmix, normalisation, 0.975 s windowing, clip-level averaging
+- [ ] Train a first S student quickly (ESC-50 only if US8K is still downloading; undertrained is fine). Export fp32 `.tflite` + 10 test clips with expected outputs
+- [ ] Save ~200 preprocessed training clips as a calibration `.npy` for Paramveer's quantisation
 
 ### Distillation (→ Handoff 2 at 23:00)
-- [ ] Precompute the teacher's soft labels (logits) on all training clips once and cache them, so student training is fast
-- [ ] Students: 3 small CNNs on log-mel input, same architecture at different widths (S / M / L, e.g. ~50k / ~200k / ~1M params). Use ops that export cleanly to TFLite (conv, depthwise conv, pooling, dense)
-- [ ] Loss: KL divergence to the teacher's softened outputs (temperature T ≈ 2–4) + cross-entropy on true labels; tune the mix (α) on a validation fold
+- [ ] Precompute the teacher's soft labels (logits) on all training clips once and cache them
+- [ ] Students: 3 small CNNs, same architecture at different widths (S / M / L, ~50k / ~200k / ~1M params). Only ops that export cleanly to TFLite (conv, depthwise conv, pooling, dense)
+- [ ] Loss: KL divergence to the teacher's softened outputs (T ≈ 2–4) + cross-entropy on true labels; tune α on the validation folds
 - [ ] Baseline: train the S student on hard labels only, to show what distillation adds
-- [ ] Augment with mixup / time shifts / background noise from the quiet clips so students see more than the teacher's training set
-- [ ] Per model: params, size, accuracy, macro-F1 → `results.json` (teacher, each student, and the no-distillation baseline)
-- [ ] Evaluate on SONYC-UST and record the drop
+- [ ] Augment with mixup / time shifts / background noise from MUSAN noise + venue room-tone recordings
+- [ ] Export each student as fp32 `.tflite`; hand over with the test split for Paramveer's int8 check
+- [ ] Per model (fp32): params, size, MACs, accuracy, macro-F1 → `results.json` (teacher, each student, hard-label baseline)
 
 ### Cascade and personal model (design side)
-- [ ] Stage 0 thresholds (dB + spectral flux): tune on venue recordings so it rarely wakes in calm places
-- [ ] Stage 1 → 2 rule: confidence margin or entropy cut-off
-- [ ] Personal model spec for Paramveer: learning rate, L2 strength, positive-class weight, preset prior weights, example cap
-- [ ] Prototype the personal model in Python first on synthetic users (hates sirens, tolerates speech) to pick those numbers
+- [ ] Record venue audio: quiet room, hall, cafeteria
+- [ ] Stage 0 thresholds (dB + spectral flux): run Paramveer's Kotlin code on the recordings via the JVM target, tune so it rarely wakes in calm places
+- [ ] Stage 1 → 2 rule: compare top-2 margin vs entropy on validation; pick the better one at ~10–20% escalation rate → `cascade.json`
+- [ ] Re-check the escalation threshold on the int8 models (quantisation can shift confidence values)
+- [ ] Replay venue recordings offline → % time with no model running, escalation rate, inferences per hour → `results.json`
+- [ ] Personal model spec for Paramveer: learning rate, **L2 toward the preset weights** (not toward zero), positive-class weight, autism-friendly preset weights, 200-example cap
+- [ ] Prototype the personal model in Python on synthetic users (hates sirens, tolerates speech) to pick those numbers; export the synthetic data + expected scores for Paramveer's unit test
+
+### Add-ons (only after Handoff 2)
+- [ ] Slimmable student: one set of weights replacing S / M / L
+- [ ] Conformal escalation rule
+- [ ] SONYC-UST evaluation (per-coarse-tag AUPRC; siren + alarm_beep summed into alert-signal)
+- [ ] Babble synthesis for speech_crowd
 
 ---
 
-## B2. Paramveer: on-device ML and device fitting
+## B2. Paramveer: on-device ML, quantisation and device fitting
 
-### Export and port (from Handoff 1)
-- [ ] Agree format with Christine by 15:00: TFLite/LiteRT on Android, ONNX on Desktop
-- [ ] Port preprocessing to Kotlin (mel spectrogram etc.) following `preprocess.md`
-- [ ] Check parity: run the 10 test clips on-device; top class must match Emma's expected output
-- [ ] A-weighted dB and spectral flux in Kotlin in `commonMain` (shared with stage 0)
-
-### Fitting variants to devices (from Handoff 2)
-- [ ] int8 quantisation of the students; re-check parity
-- [ ] Benchmark every variant on every phone/laptop the team has: latency, memory, model load time → add per-device rows to `results.json`
-- [ ] Device profile rule: pick the stage-1 and stage-2 variants per device from RAM / CPU cores / benchmark result (and drop a size when battery is low)
-- [ ] Hardware acceleration where available (NNAPI / GPU delegate on Android), with CPU fallback
+### Before Handoff 1
+- [ ] Agree format with Christine and Emma by 15:00: TFLite/LiteRT on Android, ONNX on Desktop only if needed
+- [ ] **Fallback demo:** stock YAMNet running in the app via MediaPipe's audio classifier, outputs grouped into our classes
+- [ ] A-weighted dB and spectral flux in Kotlin in `commonMain`: radix-2 FFT, A-weighting coefficients for the mic's actual sample rate, report dBFS(A) (mic is uncalibrated). Unit tests against numpy values. Runnable on WAV files from the JVM target so Emma can tune thresholds
 - [ ] Expose a single `AudioClassifier` interface in `commonMain` with platform implementations, so Christine just calls `classify(window)`
 
-### Camera module (a function taking frames, returning numbers)
-- [ ] Brightness: mean luminance per frame → approximate lux
-- [ ] Flicker: luminance time series at max frame rate → FFT → dominant frequency + flicker index
+### Export and port (from Handoff 1)
+- [ ] Load Emma's fp32 student; only `preprocess.md` steps go in Kotlin (resample, mono, normalise, window)
+- [ ] Check parity: run the 10 test clips on-device; top class must match Emma's expected output, probabilities within a small tolerance
+- [ ] Fallback only if the in-graph spectrogram fails to export: port log-mel to Kotlin with a parity test on the same 10 clips
+
+### Quantisation (first student from Handoff 1, all students from Handoff 2)
+- [ ] int8 post-training quantisation of each student using Emma's calibration `.npy`
+- [ ] Keep the spectrogram part (STFT, mel, log) in float; quantise only conv/dense layers
+- [ ] Run fp32 and int8 on Emma's test split; flag any student losing more than ~1–2 points of macro-F1
+- [ ] Re-run the 10-clip parity test on-device for every int8 model
+- [ ] Add int8 rows (size, accuracy, macro-F1) to `results.json`
+- [ ] If int8 breaks a model, ship fp32 for that one and note it
+
+### Fitting variants to devices (from Handoff 2)
+- [ ] Benchmark every variant (fp32 and int8) on every phone/laptop the team has: latency, peak memory, load time → per-device rows in `results.json`
+- [ ] Device profile rule: pick stage-1 and stage-2 variants per device from a launch benchmark (+ RAM / CPU cores), drop a size when battery is low
+- [ ] Acceleration: CPU (XNNPACK) by default; try the GPU delegate only if benchmarks show a win. Skip NNAPI (deprecated)
+
+### Camera module (a function taking frames or sensor values, returning numbers)
+- [ ] Brightness: Android ambient light sensor (`TYPE_LIGHT`) for lux, since camera luminance shifts with auto-exposure
+- [ ] Flicker: lock auto-exposure, luminance time series at max frame rate → FFT → dominant frequency + flicker index. Request 60 fps (30 fps only detects below 15 Hz); show the detectable range in the UI
 - [ ] Crowd: smallest pretrained COCO person detector that works (class 0), counts only, frames discarded immediately; benchmark it like the audio variants
+- [ ] Check this doesn't overlap with D's vision work
 
 ### Runtime
-- [ ] Cascade state machine (stages 0–2) in `commonMain`, using Emma's thresholds; logs per-stage time and inference count
+- [ ] Cascade state machine (stages 0–2) in `commonMain`, using `cascade.json`; logs per-stage time and inference count for the Model screen
 - [ ] Personal model in pure Kotlin in `commonMain` from Emma's spec, exposing `score(features): Double`
 - [ ] Unit test the Kotlin personal model against Emma's Python prototype on the same synthetic data
 
