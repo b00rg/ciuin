@@ -15,7 +15,7 @@ Everything not written during the event (pretrained models, datasets, libraries,
 | Pydantic | Library | MIT | Backend request/response validation |
 | SQLite (Python `sqlite3`, R-Tree module) | Library | Public domain | Backend storage and spatial index |
 | pytest, httpx | Library | MIT / BSD-3 | Backend tests |
-| rasterio, GDAL, NumPy | Library | BSD-3 / MIT / BSD-3 | Reading and sampling the noise rasters |
+| rasterio, GDAL, NumPy | Library | BSD-3 / MIT / BSD-3 | Reading and sampling the noise rasters, NumPy reference values for stage 0 audio metrics |
 | AndroidX Activity Compose, Android Gradle Plugin | Library | Google, Apache 2.0 | Android app shell and build |
 | cloudflared (Cloudflare quick tunnel) | Tool / service | Cloudflare, Apache 2.0 (client) | Making the laptop backend reachable from phones |
 | **OpenStreetMap data** | Dataset | © OpenStreetMap contributors, **ODbL 1.0** | Places, categories, `wheelchair` and other tags. Attribution required; `data/processed/places_lausanne.geojson` is a derived database, so it is ODbL too |

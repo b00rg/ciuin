@@ -36,6 +36,17 @@ kotlin {
     }
 }
 
+val desktopMainCompilation = kotlin.targets.getByName("desktop").compilations.getByName("main")
+val replayWavPath = providers.gradleProperty("wav")
+tasks.register<JavaExec>("replayStage0Wav") {
+    group = "application"
+    description = "Report stage 0 audio metrics for the WAV file provided via -Pwav."
+    mainClass.set("ch.ciuin.shared.audio.Stage0WavReplayKt")
+    classpath(desktopMainCompilation.output.allOutputs, desktopMainCompilation.runtimeDependencyFiles)
+    workingDir(rootDir)
+    argumentProviders.add(CommandLineArgumentProvider { listOfNotNull(replayWavPath.orNull) })
+}
+
 android {
     namespace = "ch.ciuin.shared"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
