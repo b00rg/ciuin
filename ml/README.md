@@ -24,7 +24,55 @@ python3 ml/personal_model.py      # personal trigger model: tune on synthetic us
 
 ## Preprocessing
 
-`ml/preprocess.py` loads any clip as 16 kHz mono float, cuts 0.975 s windows (0.5 s hop), skips windows below −60 dBFS and averages window probabilities into a clip score. Training and evaluation use it; [`export/preprocess.md`](export/preprocess.md) is the same thing written for the Kotlin port. Change both together.
+`ml/preprocess.py` loads clips as 16 kHz mono float, cuts 0.975 s windows (0.5 s hop), skips windows below −60 dBFS and averages window probabilities into a clip score. The Python and shared Kotlin implementations follow the same [preprocessing contract](export/preprocess.md).
+
+Run the Kotlin handoff parity test from the repo root with JDK 17 and a Python environment containing `ai-edge-litert` and `numpy`:
+
+```sh
+CIUIN_LITERT_PYTHON="$PWD/.venv/bin/python" ./gradlew :shared:desktopTest --tests '*AudioParityTest' --rerun
+```
+
+The test feeds Kotlin's windows from all ten bundled WAVs to `audio-student-s.tflite` and checks their start samples, window and clip probabilities within 0.001, and clip top classes against `expected.json`.
+
+## Stage 0 WAV replay
+
+From the repository root with JDK 17, run one recording per command. The `wav`
+path can be absolute or relative to the repository root.
+
+```sh
+./gradlew -q :shared:replayStage0Wav '-Pwav=ml/export/test_clips/03_siren.wav' > siren-stage0.csv
+```
+
+The replay accepts little-endian WAV files with packed integer PCM (unsigned
+8-bit or signed 16-, 24-, or 32-bit) or IEEE float PCM (32- or 64-bit). It uses
+the recorded sample rate, clamps samples to [-1, 1], and averages channels to
+mono. It emits one CSV row per complete, non-overlapping second. A trailing
+partial second is skipped with a message on stderr. Files shorter than one
+second produce just the CSV header.
+
+| Column | Meaning |
+|---|---|
+| `start_s` | Start of the window in seconds since the beginning of the file. |
+| `level_dbfs_a` | A-weighted RMS level in dB relative to a full-scale sample RMS of 1. Exact silence is `-Infinity`. This is a digital level from an uncalibrated recording. |
+| `spectral_flux` | L2 norm of the positive increases in unweighted, one-sided RMS bin magnitudes since the preceding window. The scale preserves recorded amplitude. |
+
+`Stage0AudioAnalyzer` takes one second of mono samples in [-1, 1] at the actual
+capture rate. It subtracts the window mean, zero-pads to the next power of two,
+and runs a radix-2 FFT. For `S` samples and FFT size `N`, each interior bin's
+RMS magnitude is `abs(FFT[k]) * sqrt(2 / (N * S))`. The Nyquist bin uses
+`sqrt(1 / (N * S))`, and DC is omitted. The level is `10 * log10` of the sum of
+squared RMS magnitudes after applying the A-weighting gain at each bin's
+frequency, `k * sampleRate / N`. [A-weighting response and constants](https://pmc.ncbi.nlm.nih.gov/articles/PMC4331191/)
+
+The first window and the first window after `reset()` have zero flux. Silence
+has zero flux and sets the previous spectrum to zero, so sound after silence
+registers as an onset. Start a fresh analyzer or call `reset()` for each new
+recording. Classifier preprocessing uses its own unweighted −60 dBFS silence
+gate on the model's input windows.
+
+Run `./gradlew :shared:desktopTest` to check the Kotlin implementation. To
+regenerate the expected values with NumPy installed, run
+`python3 ml/tests/stage0_numpy_reference.py`.
 
 ## Teacher
 

@@ -3,10 +3,21 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
 }
+
+val listenerAssets = layout.buildDirectory.dir("generated/listenerAssets")
+val bundleListenerAssets by tasks.registering(Sync::class) {
+    from(rootProject.layout.projectDirectory.dir("ml/export")) {
+        include("audio-student-s.tflite", "cascade.json")
+    }
+    from(rootProject.layout.projectDirectory.file("data/processed/places_lausanne.geojson"))
+    into(listenerAssets)
+}
+tasks.named("preBuild") { dependsOn(bundleListenerAssets) }
 
 kotlin {
     androidTarget {
@@ -22,8 +33,13 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.ui)
         }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+            implementation(libs.ktor.client.mock)
+        }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
+            implementation(libs.litert)
         }
         val desktopMain by getting {
             dependencies {
@@ -36,6 +52,8 @@ kotlin {
 
 android {
     namespace = "ch.ciuin.app"
+    sourceSets.getByName("main").assets.srcDir(listenerAssets)
+    androidResources.noCompress += "tflite"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     defaultConfig {
         applicationId = "ch.ciuin.app"
@@ -47,6 +65,9 @@ android {
         // Default 10.0.2.2 = the host machine as seen from the Android emulator.
         val apiUrl = (project.findProperty("ciuin.apiUrl") as String?) ?: "http://10.0.2.2:8000"
         buildConfigField("String", "API_URL", "\"$apiUrl\"")
+        val walkingRouterUrl = providers.gradleProperty("ciuin.walkingRouterUrl").orNull
+        val walkingRouterField = walkingRouterUrl?.let { "\"${it.replace("\\", "\\\\").replace("\"", "\\\"")}\"" } ?: "null"
+        buildConfigField("String", "WALKING_ROUTER_URL", walkingRouterField)
     }
     buildFeatures {
         buildConfig = true

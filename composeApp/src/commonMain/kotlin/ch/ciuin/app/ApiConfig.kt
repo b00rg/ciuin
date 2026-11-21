@@ -1,6 +1,7 @@
 package ch.ciuin.app
 
 import ch.ciuin.shared.api.FakePlacesApi
+import ch.ciuin.shared.api.FallbackPlacesApi
 import ch.ciuin.shared.api.KtorPlacesApi
 import ch.ciuin.shared.api.PlacesApi
 
@@ -13,11 +14,14 @@ import ch.ciuin.shared.api.PlacesApi
  */
 expect fun apiUrl(): String
 
+/** Real backend, falling back to fake data when it's unreachable (the map shows an "offline" badge). */
 fun createPlacesApi(url: String = apiUrl()): PlacesApi =
-    if (url.equals("fake", ignoreCase = true)) FakePlacesApi() else KtorPlacesApi(url)
+    if (url.equals("fake", ignoreCase = true)) FakePlacesApi()
+    else FallbackPlacesApi(KtorPlacesApi(url), FakePlacesApi())
 
 fun describeApi(api: PlacesApi): String = when (api) {
     is KtorPlacesApi -> api.baseUrl
+    is FallbackPlacesApi -> describeApi(api.primary)
     is FakePlacesApi -> "fake data"
     else -> api::class.simpleName ?: "?"
 }

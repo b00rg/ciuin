@@ -3,7 +3,10 @@ package ch.ciuin.shared.api
 import ch.ciuin.shared.model.FeatureVector
 import ch.ciuin.shared.model.Measurement
 import ch.ciuin.shared.model.SoundClass
+import ch.ciuin.shared.model.parseHeatGrid
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -28,6 +31,11 @@ class KtorPlacesApiLiveTest {
         try {
             val places = api.places(BBox.LAUSANNE)
             assertTrue(places.size > 2000, "only ${places.size} places")
+            val heatmap = api.heatmap(BBox.LAUSANNE, "noise")
+            assertEquals(50, heatmap["cell_m"]?.jsonPrimitive?.intOrNull)
+            val noiseCells = parseHeatGrid(heatmap)
+            assertTrue(noiseCells.size > 5000, "only ${noiseCells.size} noise cells")
+            assertTrue(noiseCells.all { it.combinedDb != null })
             val target = places.first { it.wheelchair == "yes" }
             val before = target.measured?.n ?: 0
 
