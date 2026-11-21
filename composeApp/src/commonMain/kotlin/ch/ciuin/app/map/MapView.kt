@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+import ch.ciuin.app.appFontFamily
 import kotlin.math.floor
 import kotlin.math.PI
 import kotlin.math.cos
@@ -168,7 +169,7 @@ fun MapView(
             if (!labelsVisible && !selected) continue
             val layout = textMeasurer.measure(
                 m.label,
-                TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1B1B1B)),
+                TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1B1B1B), fontFamily = appFontFamily),
             )
             val r = (if (selected) 12.dp else 8.dp).toPx()
             val topLeft = Offset(p.x - layout.size.width / 2f, p.y + r + 3.dp.toPx())

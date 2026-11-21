@@ -10,7 +10,7 @@ import ch.ciuin.shared.api.PlacesApi
 
 @Composable
 fun App(api: PlacesApi = remember { createPlacesApi() }) {
-    MaterialTheme {
+    MaterialTheme(typography = appTypography()) {
         Surface(Modifier.fillMaxSize()) {
             MapScreen(api)
         }

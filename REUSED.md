@@ -18,6 +18,8 @@ Everything not written during the event (pretrained models, datasets, libraries,
 | pytest, httpx | Library | MIT / BSD-3 | Backend tests |
 | rasterio, GDAL, NumPy | Library | BSD-3 / MIT / BSD-3 | Reading and sampling the noise rasters |
 | AndroidX Activity Compose, Android Gradle Plugin | Library | Google, Apache 2.0 | Android app shell and build |
+| Roboto (weights 400 and 500), `iosApp/iosApp/Fonts/Roboto-*.ttf` | Font | Google, Apache 2.0; static instances cut from Android 15's variable `Roboto-Regular.ttf` (v3.005) with fontTools | iOS text in the same typeface Android uses by default |
+| Noto Sans Symbols (one glyph, U+2302), `iosApp/iosApp/Fonts/NotoSansSymbols-House.ttf` | Font | Google, SIL OFL 1.1; subset of Android 15's `NotoSansSymbols-Regular-Subsetted.ttf` (v1.09) | The "⌂" button on iOS, matching Android's fallback glyph |
 | cloudflared (Cloudflare quick tunnel) | Tool / service | Cloudflare, Apache 2.0 (client) | Making the laptop backend reachable from phones |
 | **OpenStreetMap data** | Dataset | © OpenStreetMap contributors, **ODbL 1.0** | Places, categories, `wheelchair` and other tags. Attribution required; `data/processed/places_lausanne.geojson` is a derived database, so it is ODbL too |
 | Overpass API (overpass-api.de) | Service | Free public instance | Downloading Lausanne OSM places and counting tags |

@@ -205,7 +205,7 @@ fun MapScreen(
                 val centre = Offset(viewport.width / 2, viewport.height / 2)
                 SmallFloatingActionButton(onClick = { mapState.zoomAt(2.0, centre, viewport, tilePx) }) { Text("+") }
                 SmallFloatingActionButton(onClick = { mapState.zoomAt(0.5, centre, viewport, tilePx) }) { Text("−") }
-                SmallFloatingActionButton(onClick = { mapState.centerOn(CITY_LAT, CITY_LON, CITY_ZOOM) }) { Text("⌂") }
+                SmallFloatingActionButton(onClick = { mapState.centerOn(CITY_LAT, CITY_LON, CITY_ZOOM) }) { Text("⌂", fontFamily = symbolFontFamily) }
             }
 
             // Bottom: place card or area summary; then attribution (required by OSM)
