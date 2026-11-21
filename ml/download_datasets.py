@@ -1,27 +1,42 @@
 """Download the B1 audio datasets into data/raw/audio/ (gitignored).
 
-    python3 ml/download_datasets.py                 # all three
+    python3 ml/download_datasets.py                 # everything
     python3 ml/download_datasets.py esc50 us8k      # a subset
+    (esc50, us8k, musan, fsd50k, demand)
     python3 ml/download_datasets.py --keep-archives # keep .tar.gz/.zip after extracting
 
 Stdlib only. Safe to re-run: finished datasets are skipped, and the
 UrbanSound8K download resumes where it stopped.
 
-Disk: ~18 GB once extracted. Archives are deleted after extraction and
+Disk: ~21 GB once extracted. Archives are deleted after extraction and
 MUSAN (11 GB) is extracted while it streams, so peak use stays near the
-final size instead of ~36 GB.
+final size. FSD50K is ~30 GB in full, but only the ~2,900 alarm / siren /
+crowd clips (~2 GB) are pulled out of it with HTTP range requests.
+
+  ESC-50        2,000 clips   base training data
+  UrbanSound8K  8,732 clips   base training data
+  MUSAN         speech, music, noise
+  FSD50K        alarm, siren, crowd/chatter subset (alarm_beep, speech_crowd)
+  DEMAND        cafeteria, restaurant, station, square recordings (speech_crowd)
 """
 
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
+import http.client
+import json
 import shutil
+import struct
 import sys
 import tarfile
 import time
+import urllib.error
 import urllib.request
 import zipfile
+import zlib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 RAW = Path(__file__).resolve().parent.parent / "data" / "raw" / "audio"
@@ -52,6 +67,26 @@ DATASETS = {
         "expect_wavs": 2016,  # music 660 + noise 930 + speech 426
     },
 }
+
+# Extra data for the two weakest classes (alarm_beep, speech_crowd).
+EXTRA = ("fsd50k", "demand")
+
+# FSD50K (Zenodo 4060432): ~30 GB as split zips, but we only need the clips
+# carrying these labels (~2,900 clips, ~2 GB). They're pulled straight out of
+# the split zip with HTTP range requests. Labels are propagated up the AudioSet
+# ontology, so "Alarm" already covers telephone, doorbell, ringtone, buzzer,
+# smoke alarm and siren clips. labels.yaml decides which class each goes to.
+FSD50K_RECORD = "https://zenodo.org/api/records/4060432"
+FSD50K_WANTED = {"Alarm", "Siren", "Crowd", "Chatter", "Conversation"}
+FSD50K_PARTS = {
+    "dev": [*(f"FSD50K.dev_audio.z0{i}" for i in range(1, 6)), "FSD50K.dev_audio.zip"],
+    "eval": ["FSD50K.eval_audio.z01", "FSD50K.eval_audio.zip"],
+}
+
+# DEMAND (Zenodo 1227121): 5-minute, 16-channel real recordings of busy
+# public places. 16 kHz versions, ~110 MB each.
+DEMAND_RECORD = "https://zenodo.org/api/records/1227121"
+DEMAND_ENVS = ("PCAFETER", "PRESTO", "PSTATION", "SPSQUARE")  # cafeteria, restaurant, station hall, town square
 
 
 def human(n: float) -> str:
@@ -191,9 +226,200 @@ def fetch(key: str, keep_archives: bool) -> None:
     marker.write_text(f"{n}\n")
 
 
+def zenodo_files(record: str) -> dict[str, int]:
+    with open_url(record) as r:
+        return {f["key"]: f["size"] for f in json.load(r)["files"]}
+
+
+def http_range(url: str, start: int, end: int, retries: int = 10) -> bytes:
+    """Bytes [start, end] inclusive, backing off on rate limits."""
+    for attempt in range(1, retries + 1):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "ciuin-dataset-downloader",
+                                                       "Range": f"bytes={start}-{end}"})
+            with urllib.request.urlopen(req, timeout=120) as r:
+                if r.status != 206:
+                    raise RuntimeError(f"server ignored Range request ({r.status})")
+                data = r.read()
+            if len(data) == end - start + 1:
+                return data
+            raise OSError(f"short read {len(data)}/{end - start + 1}")
+        except urllib.error.HTTPError as e:
+            wait = int(e.headers.get("Retry-After") or 30) if e.code == 429 else min(60, 3 * attempt)
+            if attempt == retries:
+                raise
+            time.sleep(wait)
+        except (OSError, http.client.HTTPException):
+            if attempt == retries:
+                raise
+            time.sleep(min(60, 3 * attempt))
+    raise AssertionError("unreachable")
+
+
+class SplitZip:
+    """Random access to one file inside a remote multi-part (zip64) archive."""
+
+    def __init__(self, record: str, parts: list[str], sizes: dict[str, int]):
+        self.urls = [f"{record}/files/{p}/content" for p in parts]
+        self.sizes = [sizes[p] for p in parts]
+        self.starts = [sum(self.sizes[:i]) for i in range(len(parts))]
+
+    def read(self, disk: int, offset: int, n: int) -> bytes:
+        out, pos, remaining = b"", self.starts[disk] + offset, n
+        while remaining > 0:
+            d = max(i for i, s in enumerate(self.starts) if s <= pos)
+            local = pos - self.starts[d]
+            take = min(remaining, self.sizes[d] - local)
+            out += http_range(self.urls[d], local, local + take - 1)
+            pos, remaining = pos + take, remaining - take
+        return out
+
+    def entries(self) -> dict[str, tuple]:
+        """name -> (disk, local_header_offset, compressed_size, size, method, crc, name_len)."""
+        last = len(self.urls) - 1
+        tail_len = min(65536, self.sizes[last])
+        tail = self.read(last, self.sizes[last] - tail_len, tail_len)
+        k = tail.rfind(b"PK\x06\x06")  # zip64 end of central directory
+        if k < 0:
+            raise RuntimeError("no zip64 end-of-central-directory record found")
+        *_, cd_disk, _, _, cd_size, cd_off = struct.unpack("<IQHHIIQQQQ", tail[k:k + 56])
+        cd = self.read(cd_disk, cd_off, cd_size)
+
+        out, i = {}, 0
+        while i < len(cd) and cd[i:i + 4] == b"PK\x01\x02":
+            (_, _, _, _, method, _, _, crc, csize, usize, nlen, elen, clen,
+             disk, _, _, lhoff) = struct.unpack("<IHHHHHHIIIHHHHHII", cd[i:i + 46])
+            name = cd[i + 46:i + 46 + nlen].decode()
+            extra = cd[i + 46 + nlen:i + 46 + nlen + elen]
+            j = 0
+            while j + 4 <= len(extra):  # zip64 extended info holds the real values
+                hid, hlen = struct.unpack("<HH", extra[j:j + 4])
+                if hid == 1:
+                    vals, p = extra[j + 4:j + 4 + hlen], 0
+                    if usize == 0xFFFFFFFF:
+                        usize, p = struct.unpack("<Q", vals[p:p + 8])[0], p + 8
+                    if csize == 0xFFFFFFFF:
+                        csize, p = struct.unpack("<Q", vals[p:p + 8])[0], p + 8
+                    if lhoff == 0xFFFFFFFF:
+                        lhoff, p = struct.unpack("<Q", vals[p:p + 8])[0], p + 8
+                    if disk == 0xFFFF:
+                        disk = struct.unpack("<I", vals[p:p + 4])[0]
+                j += 4 + hlen
+            out[name] = (disk, lhoff, csize, usize, method, crc, nlen)
+            i += 46 + nlen + elen + clen
+        return out
+
+    def extract(self, entry: tuple, name_len: int) -> bytes:
+        """One range request per file: local header + data (+ slack for extra fields)."""
+        disk, lhoff, csize, usize, method, crc = entry
+        want = 30 + name_len + 128 + csize
+        buf = self.read(disk, lhoff, min(want, self.starts[-1] + self.sizes[-1] - self.starts[disk] - lhoff))
+        if buf[:4] != b"PK\x03\x04":
+            raise RuntimeError("bad local header")
+        nlen, elen = struct.unpack("<HH", buf[26:30])
+        start = 30 + nlen + elen
+        data = buf[start:start + csize]
+        if len(data) < csize:  # extra field longer than the slack
+            data += self.read(disk, lhoff + start + len(data), csize - len(data))
+        if method == 8:
+            data = zlib.decompress(data, -15)
+        elif method != 0:
+            raise RuntimeError(f"unsupported zip compression method {method}")
+        if len(data) != usize or zlib.crc32(data) != crc:
+            raise RuntimeError("CRC/size mismatch")
+        return data
+
+
+def fetch_fsd50k(workers: int = 8) -> None:
+    dest = RAW / "FSD50K"
+    marker = dest / ".complete"
+    if marker.exists():
+        print(f"[fsd50k] already done ({count_wavs(dest)} wavs), skipping")
+        return
+    dest.mkdir(parents=True, exist_ok=True)
+    sizes = zenodo_files(FSD50K_RECORD)
+
+    # Ground truth (labels + dev train/val split) and metadata (per-clip licences).
+    for small in ("FSD50K.ground_truth.zip", "FSD50K.metadata.zip"):
+        zpath = dest / small
+        download_file(f"fsd50k {small}", f"{FSD50K_RECORD}/files/{small}/content", zpath, sizes[small])
+        with zipfile.ZipFile(zpath) as zf:
+            zf.extractall(dest)
+        zpath.unlink()
+
+    total = 0
+    for split, parts in FSD50K_PARTS.items():
+        with open(dest / "FSD50K.ground_truth" / f"{split}.csv", newline="") as f:
+            wanted = {row["fname"] for row in csv.DictReader(f)
+                      if FSD50K_WANTED & set(row["labels"].split(","))}
+        out_dir = dest / split
+        out_dir.mkdir(exist_ok=True)
+        todo = sorted(w for w in wanted if not (out_dir / f"{w}.wav").exists())
+        print(f"[fsd50k] {split}: {len(wanted)} matching clips, {len(todo)} to fetch")
+        if not todo:
+            total += len(wanted)
+            continue
+
+        archive = SplitZip(FSD50K_RECORD, parts, sizes)
+        entries = {Path(name).stem: e for name, e in archive.entries().items() if name.endswith(".wav")}
+
+        def one(fname: str) -> int:
+            *entry, nlen = entries[fname]
+            data = archive.extract(tuple(entry), nlen)
+            tmp = out_dir / f".{fname}.wav.part"
+            tmp.write_bytes(data)
+            tmp.rename(out_dir / f"{fname}.wav")
+            return len(data)
+
+        prog = Progress(f"fsd50k {split}", None)
+        failed = []
+        with ThreadPoolExecutor(workers) as pool:
+            futures = {pool.submit(one, f): f for f in todo}
+            for n_done, fut in enumerate(as_completed(futures), 1):
+                try:
+                    prog.update(fut.result())
+                except Exception as e:  # keep going; re-run picks up the rest
+                    failed.append(futures[fut])
+                    print(f"  fsd50k: {futures[fut]} failed ({e})", flush=True)
+                if n_done % 200 == 0:
+                    print(f"  fsd50k {split}: {n_done}/{len(todo)} clips", flush=True)
+        if failed:
+            raise RuntimeError(f"fsd50k: {len(failed)} clips failed; re-run to retry them")
+        total += len(wanted)
+
+    n = count_wavs(dest)
+    status = "OK" if n == total else f"WARNING: expected {total}"
+    print(f"[fsd50k] {n} wavs in {dest} ({status})")
+    marker.write_text(f"{n}\n")
+
+
+def fetch_demand() -> None:
+    dest = RAW / "DEMAND"
+    marker = dest / ".complete"
+    if marker.exists():
+        print(f"[demand] already done ({count_wavs(dest)} wavs), skipping")
+        return
+    dest.mkdir(parents=True, exist_ok=True)
+    sizes = zenodo_files(DEMAND_RECORD)
+    for env in DEMAND_ENVS:
+        if (dest / env).is_dir() and count_wavs(dest / env) == 16:
+            continue
+        name = f"{env}_16k.zip"
+        zpath = dest / name
+        print(f"[demand] downloading {name}")
+        download_file(f"demand {env}", f"{DEMAND_RECORD}/files/{name}/content", zpath, sizes[name])
+        with zipfile.ZipFile(zpath) as zf:
+            zf.extractall(dest)
+        zpath.unlink()
+    n = count_wavs(dest)
+    expect = 16 * len(DEMAND_ENVS)
+    print(f"[demand] {n} wavs in {dest} ({'OK' if n == expect else f'WARNING: expected {expect}'})")
+    marker.write_text(f"{n}\n")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("datasets", nargs="*", choices=list(DATASETS), default=["esc50", "us8k", "musan"])
+    ap.add_argument("datasets", nargs="*", choices=[*DATASETS, *EXTRA], default=[*DATASETS, *EXTRA])
     ap.add_argument("--keep-archives", action="store_true")
     args = ap.parse_args()
 
@@ -201,10 +427,15 @@ def main() -> int:
     free = shutil.disk_usage(RAW).free
     print(f"free disk: {human(free)}")
     if free < 20 * 1024**3:
-        print("warning: under 20 GB free; all three datasets need ~18 GB", file=sys.stderr)
+        print("warning: under 20 GB free; everything needs ~21 GB", file=sys.stderr)
 
     for key in args.datasets:
-        fetch(key, args.keep_archives)
+        if key == "fsd50k":
+            fetch_fsd50k()
+        elif key == "demand":
+            fetch_demand()
+        else:
+            fetch(key, args.keep_archives)
     return 0
 
 
