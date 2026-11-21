@@ -41,11 +41,12 @@ Defined once in `commonMain` as a Kotlin data class:
 ```json
 {
   "db_mean": 62.4, "db_peak": 78.1,
-  "sound_classes": {"speech": 0.71, "music": 0.12, "traffic": 0.08, "siren": 0.0, "construction": 0.0, "alarm": 0.0, "dog": 0.0, "quiet": 0.09},
+  "sound_classes": {"speech_crowd": 0.71, "music": 0.12, "traffic": 0.08, "siren": 0.0, "construction": 0.0, "alarm_beep": 0.0, "dog": 0.0, "machinery_hum": 0.03, "other": 0.06},
   "lux_mean": 340, "flicker_index": 0.04,
   "people_count": 7
 }
 ```
+`sound_classes` always has exactly the **9 classes** from B1, in this order (= model output index 0–8, = `SoundClass` enum in `commonMain`). Values are softmax probabilities, summing to 1. No `quiet` class: quiet = the cascade's stage 0 stayed asleep.
 
 ### Measurement (phone → backend)
 Only aggregates. **Never** raw audio, images, embeddings, trigger taps or user identity.
@@ -84,7 +85,7 @@ ml/export/
   audio-student-l.{tflite,onnx}
   audio-student-m.{tflite,onnx}
   audio-student-s.{tflite,onnx}
-  labels.yaml          # index → our 8 classes
+  labels.yaml          # index → our 9 classes (order must match SoundClass in commonMain)
   preprocess.md        # sample rate, window length, mel params, normalisation (must match exactly on-device)
   results.json         # per model (teacher + each student): params, size_mb, accuracy, macro_f1  (Paramveer adds latency per device)
   test_clips/          # 10 clips + expected top class, to check the on-device port gives the same answers

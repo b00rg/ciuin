@@ -9,7 +9,7 @@ import kotlinx.serialization.json.JsonObject
 
 /**
  * Backend API (todo.md §0). The real implementation will be a Ktor client
- * (engines already on the classpath: OkHttp on Android, CIO on desktop).
+ * (engines already on the classpath: OkHttp on Android, CIO on desktop) configured with [ContractJson].
  */
 interface PlacesApi {
     /** GET /places?bbox=minLon,minLat,maxLon,maxLat */

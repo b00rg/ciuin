@@ -6,8 +6,8 @@ import kotlinx.serialization.Serializable
 /**
  * Shared feature vector (todo.md §0). Used by measurements, the personal model and scoring.
  *
- * `soundClasses` is keyed by class label so the label set can follow `ml/labels.yaml`
- * without a contract change.
+ * `soundClasses` holds all 9 [SoundClass] labels (e.g. "speech_crowd") -> probability.
+ * On the wire it's plain string keys so the backend needs no enum; use [sound] for typed access.
  */
 @Serializable
 data class FeatureVector(
@@ -17,4 +17,7 @@ data class FeatureVector(
     @SerialName("lux_mean") val luxMean: Double,
     @SerialName("flicker_index") val flickerIndex: Double,
     @SerialName("people_count") val peopleCount: Int,
-)
+) {
+    /** Probability for one class; 0 if absent. */
+    fun sound(c: SoundClass): Double = soundClasses[c.label] ?: 0.0
+}

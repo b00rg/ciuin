@@ -1,6 +1,9 @@
 package ch.ciuin.app
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,7 +42,8 @@ fun MapScreen(api: PlacesApi) {
     var places by remember { mutableStateOf<List<Place>>(emptyList()) }
     LaunchedEffect(api) { places = api.places(BBox.LAUSANNE) }
 
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    // safeDrawing: keep clear of the status/navigation bars (Android draws edge-to-edge by default).
+    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(16.dp)) {
         Text("Sensory Map (placeholder)", style = MaterialTheme.typography.headlineSmall)
         Text(platformName(), style = MaterialTheme.typography.bodySmall)
         LazyColumn {
