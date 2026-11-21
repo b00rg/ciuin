@@ -1,7 +1,66 @@
 {
   "_doc": "Cascade listener config (todo.md \u00a70). Stage 1 -> 2 from ml/cascade_rule.py (#6); stage 0 thresholds come from #18.",
   "stage0": {
-    "status": "pending #18 (needs venue recordings + the Kotlin dB/flux code)"
+    "status": "provisional: tuned on DEMAND ambience (cafeteria, restaurant, station, square; 2 mics x 5 min each) with inserted test-split events; re-tune on the venue recordings (#17) with --ambient",
+    "block_s": 1.0,
+    "n_fft": 1024,
+    "hop": 512,
+    "window": "hann (periodic)",
+    "features": {
+      "level_dba": "A-weighted dBFS(A), mean frame power, full-scale 1 kHz sine = 0",
+      "flux": "max over frames of sum(max(0, |X_t|-|X_t-1|)) / sum(|X_t-1|)",
+      "baseline": "EMA of level_dba, 1/tau_s per second, updated only while asleep"
+    },
+    "wake_if_any": {
+      "level_dba - baseline >": 4,
+      "flux >": 1.5,
+      "level_dba >": -10
+    },
+    "tau_s": 30,
+    "simulation": {
+      "wakes_per_hour_ambient": 252.0,
+      "ambient_awake_pct": 7.0,
+      "event_recall": 0.9502,
+      "recall_by_class": {
+        "alarm_beep": 0.957,
+        "construction": 0.972,
+        "siren": 0.919
+      },
+      "n_events": 462
+    },
+    "tradeoff": [
+      {
+        "min_recall": 0.85,
+        "jump_db": 6,
+        "flux_max": 4.0,
+        "abs_dba": -10,
+        "tau_s": 30,
+        "event_recall": 0.9004,
+        "ambient_awake_pct": 1.8,
+        "wakes_per_hour_ambient": 66.0
+      },
+      {
+        "min_recall": 0.9,
+        "jump_db": 6,
+        "flux_max": 4.0,
+        "abs_dba": -10,
+        "tau_s": 30,
+        "event_recall": 0.9004,
+        "ambient_awake_pct": 1.8,
+        "wakes_per_hour_ambient": 66.0
+      },
+      {
+        "min_recall": 0.95,
+        "jump_db": 4,
+        "flux_max": 1.5,
+        "abs_dba": -10,
+        "tau_s": 30,
+        "event_recall": 0.9502,
+        "ambient_awake_pct": 7.0,
+        "wakes_per_hour_ambient": 252.0
+      }
+    ],
+    "grid_size": 105
   },
   "stage1_to_2": {
     "p_overwhelm_threshold": 0.5,
