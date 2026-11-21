@@ -1,0 +1,6 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="Ciuin audio parity diagnostic" />
+    <instrumentation
+        android:name="ch.ciuin.parity.AudioParity"
+        android:targetPackage="${applicationId}" />
+</manifest>
