@@ -181,7 +181,7 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 ### After ~19:00: help Christine
 - [ ] Take the app screens Christine hands over (likely Place detail, Privacy, Model screen UI)
 - [x] Ktor client against your own API: `KtorPlacesApi` in `shared/commonMain` (mock-engine tests + a live round-trip test). App picks the URL per platform (`composeApp/.../ApiConfig.kt`); `postMeasurement` now returns `MeasurementResult`
-- [ ] Offline fallback using the bundled GeoJSON (when the backend is unreachable)
+- [ ] Offline fallback using the bundled GeoJSON (when the backend is unreachable). Android quiet-place lookup uses it. The map still falls back to sample places. [PR #38](https://github.com/b00rg/ciuin/pull/38)
 - [ ] Own `REUSED.md`: collect entries from everyone as they go (data sources, backend + app libraries added 21 Nov; keep adding)
 
 ---
@@ -189,43 +189,45 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 ## B1. Emma: audio ML training
 
 ### Data
-- [ ] **Start the UrbanSound8K download now** (~6 GB, Zenodo record 1203745)
-- [ ] Download ESC-50 (~600 MB) and **MUSAN** (speech, music and noise; check size first). Needed because ESC-50 and US8K have almost no speech and little music
-- [ ] Map labels onto our **9 classes** → `ml/labels.yaml`: speech_crowd, music, traffic, siren, construction, alarm_beep, dog, machinery_hum, other
+- [x] **Start the UrbanSound8K download now** (~6 GB, Zenodo record 1203745)
+- [x] Download ESC-50 (~600 MB) and **MUSAN** (speech, music and noise; check size first). Needed because ESC-50 and US8K have almost no speech and little music. [PR #41](https://github.com/b00rg/ciuin/pull/41)
+- [x] Map labels onto our **9 classes** → `ml/export/labels.yaml`: speech_crowd, music, traffic, siren, construction, alarm_beep, dog, machinery_hum, other
   - No "quiet" class: the cascade reports quiet when stage 0 stays asleep
   - `machinery_hum`: US8K `air_conditioner`, ESC-50 `vacuum_cleaner` / `washing_machine`
   - `other`: every unmapped ESC-50 class + `gun_shot`, so the model isn't forced into one of the 8
-- [ ] Folds: test = ESC-50 fold 5 + US8K folds 9–10; validation = ESC-50 fold 4 + US8K fold 8; train = the rest. MUSAN split by file with a fixed seed. Never split within a fold
+- [x] Folds: test = ESC-50 fold 5 + US8K folds 9–10; validation = ESC-50 fold 4 + US8K fold 8; train = the rest. MUSAN split by file with a fixed seed. Never split within a fold
 
 ### Contract (→ Handoff 0 at 15:00, with Paramveer and Christine)
-- [ ] Agree model input/output: input `float32 [1, 15600]` raw 16 kHz mono waveform in [-1, 1]; output `float32 [1, 9]` softmax; `labels.txt`
-- [ ] **Spectrogram inside the model graph** (STFT as Conv1d with fixed weights + mel matrix multiply), so the app never computes spectrograms. Prove it exports to TFLite and runs on a phone
-- [ ] Hand over a dummy `.tflite` with the exact input/output signature
+- [x] Agree model input/output: input `float32 [1, 15600]` raw 16 kHz mono waveform in [-1, 1]; output `float32 [1, 9]` softmax; `labels.txt`
+- [x] **Spectrogram inside the model graph** (STFT as Conv1d with fixed weights + mel matrix multiply), so the app never computes spectrograms. Prove it exports to TFLite and runs on a phone. Verified with Student S on the Android emulator.
+- [x] Hand over a dummy `.tflite` with the exact input/output signature
 
 ### Classifier (→ Handoff 1 at 17:00)
-- [ ] **Teacher:** frozen YAMNet embeddings + trained MLP head (embeddings precomputed once, fast). Upgrade to PANNs CNN14 only if time allows. Teacher stays offline; size doesn't matter, accuracy does
-- [ ] Record teacher accuracy and macro-F1 → `results.json`
-- [ ] Write `preprocess.md`: resampling, mono downmix, normalisation, 0.975 s windowing, clip-level averaging
-- [ ] Train a first S student quickly (ESC-50 only if US8K is still downloading; undertrained is fine). Export fp32 `.tflite` + 10 test clips with expected outputs
-- [ ] Save ~200 preprocessed training clips as a calibration `.npy` for Paramveer's quantisation
+- [x] **Teacher:** frozen YAMNet embeddings + trained MLP head (embeddings precomputed once, fast). Upgrade to PANNs CNN14 only if time allows. Teacher stays offline; size doesn't matter, accuracy does
+- [x] Record teacher accuracy and macro-F1 → `results.json`
+- [x] Write `preprocess.md`: resampling, mono downmix, normalisation, 0.975 s windowing, clip-level averaging
+- [x] Train a first S student quickly (ESC-50 only if US8K is still downloading; undertrained is fine). Export fp32 `.tflite` + 10 test clips with expected outputs. [PR #28](https://github.com/b00rg/ciuin/pull/28)
+- [x] Save ~200 preprocessed training clips as a calibration `.npy` for Paramveer's quantisation
 
 ### Distillation (→ Handoff 2 at 23:00)
-- [ ] Precompute the teacher's soft labels (logits) on all training clips once and cache them
+- [x] Precompute the teacher's soft labels (logits) on all training clips once and cache them
 - [ ] Students: 3 small CNNs, same architecture at different widths (S / M / L, ~50k / ~200k / ~1M params). Only ops that export cleanly to TFLite (conv, depthwise conv, pooling, dense)
-- [ ] Loss: KL divergence to the teacher's softened outputs (T ≈ 2–4) + cross-entropy on true labels; tune α on the validation folds
-- [ ] Baseline: train the S student on hard labels only, to show what distillation adds
-- [ ] Augment with mixup / time shifts / background noise from MUSAN noise + venue room-tone recordings
+- [ ] Loss: KL divergence to the teacher's softened outputs (T ≈ 2–4) + cross-entropy on true labels; tune α on the validation folds. Both loss terms are implemented. Validation tuning of α is pending.
+- [x] Baseline: train the S student on hard labels only, to show what distillation adds
+- [ ] Augment with mixup / time shifts / background noise from MUSAN noise + venue room-tone recordings. Handoff 2 uses mixup, shifts and DEMAND background noise.
 - [ ] Export each student as fp32 `.tflite`; hand over with the test split for Paramveer's int8 check
 - [ ] Per model (fp32): params, size, MACs, accuracy, macro-F1 → `results.json` (teacher, each student, hard-label baseline)
 
+Handoff 2 has S and M fp32 exports and updated metrics. L and the full metrics table are pending. [PR #43](https://github.com/b00rg/ciuin/pull/43)
+
 ### Cascade and personal model (design side)
 - [ ] Record venue audio: quiet room, hall, cafeteria
-- [ ] Stage 0 thresholds (dB + spectral flux): run Paramveer's Kotlin code on the recordings via the JVM target, tune so it rarely wakes in calm places
-- [ ] Stage 1 → 2 rule: compare top-2 margin vs entropy on validation; pick the better one at ~10–20% escalation rate → `cascade.json`
-- [ ] Re-check the escalation threshold on the int8 models (quantisation can shift confidence values)
-- [ ] Replay venue recordings offline → % time with no model running, escalation rate, inferences per hour → `results.json`
-- [ ] Personal model spec for Paramveer: learning rate, **L2 toward the preset weights** (not toward zero), positive-class weight, autism-friendly preset weights, 200-example cap
-- [ ] Prototype the personal model in Python on synthetic users (hates sirens, tolerates speech) to pick those numbers; export the synthetic data + expected scores for Paramveer's unit test
+- [ ] Stage 0 thresholds (dB + spectral flux): run Paramveer's Kotlin code on the recordings via the JVM target, tune so it rarely wakes in calm places. Provisional thresholds use DEMAND recordings. [PR #39](https://github.com/b00rg/ciuin/pull/39)
+- [x] Stage 1 → 2 rule: compare top-2 margin vs entropy on validation; pick the better one at ~10–20% escalation rate → `cascade.json`
+- [x] Re-check the escalation threshold on the int8 models (quantisation can shift confidence values). Re-checked on the Handoff 1 S int8 model. Repeat for the refreshed models when quantised. [PR #33](https://github.com/b00rg/ciuin/pull/33)
+- [ ] Replay venue recordings offline → % time with no model running, escalation rate, inferences per hour → `results.json`. DEMAND replay metrics are in `ml/export/cascade_replay.json`. [PR #40](https://github.com/b00rg/ciuin/pull/40)
+- [x] Personal model spec for Paramveer: learning rate, **L2 toward the preset weights** (not toward zero), positive-class weight, autism-friendly preset weights, 200-example cap
+- [x] Prototype the personal model in Python on synthetic users (hates sirens, tolerates speech) to pick those numbers; export the synthetic data + expected scores for Paramveer's unit test. [PR #26](https://github.com/b00rg/ciuin/pull/26)
 
 ### Add-ons (only after Handoff 2)
 - [ ] Slimmable student: one set of weights replacing S / M / L
@@ -238,70 +240,77 @@ Pitch line: *measurements work anywhere, map data covers the world → Europe �
 ## B2. Paramveer: on-device ML, quantisation and device fitting
 
 ### Before Handoff 1
-- [ ] Agree format with Christine and Emma by 15:00: TFLite/LiteRT on Android, ONNX on Desktop only if needed
+- [x] Agree format with Christine and Emma by 15:00: TFLite/LiteRT on Android, ONNX on Desktop only if needed
 - [ ] **Fallback demo:** stock YAMNet running in the app via MediaPipe's audio classifier, outputs grouped into our classes
-- [ ] A-weighted dB and spectral flux in Kotlin in `commonMain`: radix-2 FFT, A-weighting coefficients for the mic's actual sample rate, report dBFS(A) (mic is uncalibrated). Unit tests against numpy values. Runnable on WAV files from the JVM target so Emma can tune thresholds
-- [ ] Expose a single `AudioClassifier` interface in `commonMain` with platform implementations, so Christine just calls `classify(window)`
+- [x] A-weighted dB and spectral flux in Kotlin in `commonMain`: radix-2 FFT, A-weighting coefficients for the mic's actual sample rate, report dBFS(A) (mic is uncalibrated). Unit tests against numpy values. Runnable on WAV files from the JVM target so Emma can tune thresholds. [PR #37](https://github.com/b00rg/ciuin/pull/37)
+- [ ] Expose a single `AudioClassifier` interface in `commonMain` with platform implementations, so Christine just calls `classify(window)`. The shared interface and test adapters exist. The Android listener still calls LiteRT directly.
 
 ### Export and port (from Handoff 1)
-- [ ] Load Emma's fp32 student; only `preprocess.md` steps go in Kotlin (resample, mono, normalise, window)
-- [ ] Check parity: run the 10 test clips on-device; top class must match Emma's expected output, probabilities within a small tolerance
+- [x] Load Emma's fp32 student; only `preprocess.md` steps go in Kotlin (resample, mono, normalise, window). [PR #35](https://github.com/b00rg/ciuin/pull/35), [PR #38](https://github.com/b00rg/ciuin/pull/38)
+- [x] Check parity: run the 10 test clips on-device; top class must match Emma's expected output, probabilities within a small tolerance. Verified for the Handoff 1 S on the Android emulator.
 - [ ] Fallback only if the in-graph spectrogram fails to export: port log-mel to Kotlin with a parity test on the same 10 clips
 
 ### Quantisation (first student from Handoff 1, all students from Handoff 2)
 - [ ] int8 post-training quantisation of each student using Emma's calibration `.npy`
-- [ ] Keep the spectrogram part (STFT, mel, log) in float; quantise only conv/dense layers
+- [x] Keep the spectrogram part (STFT, mel, log) in float; quantise only conv/dense layers. Verified for Handoff 1 S. [PR #36](https://github.com/b00rg/ciuin/pull/36)
 - [ ] Run fp32 and int8 on Emma's test split; flag any student losing more than ~1–2 points of macro-F1
 - [ ] Re-run the 10-clip parity test on-device for every int8 model
 - [ ] Add int8 rows (size, accuracy, macro-F1) to `results.json`
 - [ ] If int8 breaks a model, ship fp32 for that one and note it
 
+Handoff 1 Student S has an int8 export, held-out accuracy and macro-F1 results, and 10-clip Android emulator parity. PR #36 merged into the preprocessing branch. The int8 files are still outside `main`, and the Handoff 2 exports need a fresh int8 pass. [PR #36](https://github.com/b00rg/ciuin/pull/36)
+
 ### Fitting variants to devices (from Handoff 2)
-- [ ] Benchmark every variant (fp32 and int8) on every phone/laptop the team has: latency, peak memory, load time → per-device rows in `results.json`
+- [ ] Benchmark every variant (fp32 and int8) on every phone/laptop the team has: latency, peak memory, load time → per-device rows in `results.json`. Handoff 1 S fp32 and int8 were benchmarked on the Android emulator. [PR #36](https://github.com/b00rg/ciuin/pull/36)
 - [ ] Device profile rule: pick stage-1 and stage-2 variants per device from a launch benchmark (+ RAM / CPU cores), drop a size when battery is low
 - [ ] Acceleration: CPU (XNNPACK) by default; try the GPU delegate only if benchmarks show a win. Skip NNAPI (deprecated)
 
 ### Camera module (a function taking frames or sensor values, returning numbers)
+
+The shared `CameraFeatures` interface, measurement fields and Light and Crowd map views exist. The merged Android listener fills lux, flicker and people count with zeros.
+
 - [ ] Brightness: Android ambient light sensor (`TYPE_LIGHT`) for lux, since camera luminance shifts with auto-exposure
 - [ ] Flicker: lock auto-exposure, luminance time series at max frame rate → FFT → dominant frequency + flicker index. Request 60 fps (30 fps only detects below 15 Hz); show the detectable range in the UI
 - [ ] Crowd: smallest pretrained COCO person detector that works (class 0), counts only, frames discarded immediately; benchmark it like the audio variants
 - [ ] Check this doesn't overlap with D's vision work
 
 ### Runtime
-- [ ] Cascade state machine (stages 0–2) in `commonMain`, using `cascade.json`; logs per-stage time and inference count for the Model screen
-- [ ] Personal model in pure Kotlin in `commonMain` from Emma's spec, exposing `score(features): Double`
-- [ ] Unit test the Kotlin personal model against Emma's Python prototype on the same synthetic data
+- [ ] Cascade state machine (stages 0–2) in `commonMain`, using `cascade.json`; logs per-stage time and inference count for the Model screen. The Android listener scores audio with a fixed S model.
+- [x] Personal model in pure Kotlin in `commonMain` from Emma's spec, exposing `score(features): Double`
+- [x] Unit test the Kotlin personal model against Emma's Python prototype on the same synthetic data. [PR #38](https://github.com/b00rg/ciuin/pull/38)
 
 ---
 
 ## C. Christine: KMP app (Siddhi joins ~19:00)
 
 ### Project
-- [ ] **By 13:30:** Compose Multiplatform project with **Android + Desktop (JVM)** targets
+- [x] **By 13:30:** Compose Multiplatform project with **Android + Desktop (JVM)** targets
 - [ ] `commonMain`: UI, DTOs, Ktor API client, feature vector, presets, plus Paramveer's classifier interface, cascade and personal model
-- [ ] `androidMain`: mic + camera capture, foreground service, notifications, vibration
-- [ ] `desktopMain`: map for the projector; optional ONNX inference on a recorded clip
+- [ ] `androidMain`: mic + camera capture, foreground service, notifications, vibration. The mic, foreground service and vibrating notifications work. Camera capture is pending.
+- [x] `desktopMain`: map for the projector; optional ONNX inference on a recorded clip
+
+T3 Code also produced a local iOS map port on `kmp-app-ios` (`50d7f9e`), starting from the earlier Android map branch.
 
 ### Screens
-- [ ] Onboarding (first launch): short explanation + choose a preset
-- [ ] Map: OSM tiles, markers coloured by **this user's** `p_overwhelm`, heatmap toggle per dimension, gap badge from `/stats`
-- [ ] Place detail: features, accessibility tags, measurement count, "Measure here"
+- [ ] Onboarding (first launch): short explanation + choose a preset. Preset selection is available from the map settings.
+- [ ] Map: OSM tiles, markers coloured by **this user's** `p_overwhelm`, heatmap toggle per dimension, gap badge from `/stats`. The map, personal markers, category heatmaps and badge are in place. A dedicated flicker layer is pending.
+- [x] Place detail: features, accessibility tags, measurement count, "Measure here". The button still needs the capture flow below.
 - [ ] 3D globe (opening screen, after MVP): static rotating dotted globe early; then spikes from `/coverage`, live measurement pulses, fly-to Lausanne → flat map. Bundle Natural Earth land points + `coverage.json` for offline
 - [ ] Measure flow: 30 s capture → dB + classifier + camera module → show → confirm → POST aggregates
-- [ ] "Too much" and "This is fine" buttons, reachable from the map and from the alert notification
-- [ ] Model screen: variants and per-device latency from `results.json`, which variant this device picked, switch live, cascade stage stats, personal model example count + reset
+- [x] "Too much" and "This is fine" buttons, reachable from the map and from the alert notification
+- [ ] Model screen: variants and per-device latency from `results.json`, which variant this device picked, switch live, cascade stage stats, personal model example count + reset. Map settings show the personal model example count and reset control.
 - [ ] Privacy screen: what's measured, what's sent, what never leaves the phone (trigger taps never do)
 
 ### Background listener and alerts
-- [ ] Android foreground service running Paramveer's cascade (mic permission + persistent notification)
-- [ ] On alert: vibrate + notification "Above your limit — [place] is quiet, 40 m"
-- [ ] Quiet-place pick: call `/places/nearby`, score each with the personal model, choose the lowest `p_overwhelm` within 300 m (bundled data offline)
-- [ ] Route: straight line + distance and bearing on the map; walking directions only if time
-- [ ] Debounce alerts (max one per 2 minutes) and add a snooze
+- [ ] Android foreground service running Paramveer's cascade (mic permission + persistent notification). The service and persistent notification are in place. Full cascade integration is pending.
+- [x] On alert: vibrate + notification "Above your limit — [place] is quiet, 40 m"
+- [x] Quiet-place pick: call `/places/nearby`, score each with the personal model, choose the lowest `p_overwhelm` within 300 m (bundled data offline)
+- [ ] Route: straight line + distance and bearing on the map; walking directions only if time. Straight-line routing, distance and walking directions are in place. Bearing is pending.
+- [x] Debounce alerts (max one per 2 minutes) and add a snooze. [PR #38](https://github.com/b00rg/ciuin/pull/38)
 
 ### Sync and fallbacks
-- [ ] Desktop map polls `/places` every 2 s so a phone measurement appears live
-- [ ] Bundle `places_lausanne.geojson` for offline use
+- [x] Desktop map polls `/places` every 2 s so a phone measurement appears live
+- [x] Bundle `places_lausanne.geojson` for offline use. The Android app bundles it for quiet-place lookup.
 - [ ] Debug option: replay a recorded measurement / audio clip through the full pipeline
 
 ---

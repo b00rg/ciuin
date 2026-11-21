@@ -73,6 +73,22 @@ class FallbackPlacesApiTest {
     }
 
     @Test
+    fun forwardsOpeningHoursFilters() = runTest {
+        val at = "2026-11-21T12:00:00Z"
+        val engine = MockEngine { req ->
+            assertEquals(at, req.url.parameters["at"])
+            if (req.url.encodedPath == "/places/nearby") {
+                assertEquals("true", req.url.parameters["open_only"])
+            }
+            respond(placeJson, HttpStatusCode.OK, jsonHeaders)
+        }
+        val api = FallbackPlacesApi(KtorPlacesApi("http://backend:8000", engine), FakePlacesApi())
+
+        assertEquals("Café X", api.places(BBox.LAUSANNE, at = at).single().name)
+        assertEquals("Café X", api.nearby(46.5191, 6.5668, openOnly = true, at = at).single().name)
+    }
+
+    @Test
     fun heatGridRoundTripsAndCombinesEnergetically() = runTest {
         val points = listOf(HeatPoint(46.52, 6.63, roadDb = 60.0, railDb = 60.0), HeatPoint(46.53, 6.64, roadDb = 55.0, railDb = null))
         val parsed = parseHeatGrid(heatGridToGeoJson(points, resM = 50))

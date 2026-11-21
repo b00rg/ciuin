@@ -17,11 +17,11 @@ Training uses exactly these steps: they're implemented in `ml/preprocess.py`. If
 
 | # | Step | Rule |
 |---|---|---|
-| 1 | **Capture** | Android: `AudioRecord` at **16 000 Hz, `CHANNEL_IN_MONO`**, `ENCODING_PCM_FLOAT` (or `PCM_16BIT`). Then steps 2–4 are no-ops |
-| 2 | **To float** | Samples in [−1, 1]: int16 ÷ 32 768, int24 ÷ 8 388 608, float as is. Clamp to [−1, 1] |
+| 1 | **Capture** | Android: `AudioRecord` at **16 000 Hz, `CHANNEL_IN_MONO`**, `ENCODING_PCM_FLOAT` (or `PCM_16BIT`). Downmixing and resampling are unnecessary for that format |
+| 2 | **To float** | int16 ÷ 32 768, int24 ÷ 8 388 608, int32 ÷ 2 147 483 648, float as is |
 | 3 | **Mono** | Average the channels (not just channel 0) |
 | 4 | **Resample to 16 kHz** | Only if the source isn't 16 kHz (desktop files, devices that refuse 16 kHz). Use a band-limited resampler with an anti-aliasing filter. **Not** linear interpolation and **not** dropping samples: those fold high frequencies (sirens, beeps) down into the wrong bins |
-| 5 | **No normalisation** | Don't scale by peak or RMS, and don't apply AGC. The model was trained on audio at its recorded level (with random gain for robustness) |
+| 5 | **Clamp to [−1, 1]** | Keep the recorded level. The model was trained without peak or RMS normalisation or AGC, with random gain for robustness |
 | 6 | **Window** | Cut `WINDOW`-sample windows (below) |
 | 7 | **Run the model** | One window → 9 probabilities |
 | 8 | **Average** | For a recording longer than one window: average the **probabilities** (not logits) of the non-silent windows |
@@ -72,7 +72,7 @@ fun windows(x: FloatArray): List<FloatArray> {
     return starts.map { x.copyOfRange(it, it + WINDOW) }
 }
 
-fun levelDbfs(w: FloatArray) = 10 * log10(w.sumOf { (it * it).toDouble() } / w.size + 1e-12)
+fun levelDbfs(w: FloatArray) = 10 * log10(w.sumOf { it.toDouble() * it } / w.size + 1e-12)
 
 fun clipProbabilities(x: FloatArray, classify: (FloatArray) -> FloatArray): FloatArray {
     val all = windows(x)

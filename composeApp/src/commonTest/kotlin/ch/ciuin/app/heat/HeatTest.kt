@@ -2,6 +2,7 @@ package ch.ciuin.app.heat
 
 import ch.ciuin.app.Category
 import ch.ciuin.app.Level
+import ch.ciuin.app.personalFeatures
 import ch.ciuin.shared.model.FeatureVector
 import ch.ciuin.shared.model.HeatPoint
 import ch.ciuin.shared.model.MeasuredAggregate
@@ -98,5 +99,27 @@ class HeatTest {
         val s = summarise(Category.LIGHT, listOf(place("a", 46.52, 6.63, baseline = 50.0)), emptyList(), null)
         assertNull(s.mean)
         assertTrue(s.sections.isEmpty())
+    }
+
+    @Test
+    fun feedbackFeaturesPreferMeasurementsThenEstimates() {
+        val estimate = FeatureVector(40.0, 45.0, emptyMap(), 100.0, 0.0, 1)
+        val measured = place("measured", 46.52, 6.63, top = SoundClass.SPEECH_CROWD).copy(prior = estimate)
+        val estimated = place("estimated", 46.52, 6.64).copy(prior = estimate)
+
+        assertEquals(measured.measured?.features, measured.personalFeatures)
+        assertEquals(estimate, estimated.personalFeatures)
+        assertNull(place("missing", 46.52, 6.65, baseline = 55.0).personalFeatures)
+    }
+
+    @Test
+    fun personalLayerUsesOnlyModelScores() {
+        val places = listOf(place("scored", 46.52, 6.63, baseline = 60.0), place("unscored", 46.52, 6.64, baseline = 75.0))
+        val grid = listOf(HeatPoint(46.52, 6.63, roadDb = null, railDb = null, totalDb = 55.0))
+        val scores = mapOf("scored" to 0.63)
+
+        assertEquals(listOf(0.63), samplesFor(Category.PERSONAL, places, grid, scores).map { it.value })
+        assertEquals(0.63, summarise(Category.PERSONAL, places, grid, bounds = null, personalScores = scores).mean)
+        assertEquals(listOf(55.0, 60.0, 75.0), samplesFor(Category.SOUND, places, grid, scores).map { it.value })
     }
 }

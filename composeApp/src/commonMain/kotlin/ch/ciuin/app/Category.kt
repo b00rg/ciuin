@@ -27,7 +27,7 @@ fun heatBand(t: Double): Level = when {
 }
 
 /**
- * Map layers. Each turns a place into a raw value ([raw]: dB, lux, people, access score),
+ * Map layers. Each turns a place into a raw value ([raw]: probability, dB, lux, people, access score),
  * which is bucketed into Low / Medium / High by [lowBelow] / [highAbove].
  * Thresholds are first guesses: tune them once we have real measurements (mic is uncalibrated).
  */
@@ -38,9 +38,18 @@ enum class Category(
     private val lowBelow: Double,
     private val highAbove: Double,
 ) {
+    PERSONAL("Personal", "%", Triple("Lower overwhelm", "Moderate", "Higher overwhelm"), 1.0 / 3.0, 2.0 / 3.0) {
+        override fun raw(p: Place, personalScore: Double?): Double? = personalScore
+
+        override fun detail(p: Place): String = when {
+            p.measured != null -> "From measured place conditions"
+            p.prior != null -> "From estimated place conditions"
+            else -> "No place conditions available"
+        }
+    },
     SOUND("Sound", "dB", Triple("Quiet", "Moderate", "Loud"), 50.0, 65.0) {
         // Prefer our own measurements; fall back to the sonBASE/EEA baseline.
-        override fun raw(p: Place): Double? = p.measured?.features?.dbMean ?: p.baselineNoiseDb
+        override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.dbMean ?: p.baselineNoiseDb
 
         override fun detail(p: Place): String =
             p.measured?.let { "${it.features.dbMean.fmt1()} dB measured" }
@@ -48,20 +57,20 @@ enum class Category(
                 ?: "No data"
     },
     LIGHT("Light", "lux", Triple("Dim", "Moderate", "Bright"), 100.0, 500.0) {
-        override fun raw(p: Place): Double? = p.measured?.features?.luxMean
+        override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.luxMean
 
         override fun detail(p: Place): String =
             p.measured?.features?.let { "${it.luxMean.toInt()} lux · flicker ${it.flickerIndex.fmt2()}" } ?: "Not measured yet"
     },
     CROWD("Crowd", "people", Triple("Quiet", "Busy", "Crowded"), 3.5, 10.5) {
-        override fun raw(p: Place): Double? = p.measured?.features?.peopleCount?.toDouble()
+        override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.peopleCount?.toDouble()
 
         override fun detail(p: Place): String =
             p.measured?.features?.let { "~${it.peopleCount} people" } ?: "Not measured yet"
     },
     ACCESS("Access", "", Triple("Accessible", "Limited", "Not accessible"), 0.5, 1.5) {
         // OSM wheelchair=* tag as 0 (yes) / 1 (limited) / 2 (no), so an area average stays meaningful.
-        override fun raw(p: Place): Double? = when (p.wheelchair) {
+        override fun raw(p: Place, personalScore: Double?): Double? = when (p.wheelchair) {
             "yes", "designated" -> 0.0
             "limited" -> 1.0
             "no" -> 2.0
@@ -72,12 +81,12 @@ enum class Category(
     };
 
     /** Raw value for a place, or null when we know nothing. */
-    abstract fun raw(p: Place): Double?
+    abstract fun raw(p: Place, personalScore: Double? = null): Double?
 
     /** Short human-readable value for the place card. */
     abstract fun detail(p: Place): String
 
-    fun level(p: Place): Level? = raw(p)?.let { levelOf(it) }
+    fun level(p: Place, personalScore: Double? = null): Level? = raw(p, personalScore)?.let { levelOf(it) }
 
     fun levelOf(v: Double): Level = when {
         v < lowBelow -> Level.LOW

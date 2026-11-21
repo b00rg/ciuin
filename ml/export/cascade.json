@@ -1,48 +1,152 @@
 {
   "_doc": "Cascade listener config (todo.md \u00a70). Stage 1 -> 2 from ml/cascade_rule.py (#6); stage 0 thresholds come from #18.",
   "stage0": {
-    "status": "pending #18 (needs venue recordings + the Kotlin dB/flux code)"
+    "status": "provisional: tuned on DEMAND ambience (cafeteria, restaurant, station, square; 2 mics x 5 min each) with inserted test-split events; re-tune on the venue recordings (#17) with --ambient",
+    "block_s": 1.0,
+    "n_fft": 1024,
+    "hop": 512,
+    "window": "hann (periodic)",
+    "features": {
+      "level_dba": "A-weighted dBFS(A), mean frame power, full-scale 1 kHz sine = 0",
+      "flux": "max over frames of sum(max(0, |X_t|-|X_t-1|)) / sum(|X_t-1|)",
+      "baseline": "EMA of level_dba, 1/tau_s per second, updated only while asleep"
+    },
+    "wake_if_any": {
+      "level_dba - baseline >": 4,
+      "flux >": 1.5,
+      "level_dba >": -10
+    },
+    "tau_s": 30,
+    "simulation": {
+      "wakes_per_hour_ambient": 252.0,
+      "ambient_awake_pct": 7.0,
+      "event_recall": 0.9502,
+      "recall_by_class": {
+        "alarm_beep": 0.957,
+        "construction": 0.972,
+        "siren": 0.919
+      },
+      "n_events": 462
+    },
+    "tradeoff": [
+      {
+        "min_recall": 0.85,
+        "jump_db": 6,
+        "flux_max": 4.0,
+        "abs_dba": -10,
+        "tau_s": 30,
+        "event_recall": 0.9004,
+        "ambient_awake_pct": 1.8,
+        "wakes_per_hour_ambient": 66.0
+      },
+      {
+        "min_recall": 0.9,
+        "jump_db": 6,
+        "flux_max": 4.0,
+        "abs_dba": -10,
+        "tau_s": 30,
+        "event_recall": 0.9004,
+        "ambient_awake_pct": 1.8,
+        "wakes_per_hour_ambient": 66.0
+      },
+      {
+        "min_recall": 0.95,
+        "jump_db": 4,
+        "flux_max": 1.5,
+        "abs_dba": -10,
+        "tau_s": 30,
+        "event_recall": 0.9502,
+        "ambient_awake_pct": 7.0,
+        "wakes_per_hour_ambient": 252.0
+      }
+    ],
+    "grid_size": 105
   },
   "stage1_to_2": {
     "p_overwhelm_threshold": 0.5,
     "models": {
       "audio-student-s": {
         "rule": "margin",
-        "threshold": 0.2576,
+        "threshold": 0.2204,
         "how": "escalate if p_top1 - p_top2 < threshold",
         "target_escalation_rate": 0.15,
-        "evaluated_on": "val split, 9418 windows, per window (not clip-averaged)",
-        "window_accuracy": 0.7003,
+        "evaluated_on": "val split, 12080 windows, per window (not clip-averaged)",
+        "window_accuracy": 0.6008,
         "rules": {
           "margin": {
-            "threshold": 0.2576,
+            "threshold": 0.2204,
             "escalation_rate": 0.15,
-            "errors_caught": 0.3298,
-            "error_rate_escalated": 0.6589,
-            "error_rate_kept": 0.2364,
-            "auroc": 0.8093,
+            "errors_caught": 0.2744,
+            "error_rate_escalated": 0.7301,
+            "error_rate_kept": 0.3408,
+            "auroc": 0.7881,
             "per_rate": {
-              "0.10": 0.2232,
-              "0.15": 0.3298,
-              "0.20": 0.4254
+              "0.10": 0.1839,
+              "0.15": 0.2744,
+              "0.20": 0.3604
             }
           },
           "entropy": {
-            "threshold": 0.524,
+            "threshold": 0.5487,
             "escalation_rate": 0.15,
-            "errors_caught": 0.3245,
-            "error_rate_escalated": 0.6483,
-            "error_rate_kept": 0.2382,
-            "auroc": 0.8085,
+            "errors_caught": 0.2721,
+            "error_rate_escalated": 0.7241,
+            "error_rate_kept": 0.3418,
+            "auroc": 0.7891,
             "per_rate": {
-              "0.10": 0.2214,
-              "0.15": 0.3245,
-              "0.20": 0.4137
+              "0.10": 0.1835,
+              "0.15": 0.2721,
+              "0.20": 0.3569
             }
           }
         }
+      },
+      "audio-student-s-int8": {
+        "rule": "margin",
+        "threshold": 0.2236,
+        "how": "escalate if p_top1 - p_top2 < threshold",
+        "target_escalation_rate": 0.15,
+        "evaluated_on": "val split, 12080 windows, per window (not clip-averaged)",
+        "window_accuracy": 0.6012,
+        "rules": {
+          "margin": {
+            "threshold": 0.2236,
+            "escalation_rate": 0.15,
+            "errors_caught": 0.2727,
+            "error_rate_escalated": 0.7252,
+            "error_rate_kept": 0.3413,
+            "auroc": 0.7862,
+            "per_rate": {
+              "0.10": 0.1822,
+              "0.15": 0.2727,
+              "0.20": 0.3582
+            }
+          },
+          "entropy": {
+            "threshold": 0.5517,
+            "escalation_rate": 0.15,
+            "errors_caught": 0.2684,
+            "error_rate_escalated": 0.7136,
+            "error_rate_kept": 0.3433,
+            "auroc": 0.787,
+            "per_rate": {
+              "0.10": 0.1785,
+              "0.15": 0.2684,
+              "0.20": 0.3531
+            }
+          }
+        },
+        "source": "PARAMVEER/int8-student-s (ml/export/audio-student-s-int8.tflite, 997 KB)",
+        "int8_check": {
+          "fp32_threshold_on_int8_escalation_rate": 0.147,
+          "top_class_agreement_with_fp32_per_window": 0.971,
+          "escalation_decision_agreement": 0.952,
+          "mean_abs_probability_delta": 0.0056,
+          "verdict": "int8 shifts the margin threshold by 0.003 (0.2236 vs 0.2204); the fp32 threshold gives 14.7% escalation on int8, so one threshold works for both"
+        }
       }
     },
-    "default_model": "audio-student-s"
+    "default_model": "audio-student-s",
+    "note": "Thresholds re-fit on the val split after FSD50K joined the index (12,080 windows, harder clips), so the fp32 threshold moved from 0.2576 (Handoff 1 val) to 0.2204."
   }
 }

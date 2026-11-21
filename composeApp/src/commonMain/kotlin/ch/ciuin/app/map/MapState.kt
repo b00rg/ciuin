@@ -6,6 +6,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import ch.ciuin.app.route.QuietPlaceRoute
+import ch.ciuin.app.route.RoutePoint
+import ch.ciuin.app.route.WalkingRoute
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.cos
@@ -61,6 +64,18 @@ class MapState(lat: Double, lon: Double, zoom: Double) {
         this.zoom = zoom.coerceIn(MIN_ZOOM, MAX_ZOOM)
     }
 
+    internal fun fitRoute(route: MapRouteOverlay, available: Size, tilePx: Float) {
+        val minX = minOf(route.origin.x, route.destination.x, route.line.minOf { it.x })
+        val maxX = maxOf(route.origin.x, route.destination.x, route.line.maxOf { it.x })
+        val minY = minOf(route.origin.y, route.destination.y, route.line.minOf { it.y })
+        val maxY = maxOf(route.origin.y, route.destination.y, route.line.maxOf { it.y })
+        val widthZoom = log2(available.width / ((maxX - minX) * tilePx))
+        val heightZoom = log2(available.height / ((maxY - minY) * tilePx))
+        centerX = wrap01((minX + maxX) / 2.0)
+        centerY = ((minY + maxY) / 2.0).coerceIn(0.0, 1.0)
+        zoom = minOf(widthZoom, heightZoom).coerceIn(MIN_ZOOM, MAX_ZOOM)
+    }
+
     /** Normalised-coordinate rectangle on screen: (x0, y0, x1, y1). Doesn't handle antimeridian wrap. */
     fun visibleBounds(viewport: Size, tilePx: Float): DoubleArray {
         val w = worldSize(tilePx)
@@ -72,8 +87,7 @@ class MapState(lat: Double, lon: Double, zoom: Double) {
     /** Screen position of a lat/lon, taking the shortest way round the antimeridian. */
     fun toScreen(lat: Double, lon: Double, viewport: Size, tilePx: Float): Offset {
         val w = worldSize(tilePx)
-        var dx = lonToX(lon) - centerX
-        if (dx > 0.5) dx -= 1.0 else if (dx < -0.5) dx += 1.0
+        val dx = shortestWrappedDelta(lonToX(lon) - centerX)
         val dy = latToY(lat) - centerY
         return Offset((viewport.width / 2.0 + dx * w).toFloat(), (viewport.height / 2.0 + dy * w).toFloat())
     }
@@ -82,6 +96,28 @@ class MapState(lat: Double, lon: Double, zoom: Double) {
         const val MIN_ZOOM = 2.0
         const val MAX_ZOOM = 19.0
     }
+}
+
+internal data class MapRoutePoint(val x: Double, val y: Double)
+
+internal data class MapRouteOverlay(
+    val origin: MapRoutePoint,
+    val destination: MapRoutePoint,
+    val line: List<MapRoutePoint>,
+)
+
+internal fun projectQuietPlaceRoute(route: QuietPlaceRoute, walkingRoute: WalkingRoute?): MapRouteOverlay {
+    val origin = MapRoutePoint(lonToX(route.origin.lon), latToY(route.origin.lat))
+    var previousX = origin.x
+    fun project(point: RoutePoint): MapRoutePoint {
+        // Give consecutive vertices a shared world copy at the antimeridian.
+        previousX += shortestWrappedDelta(lonToX(point.lon) - wrap01(previousX))
+        return MapRoutePoint(previousX, latToY(point.lat))
+    }
+
+    val walkingLine = walkingRoute?.points?.map(::project)
+    val destination = project(route.destination)
+    return MapRouteOverlay(origin, destination, walkingLine ?: listOf(origin, destination))
 }
 
 private const val MAX_LAT = 85.05112878
@@ -98,3 +134,9 @@ fun xToLon(x: Double): Double = x * 360.0 - 180.0
 fun yToLat(y: Double): Double = atan(sinh(PI * (1.0 - 2.0 * y))) * 180.0 / PI
 
 private fun wrap01(v: Double): Double = v - floor(v)
+
+internal fun shortestWrappedDelta(delta: Double): Double = when {
+    delta > 0.5 -> delta - 1.0
+    delta < -0.5 -> delta + 1.0
+    else -> delta
+}

@@ -11,3 +11,16 @@ interface AudioClassifier {
      */
     fun classify(window: FloatArray): Map<SoundClass, Float>
 }
+
+/** Classifies a prepared 16 kHz mono clip and averages probabilities across active windows. */
+fun AudioClassifier.classifyClip(samples: FloatArray): Map<SoundClass, Float> {
+    val windows = AudioPreprocessor.activeWindows(samples)
+    val sums = DoubleArray(SoundClass.COUNT)
+    for (window in windows) {
+        val probabilities = classify(window.samples)
+        for (soundClass in SoundClass.entries) {
+            sums[soundClass.index] += probabilities.getValue(soundClass).toDouble()
+        }
+    }
+    return SoundClass.entries.associateWith { (sums[it.index] / windows.size).toFloat() }
+}

@@ -35,7 +35,7 @@ interface PlacesApi {
     /** GET /stats */
     suspend fun stats(): Stats
 
-    /** GET /coverage?res_deg= -> coarse grid for the 3D globe: 2.0 = global tier, 0.5 = Europe tier */
+    /** GET /coverage?res_deg= -> coarse grid for the 3D globe: 2.0 = global tier, 1.0 = Europe tier */
     suspend fun coverage(resDeg: Double = 2.0): Coverage
 }
 
