@@ -1,0 +1,9 @@
+speech_crowd
+music
+traffic
+siren
+construction
+alarm_beep
+dog
+machinery_hum
+other

@@ -1,0 +1,61 @@
+# Audio model contract
+
+Every audio model we ship (the dummy now, then students S / M / L) has exactly this interface. Nothing about it changes between models, so app code written against `audio-dummy.tflite` works unchanged with the real ones.
+
+## Signature
+
+| | Name | Type | Shape | Meaning |
+|---|---|---|---|---|
+| Input | `waveform` | float32 | `[1, 15600]` | 0.975 s of 16 kHz mono audio, samples in [-1, 1] |
+| Output | `probabilities` | float32 | `[1, 9]` | Softmax over the 9 classes; sums to 1 |
+
+- TFLite signature key: `serving_default`. You can also use plain input/output index 0.
+- Output index `i` = `SoundClass.entries[i]` = line `i` of [`labels.txt`](labels.txt):
+  `speech_crowd, music, traffic, siren, construction, alarm_beep, dog, machinery_hum, other`.
+- **The spectrogram is inside the model.** The app only has to resample to 16 kHz, downmix to mono, scale to [-1, 1] (16-bit PCM ÷ 32768) and cut 15,600-sample windows. No FFT or mel code is needed in Kotlin.
+
+Kotlin, Android (LiteRT):
+
+```kotlin
+val interpreter = Interpreter(modelBuffer)
+val input = arrayOf(window)                 // FloatArray(15600)
+val output = arrayOf(FloatArray(9))
+interpreter.run(input, output)
+val probs = SoundClass.entries.associateWith { output[0][it.index] }
+```
+
+## What's inside
+
+```
+waveform [1, 15600]
+  → STFT as Conv1D (fixed Hann-windowed cos/sin kernels, 400 taps, stride 160) → [1, 96, 514]
+  → power = re² + im²                                                         → [1, 96, 257]
+  → mel matrix multiply (64 HTK-mel bins, 125–7500 Hz)                        → [1, 96, 64]
+  → log(mel + 0.001)
+  → classifier                                                                → [1, 9] softmax
+```
+
+Frontend parameters match YAMNet (25 ms window, 10 ms hop, 64 mel bins), so one window gives one 96 × 64 patch. They're defined once in `ml/frontend.py`.
+
+## Ops
+
+The dummy uses only TFLite builtin ops:
+
+`ADD, CONV_2D, FULLY_CONNECTED, LOG, MEAN, MUL, RESHAPE, SOFTMAX, STRIDED_SLICE`
+
+There are no Flex / Select-TF ops and no variables. Real students add more of the same kinds (conv, depthwise conv, pooling, dense). `ml/verify_tflite.py` rejects any model that needs something else.
+
+## For quantisation (B2)
+
+- Keep the frontend (everything up to and including `LOG`) in float. The STFT power and the log span many orders of magnitude, so int8 there destroys the features. Quantise only the classifier's conv and dense layers.
+- Keep the **input float32**, so the app always passes floats. The output may be float32 or int8; `verify_tflite.py` handles both.
+
+## Files
+
+| File | What |
+|---|---|
+| `audio-dummy.tflite` | Untrained (random weights, fixed seed), correct signature, ~0.9 MB. **Its predictions are meaningless**; use it only to wire up loading, inference and the class mapping |
+| `labels.txt` | Class names, one per line, in output order |
+| `../verify_tflite.py` | `python3 ml/verify_tflite.py <model.tflite>` checks any model against this contract |
+
+Coming at Handoff 1: `preprocess.md` (resampling, mono downmix, windowing, clip-level averaging), the first real student, and `test_clips/` for parity checks.
