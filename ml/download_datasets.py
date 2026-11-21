@@ -6,11 +6,12 @@
     python3 ml/download_datasets.py --keep-archives # keep .tar.gz/.zip after extracting
 
 Stdlib only. Safe to re-run: finished datasets are skipped, and the
-UrbanSound8K download resumes where it stopped.
+UrbanSound8K and MUSAN downloads resume where they stopped.
 
-Disk: ~21 GB once extracted. Archives are deleted after extraction and
-MUSAN (11 GB) is extracted while it streams, so peak use stays near the
-final size. FSD50K is ~30 GB in full, but only the ~2,900 alarm / siren /
+Disk: ~21 GB once extracted, plus MUSAN's 11 GB archive while it unpacks
+(peak ~32 GB). Archives are deleted after extraction. MUSAN downloads as
+64 MB byte ranges over 8 connections from the EU mirror (falling back to
+openslr.org): a single connection gets throttled on some networks. FSD50K is ~30 GB in full, but only the ~2,900 alarm / siren /
 crowd clips (~2 GB) are pulled out of it with HTTP range requests.
 
   ESC-50        2,000 clips   base training data
@@ -59,8 +60,10 @@ DATASETS = {
         "expect_wavs": 8732,
     },
     "musan": {
-        "url": "https://www.openslr.org/resources/17/musan.tar.gz",
-        "archive": None,  # streamed straight into tar, never written to disk
+        "url": "https://openslr.elda.org/resources/17/musan.tar.gz",
+        "mirrors": ["https://openslr.elda.org/resources/17/musan.tar.gz",
+                    "https://www.openslr.org/resources/17/musan.tar.gz"],
+        "archive": "musan.tar.gz",  # parallel range download, then extract
         "size": 11_086_114_085,
         "md5": None,
         "dest": "musan",
@@ -144,6 +147,58 @@ def download_file(name: str, url: str, path: Path, size: int | None, retries: in
     raise RuntimeError(f"{name}: download did not complete after {retries} attempts")
 
 
+def parallel_download(name: str, urls: list[str], path: Path, size: int, workers: int = 8,
+                      chunk: int = 64 << 20) -> None:
+    """Range-request `chunk`-sized pieces over `workers` connections into a preallocated file.
+
+    Finished pieces are listed in <path>.done, so a re-run only fetches the rest.
+    Pieces rotate between mirrors on retry.
+    """
+    done_file = path.with_name(path.name + ".done")
+    n = (size + chunk - 1) // chunk
+    if not path.exists() or path.stat().st_size != size:
+        with open(path, "wb") as f:
+            f.truncate(size)
+        done_file.write_text("")
+    done = {int(x) for x in done_file.read_text().split()} if done_file.exists() else set()
+    todo = [i for i in range(n) if i not in done]
+    prog = Progress(name, size, len(done) * chunk)
+    lock = __import__("threading").Lock()
+
+    def one(i: int) -> None:
+        start, end = i * chunk, min(size, (i + 1) * chunk) - 1
+        last = None
+        for attempt in range(30):
+            req = urllib.request.Request(urls[(i + attempt) % len(urls)],
+                                         headers={"Range": f"bytes={start}-{end}",
+                                                  "User-Agent": "ciuin-dataset-downloader"})
+            try:
+                with urllib.request.urlopen(req, timeout=60) as r:
+                    if r.status != 206:
+                        raise OSError(f"status {r.status}")
+                    data = r.read()
+                if len(data) != end - start + 1:
+                    raise OSError(f"short read {len(data)}")
+                with open(path, "r+b") as f:
+                    f.seek(start)
+                    f.write(data)
+                with lock:
+                    with open(done_file, "a") as f:
+                        f.write(f"{i}\n")
+                    prog.update(len(data))
+                return
+            except OSError as e:
+                last = e
+                time.sleep(min(30, 2 + 2 * attempt))
+        raise RuntimeError(f"{name}: piece {i} failed: {last}")
+
+    with ThreadPoolExecutor(workers) as pool:
+        list(pool.map(one, todo))
+    if len({int(x) for x in done_file.read_text().split()}) != n:
+        raise RuntimeError(f"{name}: download incomplete; re-run to resume")
+    done_file.unlink()
+
+
 def md5sum(path: Path) -> str:
     h = hashlib.md5()
     with open(path, "rb") as f:
@@ -200,7 +255,14 @@ def fetch(key: str, keep_archives: bool) -> None:
         shutil.rmtree(tmp, ignore_errors=True)
     else:
         archive = RAW / cfg["archive"]
-        download_file(key, cfg["url"], archive, cfg.get("size"))
+        if cfg.get("mirrors"):
+            parallel_download(key, cfg["mirrors"], archive, cfg["size"])
+            print(f"[{key}] checking gzip integrity")
+            with tarfile.open(archive, "r:gz") as tf:
+                for _ in tf:
+                    pass
+        else:
+            download_file(key, cfg["url"], archive, cfg.get("size"))
         if cfg["md5"]:
             print(f"[{key}] verifying md5")
             got = md5sum(archive)
