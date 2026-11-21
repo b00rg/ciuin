@@ -18,6 +18,7 @@ python3 ml/student.py             # S student: distil, export .tflite, test clip
 python3 ml/student.py --hard      # hard-label baseline, no teacher (#15)
 python3 ml/cascade_rule.py        # stage 1 -> 2 escalation rule -> export/cascade.json (#6)
 python3 ml/stage0.py              # stage 0 wake thresholds (A-weighted dB + flux) -> export/cascade.json (#18)
+python3 ml/cascade_replay.py      # replay recordings through the cascade -> export/cascade_replay.json (#7)
 python3 ml/personal_model.py      # personal trigger model: tune on synthetic users, write spec data (#8)
 ```
 
