@@ -1,21 +1,23 @@
 """Per-class loss weights = importance (ml/export/labels.yaml) x data balance.
 
-    python3 ml/class_weights.py                 # count train split, print table, write ml/class_weights.json
-    python3 ml/class_weights.py --raw /path/to/data/raw/audio
+    python3 ml/class_weights.py   # count the train split, write ml/class_weights.json
+                                  # and the loss-weight table in ml/README.md
 
     w_c ∝ importance_c * min((1 / (K * freq_c)) ** power, max_balance)
 
 then normalised so the average weight over training examples is 1 (keeps
 the loss scale unchanged). power=0.5 (square-root inverse frequency) boosts
-rare classes without letting 24 alarm clips dominate.
+rare classes without letting a few hundred clips dominate; max_balance caps
+the boost.
 
 Use these weights on the cross-entropy (hard-label) term only. Don't weight
 the distillation KL term: it should copy the teacher's full distribution.
 
-Counts come from the train split defined in Claude/todo.md:
-ESC-50 folds 1-3, UrbanSound8K folds 1-7, MUSAN ~80% of files. MUSAN files
-are minutes long, so each counts as min(duration / window, --musan-cap)
-examples; the training sampler must use the same cap.
+Train split (Claude/todo.md and ml/README.md): ESC-50 folds 1-3,
+UrbanSound8K folds 1-7, FSD50K dev rows with split=train, ~80% of MUSAN
+files, first ~80% of each DEMAND recording. MUSAN and DEMAND recordings are
+minutes long, so they count as 5 s windows (MUSAN capped at --musan-cap per
+file); the training sampler must draw the same way.
 """
 
 from __future__ import annotations
@@ -32,8 +34,20 @@ from check_labels import AUDIO_RAW, ML, load
 
 ESC_TRAIN_FOLDS = {1, 2, 3}
 US8K_TRAIN_FOLDS = {1, 2, 3, 4, 5, 6, 7}
-MUSAN_TRAIN_FRACTION = 0.8
+TRAIN_FRACTION = 0.8  # MUSAN (by file) and DEMAND (by time)
 WINDOW_S = 5.0
+README = ML / "README.md"
+START, END = "<!-- class-weights:start -->", "<!-- class-weights:end -->"
+
+
+def wav_seconds(path: Path) -> float:
+    with wave.open(str(path)) as w:
+        return w.getnframes() / w.getframerate()
+
+
+def fsd50k_class(labels: str, mapping: dict) -> str | None:
+    have = set(labels.split(","))
+    return next((dst for src, dst in mapping.items() if src in have), None)  # yaml order = priority
 
 
 def count_train(raw: Path, mapping: dict, musan_cap: int) -> tuple[Counter, list[str]]:
@@ -63,14 +77,31 @@ def count_train(raw: Path, mapping: dict, musan_cap: int) -> tuple[Counter, list
         for folder, target in mapping["musan"].items():
             if target is None:
                 continue
-            n = 0.0
-            for wav in (musan / folder).rglob("*.wav"):
-                with wave.open(str(wav)) as w:
-                    dur = w.getnframes() / w.getframerate()
-                n += min(max(1, int(dur // WINDOW_S)), musan_cap)
-            counts[target] += round(n * MUSAN_TRAIN_FRACTION)
+            n = sum(min(max(1, int(wav_seconds(w) // WINDOW_S)), musan_cap)
+                    for w in (musan / folder).rglob("*.wav"))
+            counts[target] += round(n * TRAIN_FRACTION)
     else:
         missing.append("MUSAN")
+
+    fsd = raw / "FSD50K" / "FSD50K.ground_truth" / "dev.csv"
+    if fsd.exists():
+        with open(fsd, newline="") as f:
+            for row in csv.DictReader(f):
+                if row["split"] == "train" and (c := fsd50k_class(row["labels"], mapping["fsd50k"])):
+                    counts[c] += 1
+    else:
+        missing.append("FSD50K")
+
+    demand = raw / "DEMAND"
+    if demand.is_dir():
+        for env, target in mapping["demand"].items():
+            ch = demand / env / "ch01.wav"
+            if ch.exists():  # one channel: the other 15 are near-duplicates
+                counts[target] += int(wav_seconds(ch) * TRAIN_FRACTION // WINDOW_S)
+            else:
+                missing.append(f"DEMAND/{env}")
+    else:
+        missing.append("DEMAND")
 
     return counts, missing
 
@@ -86,13 +117,30 @@ def compute_weights(counts: Counter, importance: dict, classes: list[str],
         freq = counts[c] / total
         raw[c] = importance[c] * min((1 / (k * freq)) ** power, max_balance)
     mean = sum(counts[c] * raw[c] for c in classes) / total
-    return {c: round(raw[c] / mean, 4) for c in classes}
+    return {c: round(raw[c] / mean, 2) for c in classes}
+
+
+def table(counts: Counter, importance: dict, weights: dict, classes: list[str]) -> str:
+    total = sum(counts[c] for c in classes)
+    rows = ["| Class | Train examples | Share | Importance | Loss weight |", "|---|---:|---:|---:|---:|"]
+    rows += [f"| `{c}` | {counts[c]:,} | {counts[c] / total:.1%} | {importance[c]} | **{weights[c]:.2f}** |"
+             for c in classes]
+    return "\n".join(rows)
+
+
+def update_readme(md_table: str, note: str) -> None:
+    text = README.read_text()
+    if START not in text or END not in text:
+        raise RuntimeError(f"{README} is missing the {START} / {END} markers")
+    head, rest = text.split(START, 1)
+    _, tail = rest.split(END, 1)
+    README.write_text(f"{head}{START}\n{note}\n\n{md_table}\n{END}{tail}")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--raw", type=Path, default=AUDIO_RAW)
-    ap.add_argument("--musan-cap", type=int, default=4, help="max examples drawn per MUSAN file")
+    ap.add_argument("--musan-cap", type=int, default=4, help="max 5 s windows drawn per MUSAN file")
     ap.add_argument("--power", type=float, default=0.5)
     ap.add_argument("--max-balance", type=float, default=5.0)
     ap.add_argument("--out", type=Path, default=ML / "class_weights.json")
@@ -106,10 +154,8 @@ def main() -> int:
         return 1
 
     weights = compute_weights(counts, importance, classes, args.power, args.max_balance)
-    total = sum(counts.values())
-    print(f"{'class':<15}{'train':>8}{'share':>8}{'importance':>12}{'weight':>9}")
-    for c in classes:
-        print(f"{c:<15}{counts[c]:>8}{counts[c] / total:>8.1%}{importance[c]:>12}{weights[c]:>9.3f}")
+    md = table(counts, importance, weights, classes)
+    print(md)
 
     args.out.write_text(json.dumps({
         "classes": classes,
@@ -118,7 +164,8 @@ def main() -> int:
         "params": {"power": args.power, "max_balance": args.max_balance,
                    "musan_cap": args.musan_cap, "window_s": WINDOW_S},
     }, indent=2) + "\n")
-    print(f"wrote {args.out.relative_to(ML.parent)}")
+    update_readme(md, "Computed by `ml/class_weights.py` from the downloaded train split.")
+    print(f"wrote {args.out.relative_to(ML.parent)} and the table in {README.relative_to(ML.parent)}")
     return 0
 
 

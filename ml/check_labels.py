@@ -6,7 +6,7 @@
 
 Checks:
 - exactly 9 classes, no "quiet", same order as the Kotlin SoundClass enum
-- every source class (ESC-50, UrbanSound8K, MUSAN) mapped exactly once
+- every source class (ESC-50, UrbanSound8K, MUSAN, FSD50K subset, DEMAND) mapped exactly once
 - every class has training data and an importance weight
 If the datasets are downloaded (data/raw/audio/), the mapping is also
 checked against their metadata files.
@@ -47,6 +47,8 @@ US8K = {
     "engine_idling", "gun_shot", "jackhammer", "siren", "street_music",
 }
 MUSAN = {"speech", "music", "noise"}
+FSD50K = {"Siren", "Alarm", "Crowd", "Chatter", "Conversation"}  # the downloaded subset
+DEMAND = {"PCAFETER", "PRESTO", "PSTATION", "SPSQUARE"}
 
 
 def load() -> dict:
@@ -68,7 +70,8 @@ def expected_sources() -> dict[str, set[str]]:
     for name, got, known in (("esc50", esc, ESC50), ("us8k", us8k, US8K), ("musan", musan, MUSAN)):
         if got is not None and got != known:
             print(f"note: {name} metadata differs from the built-in list: {sorted(got ^ known)}")
-    return {"esc50": esc or ESC50, "us8k": us8k or US8K, "musan": musan or MUSAN}
+    return {"esc50": esc or ESC50, "us8k": us8k or US8K, "musan": musan or MUSAN,
+            "fsd50k": FSD50K, "demand": DEMAND}
 
 
 def kotlin_labels() -> list[str] | None:

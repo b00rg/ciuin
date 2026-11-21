@@ -120,10 +120,33 @@ mapping:
     music: music
     noise: null  # unlabelled mix: background-noise augmentation only, not a training class
 
+  # FSD50K subset (only clips with these labels are downloaded). Clips are
+  # multi-label: the first label below that a clip carries decides its class.
+  # Labels are propagated up the AudioSet ontology, so Alarm includes
+  # telephone, doorbell, ringtone, buzzer and smoke-alarm clips.
+  # Splits: dev/train -> train, dev/val -> val, eval -> test.
+  fsd50k:
+    Siren: siren
+    Alarm: alarm_beep
+    Crowd: speech_crowd
+    Chatter: speech_crowd
+    Conversation: speech_crowd
+
+  # DEMAND environments (5 min each, 16 near-identical mic channels: use one
+  # channel per window, and split by time so channels can't leak across splits)
+  demand:
+    PCAFETER: speech_crowd  # cafeteria
+    PRESTO: speech_crowd    # restaurant
+    PSTATION: speech_crowd  # train station hall
+    SPSQUARE: speech_crowd  # public town square
+
 # Calls worth revisiting once we see per-class results:
 # - children_playing -> speech_crowd: crowd voices, but often shrieks/play noise
 # - helicopter / airplane / train -> traffic: transport noise; could move to other
 # - chainsaw / hand_saw -> construction: closest match, no ESC-50 drill/jackhammer
 # - car_horn -> traffic, not alarm_beep: horns are part of street noise
 # - laughing / clapping -> other: crowd-adjacent, but single-source clips
-# - MUSAN speech is single read speech, not a crowd: babble synthesis (add-on) fixes this
+# - MUSAN speech is single read speech, not a crowd: FSD50K Crowd/Chatter and
+#   DEMAND add real crowds; babble synthesis (add-on) would add more
+# - FSD50K Alarm -> alarm_beep is broad (phones, doorbells, buzzers): all are
+#   sudden alert sounds, which is what the class is for
