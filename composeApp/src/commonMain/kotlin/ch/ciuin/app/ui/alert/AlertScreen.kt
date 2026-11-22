@@ -17,11 +17,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -76,24 +73,23 @@ internal fun AlertScreen(
     val feedback = LocalHapticFeedback.current
     val appear = remember(alert.id) { Animatable(0f) }
     val leave = remember(alert.id) { Animatable(1f) }
-    var closing by remember(alert.id) { mutableStateOf<(() -> Unit)?>(null) }
+    val closing = alerts.closingId == alert.id
     LaunchedEffect(alert.id, reduceMotion) {
         if (alerts.consumeDisplayHaptic(alert.id)) feedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
         appear.animateTo(1f, if (reduceMotion) CiuinMotion.reducedFade() else CiuinMotion.alertAppear())
     }
-    val action = closing
-    LaunchedEffect(alert.id, action, reduceMotion) {
-        if (action == null) return@LaunchedEffect
+    LaunchedEffect(alert.id, closing, reduceMotion) {
+        if (!closing) return@LaunchedEffect
         leave.animateTo(
             0f,
             if (reduceMotion) CiuinMotion.reducedFade()
             else tween(MotionSpec.ALERT_LOWER_MILLIS, easing = FastOutLinearInEasing),
         )
-        if (alerts.active?.id == alert.id) action()
     }
 
     fun closeAfterAnimation(action: () -> Unit) {
-        if (closing == null && alerts.active?.id == alert.id) closing = action
+        val milliseconds = if (reduceMotion) CiuinMotion.REDUCED_FADE_MILLIS else MotionSpec.ALERT_LOWER_MILLIS
+        alerts.closeAfter(alert.id, milliseconds.toLong(), action)
     }
     BackHandler { closeAfterAnimation(alerts::dismiss) }
 
@@ -126,7 +122,7 @@ internal fun AlertScreen(
             verticalArrangement = Arrangement.spacedBy(22.dp),
         ) {
             key(alert.id) {
-                AlertScene(pill, haptic = false, earsRaised = action == null)
+                AlertScene(pill, haptic = false, earsRaised = !closing)
             }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("It's getting loud here.", Modifier.semantics { heading() }, style = CiuinType.ScreenTitle)
@@ -152,7 +148,7 @@ internal fun AlertScreen(
                         suggestion.priorDb != null -> "about ${dbText(suggestion.priorDb)}"
                         else -> ""
                     },
-                    onClick = if (action == null) ({ closeAfterAnimation(alerts::takeMeThere) }) else null,
+                    onClick = if (closing) null else ({ closeAfterAnimation(alerts::takeMeThere) }),
                 ) { mapPreview() }
             }
         }
@@ -166,7 +162,7 @@ internal fun AlertScreen(
                     "Take me there",
                     { closeAfterAnimation(alerts::takeMeThere) },
                     Modifier.fillMaxWidth(),
-                    enabled = action == null,
+                    enabled = !closing,
                     leadingIcon = CiuinIcons.Navigation03,
                 )
             }
@@ -176,14 +172,14 @@ internal fun AlertScreen(
                     { closeAfterAnimation(alerts::okayHere) },
                     Modifier.weight(1f),
                     SecondaryButtonSize.Medium,
-                    enabled = action == null,
+                    enabled = !closing,
                 )
                 SecondaryButton(
                     "Snooze 15 min",
                     { closeAfterAnimation { alerts.snooze(15) } },
                     Modifier.weight(1f),
                     SecondaryButtonSize.Medium,
-                    enabled = action == null,
+                    enabled = !closing,
                 )
             }
         }

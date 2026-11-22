@@ -13,7 +13,7 @@ import kotlin.test.assertNotNull
 
 class BundledPlacesApiTest {
     @Test
-    fun readsRealPlacesFromThePackagedFileWhenTheBackendIsUnavailable() = runBlocking {
+    fun readsRealPlacesFromThePackagedFileWhenTheBackendIsUnavailable(): Unit = runBlocking {
         val unavailable = object : PlacesApi by FakePlacesApi() {
             override suspend fun places(bbox: BBox, at: String?): List<Place> = error("Backend unavailable")
         }

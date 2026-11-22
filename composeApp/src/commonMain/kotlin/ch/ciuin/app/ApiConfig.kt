@@ -5,6 +5,7 @@ import ch.ciuin.shared.api.FallbackPlacesApi
 import ch.ciuin.shared.api.KtorPlacesApi
 import ch.ciuin.shared.api.PlacesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 
 /**

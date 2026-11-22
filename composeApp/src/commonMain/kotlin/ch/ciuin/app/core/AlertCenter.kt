@@ -5,6 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import ch.ciuin.app.personal.LiveWindow
 import ch.ciuin.app.route.QuietPlaceRoute
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 internal data class QuietPlaceSuggestion(
     val route: QuietPlaceRoute,
@@ -29,11 +32,14 @@ internal data class ActiveAlert(
 internal class AlertCenter(
     private val settings: SettingsController,
     private val routes: RouteController,
+    private val scope: CoroutineScope,
     private val recordOkay: (ActiveAlert) -> Unit,
     private val onSnooze: (Int) -> Unit = {},
     private val onDismiss: (ActiveAlert) -> Unit = {},
 ) {
     var active by mutableStateOf<ActiveAlert?>(null)
+        private set
+    var closingId by mutableStateOf<String?>(null)
         private set
 
     fun show(alert: ActiveAlert) {
@@ -50,6 +56,19 @@ internal class AlertCenter(
         val alert = active?.takeIf { it.id == id && it.hapticOnDisplay } ?: return false
         active = alert.copy(hapticOnDisplay = false)
         return true
+    }
+
+    fun closeAfter(id: String, transitionMillis: Long, action: () -> Unit) {
+        if (active?.id != id || closingId == id) return
+        closingId = id
+        scope.launch {
+            try {
+                delay(transitionMillis)
+                if (active?.id == id) action()
+            } finally {
+                if (closingId == id) closingId = null
+            }
+        }
     }
 
     fun takeMeThere() {

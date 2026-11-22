@@ -25,7 +25,7 @@ class AlertCenterTest {
         val snoozed = mutableListOf<Int>()
         val dismissed = mutableListOf<String>()
         val center = AlertCenter(
-            settings, routes, recordOkay = { okay.add(it.window) },
+            settings, routes, this, recordOkay = { okay.add(it.window) },
             onSnooze = { snoozed.add(it) }, onDismiss = { dismissed.add(it.id) },
         )
 
@@ -44,7 +44,11 @@ class AlertCenterTest {
         assertNull(center.active)
 
         center.show(alert)
-        center.snooze()
+        center.closeAfter(alert.id, 240) { center.snooze() }
+        assertEquals(alert.id, center.closingId)
+        advanceUntilIdle()
+        assertNull(center.active)
+        assertNull(center.closingId)
         center.show(alert)
         center.snooze(minutes = 20)
         assertEquals(listOf(15, 20), snoozed)

@@ -21,6 +21,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlin.math.round
+
+internal const val UNLISTED_MEASUREMENT_PLACE_ID = "unlisted"
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
@@ -91,7 +93,7 @@ internal class MeasurementController(
             return
         }
         startError = null
-        val placeId = place?.placeId ?: "unlisted"
+        val placeId = place?.placeId ?: UNLISTED_MEASUREMENT_PLACE_ID
         // An unlisted measurement needs a map location without retaining a raw GPS fix.
         val point = if (place == null) RoutePoint(coarseCoordinate(destination.lat), coarseCoordinate(destination.lon)) else destination
         phase = MeasurementPhase.Requesting

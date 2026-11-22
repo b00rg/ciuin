@@ -28,7 +28,7 @@ fun main() = application {
         AppEnvironment(
             api, personal, router, settings, DesktopPermissions, DesktopLocationSource,
             listening = null,
-            alerts = AlertCenter(settings, routes, recordOkay = { alert ->
+            alerts = AlertCenter(settings, routes, scope, recordOkay = { alert ->
                 personal.recordAlertFeedback(alert.window, label = 0)
             }),
             routes = routes,

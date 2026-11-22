@@ -8,8 +8,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import ch.ciuin.app.heat.HeatSample
+import ch.ciuin.app.heat.ViewBounds
 import ch.ciuin.app.map.latToY
 import ch.ciuin.app.map.lonToX
+import ch.ciuin.app.map.xToLon
+import ch.ciuin.app.map.yToLat
 import ch.ciuin.shared.api.BBox
 import ch.ciuin.shared.api.FallbackPlacesApi
 import ch.ciuin.shared.api.NoisePeriod
@@ -25,6 +28,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.doubleOrNull
+import kotlin.math.floor
 
 internal const val LAUSANNE_LAT = 46.5197
 internal const val LAUSANNE_LON = 6.6323
@@ -53,6 +57,9 @@ internal class MapData {
         private set
     var noisePeriod by mutableStateOf(NoisePeriod.DAY)
     var showHeat by mutableStateOf(true)
+    var preferFlicker by mutableStateOf<Boolean?>(null)
+    var readingBounds by mutableStateOf(listOf(BBox.LAUSANNE))
+        private set
     var grids by mutableStateOf<Map<NoisePeriod, NoiseGrid>>(emptyMap())
         private set
     var readingGrids by mutableStateOf<Map<ReadingLayer, ReadingGrid>>(emptyMap())
@@ -61,6 +68,22 @@ internal class MapData {
         private set
 
     fun retry() { retryCount++ }
+
+    fun updateReadingBounds(view: ViewBounds) {
+        val south = yToLat(view.y1.coerceIn(0.0, 1.0))
+        val north = yToLat(view.y0.coerceIn(0.0, 1.0))
+        val width = (view.x1 - view.x0).coerceIn(0.0, 1.0)
+        if (south >= north || width <= 0.0) return
+        val west = view.x0 - floor(view.x0)
+        val east = west + width
+        readingBounds = when {
+            width == 1.0 -> listOf(BBox(-180.0, south, 180.0, north))
+            east <= 1.0 -> listOf(BBox(xToLon(west), south, xToLon(east), north))
+            else -> listOf(
+                BBox(xToLon(west), south, 180.0, north), BBox(-180.0, south, xToLon(east - 1.0), north),
+            )
+        }
+    }
 
     fun updatePlace(updated: Place) {
         places = if (places.any { it.placeId == updated.placeId }) {
@@ -99,15 +122,16 @@ internal class MapData {
         }
     }
 
-    suspend fun refreshReadings(api: PlacesApi, layer: ReadingLayer) {
+    suspend fun refreshReadings(api: PlacesApi, layer: ReadingLayer, bounds: List<BBox> = readingBounds) {
         try {
-            val grid = requestGrid(api, layer.dimension) ?: return
-            val samples = grid.points.mapNotNull { point ->
+            val grids = bounds.map { requestGrid(api, layer.dimension, bounds = it) ?: return }
+            val samples = grids.flatMap { it.points }.mapNotNull { point ->
                 val value = point.totalDb?.takeIf { it.isFinite() && it >= 0 } ?: return@mapNotNull null
                 if (point.lat !in -90.0..90.0 || point.lon !in -180.0..180.0) return@mapNotNull null
                 HeatSample(lonToX(point.lon), latToY(point.lat), value, point.measurementCount)
             }
-            readingGrids = readingGrids + (layer to ReadingGrid(samples, grid.resolutionMeters))
+            val resolution = grids.maxOfOrNull { it.resolutionMeters } ?: DEFAULT_RESOLUTION_METERS
+            readingGrids = readingGrids + (layer to ReadingGrid(samples, resolution))
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -115,10 +139,12 @@ internal class MapData {
         }
     }
 
-    private suspend fun requestGrid(api: PlacesApi, dimension: String, period: NoisePeriod? = null): NoiseGrid? =
+    private suspend fun requestGrid(
+        api: PlacesApi, dimension: String, period: NoisePeriod? = null, bounds: BBox = BBox.LAUSANNE,
+    ): NoiseGrid? =
         withContext(Dispatchers.Default) {
-            val read = if (api is FallbackPlacesApi) api.readHeatmap(BBox.LAUSANNE, dimension, period)
-            else PlaceRead(api.heatmap(BBox.LAUSANNE, dimension, period), fromPrimary = true)
+            val read = if (api is FallbackPlacesApi) api.readHeatmap(bounds, dimension, period)
+            else PlaceRead(api.heatmap(bounds, dimension, period), fromPrimary = true)
             val json = read.data
             if (!read.fromPrimary || !json.heatmapAvailable) return@withContext null
             val resolution = (json["cell_m"] as? JsonPrimitive)?.doubleOrNull
@@ -151,7 +177,8 @@ internal fun rememberMapData(api: PlacesApi, category: Category): MapData {
             } while (true)
         }
     }
-    LaunchedEffect(data, category, data.retryCount) {
+    val readingBounds = data.readingBounds
+    LaunchedEffect(data, category, data.retryCount, readingBounds) {
         val layers = when (category) {
             Category.LIGHT -> listOf(ReadingLayer.Light, ReadingLayer.Flicker)
             Category.CROWD -> listOf(ReadingLayer.Crowd)
@@ -159,7 +186,7 @@ internal fun rememberMapData(api: PlacesApi, category: Category): MapData {
         }
         if (layers.isNotEmpty()) {
             do {
-                layers.forEach { data.refreshReadings(api, it) }
+                layers.forEach { data.refreshReadings(api, it, readingBounds) }
                 delay(6_000)
             } while (true)
         }

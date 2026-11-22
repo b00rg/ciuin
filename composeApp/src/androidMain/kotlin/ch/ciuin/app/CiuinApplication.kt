@@ -95,7 +95,7 @@ class CiuinApplication : Application() {
     internal val personalModel by lazy { PersonalModelController(AndroidPersonalModelStorage(this), scope) }
     internal val alerts by lazy {
         AlertCenter(
-            settings, routes,
+            settings, routes, scope,
             recordOkay = { alert ->
                 if (!LiveListeningService.recordInAppFeedback(alert)) {
                     personalModel.recordAlertFeedback(alert.window, label = 0)

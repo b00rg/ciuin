@@ -17,6 +17,7 @@ import ch.ciuin.app.core.PermissionStatus
 import ch.ciuin.app.insight.nearestPlaces
 import ch.ciuin.app.measure.MeasurementPhase
 import ch.ciuin.app.measure.MeasurementReview
+import ch.ciuin.app.measure.UNLISTED_MEASUREMENT_PLACE_ID
 import ch.ciuin.app.route.RoutePoint
 import ch.ciuin.app.route.distanceMeters
 import ch.ciuin.shared.model.Place
@@ -29,6 +30,9 @@ internal fun MeasureTab(
     places: List<Place>,
     preselected: Place?,
     onBackToMap: () -> Unit,
+    choiceId: String?,
+    onChoiceChanged: (String) -> Unit,
+    onResetPlace: () -> Unit,
     onFindPlace: (() -> Unit)?,
     tabBar: @Composable () -> Unit,
     modifier: Modifier = Modifier,
@@ -49,8 +53,6 @@ internal fun MeasureTab(
     }
 
     val scope = rememberCoroutineScope()
-    var entryPlace by remember(preselected?.placeId) { mutableStateOf(preselected) }
-    var picked by remember(preselected?.placeId) { mutableStateOf<PlaceChoice?>(null) }
     var feedback by remember { mutableStateOf<MeasureFeedback?>(null) }
     var submittedReview by remember { mutableStateOf<MeasurementReview?>(null) }
     val phase = controller.phase
@@ -87,14 +89,17 @@ internal fun MeasureTab(
         MeasurementPhase.Ready, MeasurementPhase.PermissionDenied -> {
             val origin = environment.location.current?.takeIf { it.isValid }
             val permission = environment.permissions.status(AppPermission.LOCATION)
-            val listed = places.firstOrNull { it.placeId == entryPlace?.placeId } ?: entryPlace
-            val choices = remember(places, origin, listed) { placeChoices(places, origin, listed) }
-            val selected = if (picked == null) choices.firstOrNull() else
-                choices.firstOrNull { it.place?.placeId == picked?.place?.placeId }
+            val choices = remember(places, origin, preselected, choiceId) {
+                val nearby = placeChoices(places, origin, preselected)
+                if (choiceId == null || nearby.any { it.key == choiceId }) nearby
+                else places.firstOrNull { it.placeId == choiceId }
+                    ?.let { placeChoices(places, origin, it) } ?: nearby
+            }
+            val selected = if (choiceId == null) choices.firstOrNull() else choices.firstOrNull { it.key == choiceId }
             MeasureStartScreen(
                 choices = choices,
                 selected = selected,
-                onSelect = { picked = it },
+                onSelect = { onChoiceChanged(it.key) },
                 onStart = {
                     val choice = selected ?: return@MeasureStartScreen
                     controller.prepare(choice.place)
@@ -152,14 +157,15 @@ internal fun MeasureTab(
             ducks = environment.settings.sharedMeasurements,
             onBackToMap = onBackToMap,
             onMeasureAgain = {
-                picked = null
-                entryPlace = null
+                onResetPlace()
                 backToChoices()
             },
             modifier = modifier,
         )
     }
 }
+
+private val PlaceChoice.key: String get() = place?.placeId ?: UNLISTED_MEASUREMENT_PLACE_ID
 
 private fun placeChoices(places: List<Place>, origin: RoutePoint?, preselected: Place?): List<PlaceChoice> =
     buildList {

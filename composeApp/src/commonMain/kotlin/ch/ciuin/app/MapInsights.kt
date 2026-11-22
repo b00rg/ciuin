@@ -61,6 +61,7 @@ internal fun MapInsights(
     onMeasure: (() -> Unit)?,
     liveFeedback: ((Int) -> Unit)?,
     feedbackEnabled: Boolean,
+    showFlicker: Boolean,
 ) {
     when (category) {
         Category.PERSONAL -> {
@@ -115,7 +116,8 @@ internal fun MapInsights(
             }
         }
         Category.SOUND -> SoundPanel(insight.sound, noisePeriod, onNoisePeriod)
-        Category.LIGHT -> MeasuredPanel("Light", insight.light, category, onMeasure, insight.meanFlickerIndex)
+        Category.LIGHT -> if (showFlicker) FlickerPanel(insight.meanFlickerIndex, onMeasure)
+        else MeasuredPanel("Light", insight.light, category, onMeasure, insight.meanFlickerIndex)
         Category.CROWD -> MeasuredPanel("Crowd", insight.crowd, category, onMeasure)
         Category.ACCESS -> {
             val access = insight.access
@@ -213,7 +215,7 @@ private fun MeasuredPanel(
                 Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null)
             }
             TitleBlock(
-                title = if (isLight) "No light readings yet" else "No crowd readings yet",
+                title = if (isLight) "No brightness readings yet" else "No crowd readings yet",
                 modifier = Modifier.weight(1f),
                 eyebrow = "This area · $name",
                 subtitle = if (isLight) "Light and flicker come from phones. A 30-second measure can add a reading."
@@ -233,6 +235,24 @@ private fun MeasuredPanel(
     if (onMeasure != null && insight == MeasuredInsight.NoData) {
         PrimaryButton("Measure where I am", onMeasure, Modifier.fillMaxWidth())
     }
+}
+
+internal fun flickerLevel(index: Double): Level = when {
+    index < 0.05 -> Level.Calm
+    index < 0.2 -> Level.Moderate
+    else -> Level.Loud
+}
+
+@Composable
+private fun FlickerPanel(index: Double?, onMeasure: (() -> Unit)?) {
+    if (index != null) {
+        Text("This area · Flicker", style = CiuinType.Eyebrow, color = CiuinColors.SecondaryText)
+        BigReading(index.fmt2(), "Measured flicker index")
+    } else {
+        TitleBlock("No flicker readings yet", eyebrow = "This area · Flicker", subtitle = "A camera measurement can add a reading.")
+    }
+    LevelLegend(listOf(Level.Calm to "Low", Level.Moderate to "Moderate", Level.Loud to "High", Level.NoData to "No data"))
+    if (index == null && onMeasure != null) PrimaryButton("Measure where I am", onMeasure, Modifier.fillMaxWidth())
 }
 
 @Composable

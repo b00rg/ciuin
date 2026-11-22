@@ -62,6 +62,7 @@ internal fun App(environment: AppEnvironment) {
     var searchTarget by rememberSaveable { mutableStateOf<PlaceSearchTarget?>(null) }
     var selectedPlaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var measurementPlaceId by rememberSaveable { mutableStateOf<String?>(null) }
+    var measurementChoiceId by rememberSaveable { mutableStateOf<String?>(null) }
     val measurementPhase = environment.measurement?.phase
     val keepMeasurementVisible = tab == CiuinTab.Measure && when (measurementPhase) {
         MeasurementPhase.Requesting,
@@ -106,6 +107,7 @@ internal fun App(environment: AppEnvironment) {
     fun switchTab(next: CiuinTab) {
         if (next == tab) return
         measurementPlaceId = null
+        measurementChoiceId = null
         selectedPlaceId = null
         searchTarget = null
         tab = next
@@ -130,7 +132,10 @@ internal fun App(environment: AppEnvironment) {
                 map.centerOn(place.lat, place.lon, PLACE_ZOOM)
                 selectedPlaceId = place.placeId
             }
-            PlaceSearchTarget.Measure -> measurementPlaceId = place.placeId
+            PlaceSearchTarget.Measure -> {
+                measurementPlaceId = place.placeId
+                measurementChoiceId = place.placeId
+            }
             null -> return
         }
         searchTarget = null
@@ -184,6 +189,12 @@ internal fun App(environment: AppEnvironment) {
                         preselected = places.takeUnless { data.usingSamplePlaces }
                             ?.firstOrNull { it.placeId == measurementPlaceId },
                         onBackToMap = { switchTab(CiuinTab.Map) },
+                        choiceId = measurementChoiceId,
+                        onChoiceChanged = { measurementChoiceId = it },
+                        onResetPlace = {
+                            measurementPlaceId = null
+                            measurementChoiceId = null
+                        },
                         onFindPlace = if (places.isNotEmpty() && !data.usingSamplePlaces) {
                             { searchTarget = PlaceSearchTarget.Measure }
                         } else null,
@@ -212,6 +223,7 @@ internal fun App(environment: AppEnvironment) {
                             { place ->
                                 switchTab(CiuinTab.Measure)
                                 measurementPlaceId = place?.placeId
+                                measurementChoiceId = place?.placeId
                             }
                         },
                         showMessage = { snackbar.showSnackbar(it) },

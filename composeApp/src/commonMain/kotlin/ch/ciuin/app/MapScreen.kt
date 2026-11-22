@@ -130,13 +130,18 @@ internal fun MapScreen(
     val chosenLayer = if (route == null) category else Category.PERSONAL
     val grid = data.grids[if (chosenLayer == Category.SOUND) period else NoisePeriod.DAY] ?: NoiseGrid()
     val noise = if (chosenLayer == Category.SOUND) period else NoisePeriod.DAY
+    val lightGrid = data.readingGrids[ReadingLayer.Light]
+    val flickerGrid = data.readingGrids[ReadingLayer.Flicker]
+    val showFlicker = chosenLayer == Category.LIGHT && (data.preferFlicker
+        ?: (lightGrid?.samples?.isEmpty() == true && flickerGrid?.samples?.isNotEmpty() == true))
     val measurementGrid = when (chosenLayer) {
-        Category.LIGHT -> data.readingGrids[ReadingLayer.Light]
+        Category.LIGHT -> if (showFlicker) flickerGrid else lightGrid
         Category.CROWD -> data.readingGrids[ReadingLayer.Crowd]
         else -> null
     }
-    val samples = remember(chosenLayer, places, grid, personalScores, noise, measurementGrid) {
-        measurementGrid?.samples ?: samplesFor(chosenLayer, places, grid.points, personalScores, noise)
+    val samples = remember(chosenLayer, places, grid, personalScores, noise, measurementGrid, showFlicker) {
+        measurementGrid?.samples ?: if (showFlicker) emptyList()
+        else samplesFor(chosenLayer, places, grid.points, personalScores, noise)
     }
     val cell = cellLevel(state.zoom, LAUSANNE_LAT, measurementGrid?.resolutionMeters ?: grid.resolutionMeters)
     val showUnknownCells = chosenLayer == Category.LIGHT && places.isNotEmpty()
@@ -144,9 +149,9 @@ internal fun MapScreen(
         if (!showUnknownCells) emptyList()
         else aggregateHex(places.map { HeatSample(lonToX(it.lon), latToY(it.lat), 0.0) }, hexRadius(cell))
     }
-    val heat = remember(samples, cell, data.offline, chosenLayer, placeCells) {
+    val heat = remember(samples, cell, data.offline, chosenLayer, placeCells, showFlicker) {
         val measured = aggregateHex(samples, hexRadius(cell), Averaging.of(chosenLayer)).map {
-            val level = chosenLayer.levelOf(it.mean).toUi()
+            val level = if (showFlicker) flickerLevel(it.mean) else chosenLayer.levelOf(it.mean).toUi()
             HeatHex(it.x, it.y, it.radius, level.color.copy(alpha = level.hexAlpha(data.offline)))
         }
         if (placeCells.isEmpty()) measured
@@ -183,6 +188,7 @@ internal fun MapScreen(
         val streetLevel = state.zoom >= PLACE_ZOOM
         val overviewPins = state.zoom >= 13.0
         var bounds by remember(viewport, tilePx) { mutableStateOf(mapBounds(state, viewport, tilePx)) }
+        LaunchedEffect(data, bounds) { data.updateReadingBounds(bounds) }
         LaunchedEffect(state, viewport, tilePx) {
             snapshotFlow { mapBounds(state, viewport, tilePx) }.collectLatest {
                 delay(180)
@@ -191,7 +197,7 @@ internal fun MapScreen(
         }
         val visibleBounds = bounds
         val showHeat = data.showHeat
-        val markers = remember(places, selected, chosenLayer, personalScores, nearest, streetLevel, route, noise, visibleBounds, overviewPins, showHeat) {
+        val markers = remember(places, selected, chosenLayer, personalScores, nearest, streetLevel, route, noise, visibleBounds, overviewPins, showHeat, showFlicker) {
             val shown = when {
                 route != null -> listOfNotNull(byId[route.destinationId])
                 selected != null -> listOf(selected)
@@ -208,7 +214,8 @@ internal fun MapScreen(
             }
             shown.map { place ->
                 val value = chosenLayer.mapValue(place, personalScores[place.placeId], noise)
-                val level = value?.let(chosenLayer::levelOf).toUi()
+                val level = if (showFlicker) place.measured?.features?.flickerIndex?.let(::flickerLevel) ?: UiLevel.NoData
+                else value?.let(chosenLayer::levelOf).toUi()
                 MapMarker(place.placeId, place.lat, place.lon, place.name, level, showLabel = !streetLevel && showHeat)
             }
         }
@@ -241,7 +248,7 @@ internal fun MapScreen(
             heat = if (showHeat) heat else emptyList(),
             routeOverlay = overlay,
             userLocation = userLocation,
-            layerKey = if (showHeat) chosenLayer to noise else null,
+            layerKey = if (showHeat) Triple(chosenLayer, noise, showFlicker) else null,
             reduceMotion = reduceMotion,
             tileCache = tiles,
         )
@@ -326,7 +333,12 @@ internal fun MapScreen(
                             Modifier.align(Alignment.BottomEnd).padding(bottom = 14.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            MapControls(state, viewport, tilePx, showHeat) { data.showHeat = !showHeat }
+                            MapControls(
+                                state, viewport, tilePx, showHeat,
+                                showFlicker = showFlicker,
+                                toggleFlicker = if (category == Category.LIGHT) ({ data.preferFlicker = !showFlicker }) else null,
+                                toggleHeat = { data.showHeat = !showHeat },
+                            )
                             RoundIconButton(
                                 CiuinIcons.Gps01, "My location",
                                 onClick = {
@@ -374,6 +386,7 @@ internal fun MapScreen(
                                         { label -> personal.recordFeedback(null, label) }
                                     } else null,
                                     feedbackEnabled = !personal.state.busy,
+                                    showFlicker = showFlicker,
                                 )
                             }
                         }
@@ -411,7 +424,15 @@ private fun MapOverlay(
 }
 
 @Composable
-private fun MapControls(state: MapState, viewport: Size, tilePx: Float, showHeat: Boolean, toggleHeat: () -> Unit) {
+private fun MapControls(
+    state: MapState,
+    viewport: Size,
+    tilePx: Float,
+    showHeat: Boolean,
+    showFlicker: Boolean,
+    toggleFlicker: (() -> Unit)?,
+    toggleHeat: () -> Unit,
+) {
     var open by remember { mutableStateOf(false) }
     Box {
         RoundIconButton(CiuinIcons.Maps, "Map controls", { open = true }, style = RoundIconButtonStyle.Floating)
@@ -436,6 +457,12 @@ private fun MapControls(state: MapState, viewport: Size, tilePx: Float, showHeat
                 toggleHeat()
                 open = false
             })
+            if (toggleFlicker != null) {
+                DropdownMenuItem({ Text(if (showFlicker) "Show brightness" else "Show flicker", style = CiuinType.Label) }, {
+                    toggleFlicker()
+                    open = false
+                })
+            }
         }
     }
 }

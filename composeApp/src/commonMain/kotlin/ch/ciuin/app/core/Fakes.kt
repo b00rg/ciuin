@@ -111,7 +111,7 @@ internal fun previewAppEnvironment(
     val personal = PersonalModelController(storage, scope, PersonalModelSession.restore(null))
     val router = WalkingRouter(baseUrl = "")
     val routes = RouteController(scope) { start, end -> WalkingRoute(listOf(start, end), distanceMeters(start, end)) }
-    val alerts = AlertCenter(settings, routes, recordOkay = { alert ->
+    val alerts = AlertCenter(settings, routes, scope, recordOkay = { alert ->
         personal.recordAlertFeedback(alert.window, label = 0)
     })
     if (showAlert) {
