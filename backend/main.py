@@ -62,7 +62,7 @@ TAGS = [
     {"name": "meta", "description": "Health check."},
 ]
 
-LAUSANNE_BBOX = "6.55,46.50,6.67,46.54"
+LAUSANNE_BBOX = "6.58,46.50,6.67,46.54"
 BBOX_QUERY = Query(description="minLon,minLat,maxLon,maxLat (WGS84)", examples=[LAUSANNE_BBOX])
 
 app = FastAPI(

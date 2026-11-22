@@ -36,7 +36,7 @@ SPOTS = [
 ]
 
 # Lausanne demo bbox: south, west, north, east (same as BBox.LAUSANNE)
-BBOX = (46.50, 6.55, 46.54, 6.67)
+BBOX = (46.50, 6.58, 46.54, 6.67)
 
 
 def source(name: str) -> str:

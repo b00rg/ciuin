@@ -32,7 +32,7 @@ TAGINFO = {
 
 OVERPASS = "https://overpass-api.de/api/interpreter"
 # Same bbox as BBox.LAUSANNE in shared/: south, west, north, east
-LAUSANNE_BBOX = (46.50, 6.55, 46.54, 6.67)
+LAUSANNE_BBOX = (46.50, 6.58, 46.54, 6.67)
 
 WHEELCHAIR_VALUES = ("yes", "limited", "no", "designated")
 
