@@ -1,0 +1,10 @@
+# The backend image only needs backend/ and data/processed/ (see backend/Dockerfile).
+# Everything else (app code, ML, ~1.5 GB of raw downloads, local databases) stays out.
+*
+!backend/
+!data/processed/
+backend/.venv/
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/*.db
+backend/*.db-*
