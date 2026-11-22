@@ -13,6 +13,12 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import ch.ciuin.app.core.PermissionStatus
+import ch.ciuin.app.core.AppPermission
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.filterNotNull
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +53,9 @@ import ch.ciuin.app.ui.you.YouTab
 import ch.ciuin.shared.model.Place
 
 private enum class PlaceSearchTarget { Map, Measure }
+
+/** How long the map waits at launch for a first position fix before keeping the default view. */
+private const val START_LOCATION_TIMEOUT_MS = 5_000L
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -86,6 +95,18 @@ internal fun App(environment: AppEnvironment) {
     DisposableEffect(environment.location) {
         environment.location.start()
         onDispose { environment.location.stop() }
+    }
+    // Open the map where the user is. Only when location access was already granted (opening the app never
+    // asks), only once, and never after the user has moved the map themselves. Otherwise it stays on the
+    // default view (the area with the most data).
+    LaunchedEffect(map) {
+        if (environment.permissions.status(AppPermission.LOCATION) != PermissionStatus.GRANTED) return@LaunchedEffect
+        val startX = map.centerX
+        val startY = map.centerY
+        val here = withTimeoutOrNull(START_LOCATION_TIMEOUT_MS) {
+            snapshotFlow { environment.location.current }.filterNotNull().first()
+        } ?: return@LaunchedEffect
+        if (map.centerX == startX && map.centerY == startY) map.centerOn(here.lat, here.lon, LAUSANNE_ZOOM)
     }
     LaunchedEffect(personal.state.notice) {
         val notice = personal.state.notice ?: return@LaunchedEffect
