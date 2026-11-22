@@ -19,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -61,8 +63,10 @@ internal fun AlertScreen(
     val alerts = environment.alerts
     val suggestion = alert.suggestion
     val reduceMotion = LocalReduceMotion.current
+    val feedback = LocalHapticFeedback.current
     val appear = remember(alert.id) { Animatable(0f) }
     LaunchedEffect(alert.id) {
+        if (alerts.consumeDisplayHaptic(alert.id)) feedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
         appear.animateTo(1f, if (reduceMotion) CiuinMotion.reducedFade() else CiuinMotion.alertAppear())
     }
 
@@ -94,7 +98,7 @@ internal fun AlertScreen(
                 .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(22.dp),
         ) {
-            AlertScene(pill, haptic = alert.hapticOnDisplay)
+            AlertScene(pill, haptic = false)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("It's getting loud here.", Modifier.semantics { heading() }, style = CiuinType.ScreenTitle)
                 Text(body, style = CiuinType.Body, color = CiuinColors.SecondaryText)

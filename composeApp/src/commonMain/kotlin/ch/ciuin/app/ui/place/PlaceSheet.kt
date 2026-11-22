@@ -3,6 +3,7 @@
 package ch.ciuin.app.ui.place
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -19,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -285,11 +287,23 @@ private enum class PlaceFeedback { Ready, Saving, Saved, Failed }
 @Composable
 private fun Actions(onTakeMeThere: (() -> Unit)?, onMeasure: (() -> Unit)?) {
     if (onTakeMeThere == null && onMeasure == null) return
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        if (onTakeMeThere != null) {
-            PrimaryButton("Take me there", onTakeMeThere, Modifier.weight(1f), leadingIcon = CiuinIcons.Navigation03)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val availableWidth = maxWidth
+        val fontScale = LocalDensity.current.fontScale
+        if (onTakeMeThere != null && onMeasure != null && availableWidth < 292.dp * fontScale) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                PrimaryButton("Take me there", onTakeMeThere, Modifier.fillMaxWidth(), leadingIcon = CiuinIcons.Navigation03)
+                SecondaryButton("Measure here", onMeasure, Modifier.fillMaxWidth())
+            }
+        } else {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (onTakeMeThere != null) {
+                    val icon = CiuinIcons.Navigation03.takeIf { onMeasure == null || availableWidth >= 352.dp * fontScale }
+                    PrimaryButton("Take me there", onTakeMeThere, Modifier.weight(1f), leadingIcon = icon)
+                }
+                if (onMeasure != null) SecondaryButton("Measure here", onMeasure, Modifier.weight(1f))
+            }
         }
-        if (onMeasure != null) SecondaryButton("Measure here", onMeasure, Modifier.weight(1f))
     }
 }
 

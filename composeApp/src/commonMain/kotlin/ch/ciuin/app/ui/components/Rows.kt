@@ -282,7 +282,8 @@ fun DimensionRow(
 ) {
     ListRow(
         modifier = modifier,
-        height = 44.dp,
+        minHeight = 44.dp,
+        verticalPadding = 4.dp,
         divider = divider,
         leading = { LevelGlyph(level, lane = 20.dp) },
         trailing = {
@@ -314,7 +315,7 @@ fun DimensionRow(
                 style = CiuinType.BodyMedium,
                 modifier = Modifier.weight(1f),
                 color = if (level == Level.NoData) CiuinColors.SecondaryText else CiuinColors.Ink,
-                maxLines = 1,
+                maxLines = 2,
             )
         }
     }

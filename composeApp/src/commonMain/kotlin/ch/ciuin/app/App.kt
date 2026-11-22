@@ -2,6 +2,7 @@ package ch.ciuin.app
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,14 +22,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import ch.ciuin.app.core.AppEnvironment
 import ch.ciuin.app.map.MapMarker
 import ch.ciuin.app.map.MapState
 import ch.ciuin.app.map.MapView
+import ch.ciuin.app.map.projectQuietPlaceRoute
 import ch.ciuin.app.map.rememberMapTileCache
 import ch.ciuin.app.measure.MeasurementPhase
 import ch.ciuin.app.ui.alert.AlertScreen
+import ch.ciuin.app.ui.components.AttributionPlate
 import ch.ciuin.app.ui.components.CiuinTab
 import ch.ciuin.app.ui.components.CiuinTabBar
 import ch.ciuin.app.ui.components.Level
@@ -128,14 +133,30 @@ internal fun App(environment: AppEnvironment) {
                     BackHandler(onBack = environment.alerts::dismiss)
                     AlertScreen(environment, alert, mapPreview = {
                         val destination = alert.suggestion?.route ?: return@AlertScreen
-                        val preview = remember(destination) {
-                            MapState(destination.destination.lat, destination.destination.lon, 15.0)
+                        BoxWithConstraints(Modifier.fillMaxSize()) {
+                            val preview = remember(destination) {
+                                MapState(destination.destination.lat, destination.destination.lon, 15.0)
+                            }
+                            val overlay = remember(destination) { projectQuietPlaceRoute(destination, null) }
+                            val density = LocalDensity.current
+                            val view = with(density) { Size(maxWidth.toPx() * 0.76f, maxHeight.toPx() * 0.66f) }
+                            val tilePx = with(density) { 256.dp.toPx() }
+                            LaunchedEffect(overlay, view, tilePx) {
+                                if (!view.isEmpty()) preview.fitRoute(overlay, view, tilePx)
+                            }
+                            val markers = remember(destination) {
+                                listOf(MapMarker(destination.destinationId, destination.destination.lat,
+                                    destination.destination.lon, destination.destinationName, Level.Calm))
+                            }
+                            MapView(
+                                preview, markers, destination.destinationId, {}, Modifier.fillMaxSize(),
+                                routeOverlay = overlay, interactive = false, tileCache = mapTiles,
+                            )
+                            AttributionPlate(
+                                "© OpenStreetMap contributors",
+                                Modifier.align(Alignment.BottomStart).padding(4.dp),
+                            )
                         }
-                        val markers = remember(destination) {
-                            listOf(MapMarker(destination.destinationId, destination.destination.lat,
-                                destination.destination.lon, destination.destinationName, Level.Calm))
-                        }
-                        MapView(preview, markers, destination.destinationId, {}, Modifier.fillMaxSize(), interactive = false)
                     })
                 }
                 !settings.onboardingComplete && route == null -> OnboardingFlow(environment, onFinished = { showGlobe = true })

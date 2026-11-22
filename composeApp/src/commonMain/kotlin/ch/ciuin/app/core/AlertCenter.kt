@@ -46,6 +46,12 @@ internal class AlertCenter(
         active = alert.copy(aboveLimitMillis = aboveLimitMillis)
     }
 
+    fun consumeDisplayHaptic(id: String): Boolean {
+        val alert = active?.takeIf { it.id == id && it.hapticOnDisplay } ?: return false
+        active = alert.copy(hapticOnDisplay = false)
+        return true
+    }
+
     fun takeMeThere() {
         val suggestion = active?.suggestion ?: return
         routes.start(suggestion.route)
