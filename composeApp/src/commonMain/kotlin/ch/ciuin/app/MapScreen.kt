@@ -77,6 +77,10 @@ import ch.ciuin.app.ui.components.CharacterTile
 import ch.ciuin.app.ui.components.Level as UiLevel
 import ch.ciuin.app.ui.components.LevelGlyph
 import ch.ciuin.app.ui.components.ListeningButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import ch.ciuin.app.ui.components.SoundWaveform
 import ch.ciuin.app.ui.components.LayerChipRow
 import ch.ciuin.app.ui.components.MapVeil
 import ch.ciuin.app.ui.components.OfflineBanner
@@ -294,7 +298,18 @@ internal fun MapScreen(
                     val liveStatus = listening?.message ?: personal.liveScore?.let {
                         "Live overwhelm ${(it * 100).roundToInt()}%"
                     } ?: "Waiting for live audio…".takeIf { listening?.isListening == true }
-                    liveStatus?.let {
+                    if (listening?.isListening == true) {
+                        val levels = remember(listening) { listening.levels() }
+                        Column(
+                            Modifier.padding(horizontal = 16.dp, vertical = 8.dp).width(220.dp)
+                                .background(CiuinColors.Ground, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            liveStatus?.let { Text(it, style = CiuinType.Caption) }
+                            SoundWaveform(levels, Modifier.fillMaxWidth().height(28.dp))
+                        }
+                    } else liveStatus?.let {
                         Text(
                             it,
                             Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -400,7 +415,7 @@ internal fun MapScreen(
                                 .verticalScroll(insightsScroll, enabled = !collapsed),
                         ) {
                             if (!data.loaded) {
-                                TitleBlock("Loading Lausanne", eyebrow = "Around you")
+                                TitleBlock("Loading places", eyebrow = "Around you")
                             } else {
                                 MapInsights(
                                     category, insight, period, { data.noisePeriod = it },
@@ -476,7 +491,7 @@ private fun MapControls(
             DropdownMenuItem({ Text("Zoom out", style = CiuinType.Label) }, {
                 state.zoomAt(0.5, center, viewport, tilePx)
             }, enabled = state.zoom > MapState.MIN_ZOOM)
-            DropdownMenuItem({ Text("Center on Lausanne", style = CiuinType.Label) }, {
+            DropdownMenuItem({ Text("Back to the mapped area", style = CiuinType.Label) }, {
                 state.centerOn(LAUSANNE_LAT, LAUSANNE_LON, LAUSANNE_ZOOM)
                 open = false
             })

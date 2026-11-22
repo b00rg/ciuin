@@ -1,6 +1,8 @@
 package ch.ciuin.app.core
 
 import ch.ciuin.app.route.RoutePoint
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 internal enum class AppPermission { MICROPHONE, CAMERA, LOCATION, NOTIFICATIONS }
 internal enum class PermissionStatus { GRANTED, DENIED, NOT_DETERMINED, UNAVAILABLE }
@@ -24,6 +26,9 @@ internal interface ListeningControl {
     val liveDb: Double?
     val todayStats: ListeningStats?
     fun setListening(listening: Boolean)
+
+    /** Live loudness in 0..1 (every 0.1 s) while listening, for the map's waveform. Display only. */
+    fun levels(): Flow<Float> = emptyFlow()
 }
 
 /** Time classified by what the listener ran, in the device's local calendar day. */

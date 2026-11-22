@@ -241,7 +241,7 @@ internal fun Globe() = Screen {
             StatTile("143", "tags", Modifier.weight(1f))
         }
     }
-    Footer { PrimaryButton("Fly to Lausanne", {}, Modifier.fillMaxWidth()) }
+    Footer { PrimaryButton("Explore near you", {}, Modifier.fillMaxWidth()) }
 }
 
 /** The top of every map screen: search row and layer chips, over the map. */
