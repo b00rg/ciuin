@@ -12,12 +12,29 @@ plugins {
 val listenerAssets = layout.buildDirectory.dir("generated/listenerAssets")
 val bundleListenerAssets by tasks.registering(Sync::class) {
     from(rootProject.layout.projectDirectory.dir("ml/export")) {
-        include("audio-student-s.tflite", "cascade.json")
+        include("audio-student-s.tflite", "audio-student-m.tflite", "cascade.json")
     }
     from(rootProject.layout.projectDirectory.file("data/processed/places_lausanne.geojson"))
     into(listenerAssets)
 }
 tasks.named("preBuild") { dependsOn(bundleListenerAssets) }
+
+val modelResultsExport = rootProject.layout.projectDirectory.file("ml/export/results.json")
+val modelCatalogSources = layout.buildDirectory.dir("generated/modelCatalog/kotlin")
+val generateModelCatalog by tasks.registering {
+    inputs.file(modelResultsExport).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(modelCatalogSources)
+    doLast {
+        val source = modelCatalogSources.get().file("ModelResultsExport.kt").asFile
+        source.parentFile.mkdirs()
+        val quotes = "\"\"\""
+        source.writeText(
+            "package ch.ciuin.app.core\n\n" +
+                "internal const val modelResultsJson = $quotes\n" +
+                modelResultsExport.asFile.readText().trim() + "\n$quotes\n",
+        )
+    }
+}
 
 kotlin {
     androidTarget {
@@ -32,6 +49,7 @@ kotlin {
     }
 
     sourceSets {
+        commonMain { kotlin.srcDir(generateModelCatalog) }
         commonMain.dependencies {
             implementation(projects.shared)
             implementation(compose.runtime)
