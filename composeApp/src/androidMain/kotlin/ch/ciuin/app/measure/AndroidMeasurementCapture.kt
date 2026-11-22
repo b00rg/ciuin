@@ -108,6 +108,8 @@ internal class AndroidMeasurementCapture(
 
     override fun audio(): Flow<AudioSample> = whileForeground(app.audioWindows.map { it.getOrThrow() })
 
+    override fun audioLevels(): Flow<Float> = whileForeground(app.audioLevels)
+
     /**
      * Bluetooth LE scan for the crowd proxy. Reads only the signal strength and an in-memory fingerprint of
      * each advertiser (never its address or name); the session turns them into one count.

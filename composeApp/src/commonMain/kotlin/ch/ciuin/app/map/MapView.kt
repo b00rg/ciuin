@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import ch.ciuin.app.route.RoutePoint
 import ch.ciuin.app.ui.components.Level
 import ch.ciuin.app.ui.theme.CiuinColors
@@ -70,7 +72,9 @@ internal data class HeatHex(
 
 private data class MarkerHit(val marker: MapMarker, val point: Offset, val label: Rect?)
 
-private const val HEX_FILL = 0.91f
+/** Hexagons fill their whole cell (a seamless honeycomb) and overlap by a hair to hide anti-aliasing seams. */
+private const val HEX_FILL = 1.0f
+private const val HEX_OVERLAP_PX = 0.5f
 private const val LABELS_ZOOM = 18.0
 private const val TILE_PX = 256
 private const val MAX_TILE_ZOOM = 19
@@ -228,23 +232,37 @@ private fun DrawScope.drawHeat(state: MapState, tilePx: Float, heat: List<HeatHe
     val world = state.worldSize(tilePx)
     val path = Path()
     val outline = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(1.dp.toPx(), 3.dp.toPx())))
-    for (hex in heat) {
+
+    fun hexPath(hex: HeatHex, grow: Float): Boolean {
         val dx = shortestWrappedDelta(hex.x - state.centerX)
         val cx = (size.width / 2.0 + dx * world).toFloat()
         val cy = (size.height / 2.0 + (hex.y - state.centerY) * world).toFloat()
         val radius = (hex.radius * world).toFloat()
-        if (cx < -radius || cy < -radius || cx > size.width + radius || cy > size.height + radius) continue
+        if (cx < -radius || cy < -radius || cx > size.width + radius || cy > size.height + radius) return false
         path.reset()
+        val r = radius * HEX_FILL + grow
         for (i in 0 until 6) {
             val angle = (PI / 180 * (60 * i - 30)).toFloat()
-            val px = cx + radius * HEX_FILL * cos(angle)
-            val py = cy + radius * HEX_FILL * sin(angle)
+            val px = cx + r * cos(angle)
+            val py = cy + r * sin(angle)
             if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
         }
         path.close()
-        if (hex.outline) drawPath(path, hex.color, style = outline)
-        else drawPath(path, hex.color)
+        return true
     }
+
+    // Filled hexagons: each transparency (one per level) goes into its own layer. Inside a layer the hexagons are
+    // drawn opaque and overlap by a hair, so neighbours meet with no gap and no darker seam; the layer then
+    // applies the level's transparency once.
+    val bounds = Rect(Offset.Zero, size)
+    heat.filter { !it.outline }.groupBy { it.color.alpha }.forEach { (alpha, group) ->
+        drawIntoCanvas { canvas ->
+            canvas.saveLayer(bounds, Paint().apply { this.alpha = alpha })
+            for (hex in group) if (hexPath(hex, HEX_OVERLAP_PX)) drawPath(path, hex.color.copy(alpha = 1f))
+            canvas.restore()
+        }
+    }
+    for (hex in heat) if (hex.outline && hexPath(hex, 0f)) drawPath(path, hex.color, style = outline)
 }
 
 private fun DrawScope.drawHere(point: Offset) {

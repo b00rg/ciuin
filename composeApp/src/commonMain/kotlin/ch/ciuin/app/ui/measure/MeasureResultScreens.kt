@@ -1,5 +1,14 @@
 package ch.ciuin.app.ui.measure
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.semantics.contentDescription
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -55,6 +64,7 @@ internal fun MeasureCaptureScreen(
     capture: MeasurementPhase.Capturing?,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
+    levels: Flow<Float> = emptyFlow(),
 ) {
     val readings = capture?.readings ?: MeasurementReadings()
     val progress = capture?.let { (MEASUREMENT_SECONDS - it.remainingSeconds).toFloat() / MEASUREMENT_SECONDS } ?: 0f
@@ -96,6 +106,7 @@ internal fun MeasureCaptureScreen(
                 )
                 Text(detail, style = CiuinType.Body, color = CiuinColors.SecondaryText, textAlign = TextAlign.Center)
             }
+            if (capture?.permissions?.microphone == true) SoundWaveform(levels, Modifier.fillMaxWidth())
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 val sound = readings.db?.let { if (readings.dbfs) whole(it) else "${whole(it)} dB" }
                 StatTile(sound ?: NO_VALUE, if (readings.dbfs) "dBFS" else "Sound", Modifier.weight(1f), StatTileStyle.LabelFirst)
@@ -223,6 +234,41 @@ internal fun MeasureSharedScreen(
         MeasureFooter(gap = 10.dp) {
             PrimaryButton("Back to the map", onBackToMap, Modifier.fillMaxWidth())
             TextLinkButton("Measure another place", onMeasureAgain, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+private const val WAVEFORM_BARS = 48
+
+/**
+ * The last ~5 s of loudness as a quiet row of rounded bars, newest on the right: shows the phone is listening and
+ * where the spikes are. Calm on purpose: ink on the ring's track colour, no glow, no colour changes.
+ */
+@Composable
+private fun SoundWaveform(levels: Flow<Float>, modifier: Modifier = Modifier) {
+    val bars = remember { mutableStateListOf<Float>().apply { repeat(WAVEFORM_BARS) { add(0f) } } }
+    LaunchedEffect(levels) {
+        levels.collect { level ->
+            bars.removeAt(0)
+            bars.add(level)
+        }
+    }
+    Canvas(
+        modifier.height(44.dp).semantics { contentDescription = "Live sound level" },
+    ) {
+        val slot = size.width / WAVEFORM_BARS
+        val barWidth = slot * 0.55f
+        val minHeight = barWidth
+        val mid = size.height / 2
+        bars.forEachIndexed { i, level ->
+            val h = minHeight + (size.height - minHeight) * level
+            val x = i * slot + (slot - barWidth) / 2
+            drawRoundRect(
+                color = if (level > 0f) CiuinColors.Ink else CiuinColors.RingTrack,
+                topLeft = Offset(x, mid - h / 2),
+                size = Size(barWidth, h),
+                cornerRadius = CornerRadius(barWidth / 2),
+            )
         }
     }
 }

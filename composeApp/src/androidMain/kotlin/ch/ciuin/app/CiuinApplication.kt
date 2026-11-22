@@ -35,6 +35,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
@@ -68,6 +70,9 @@ class CiuinApplication : Application() {
     internal val listeningStats by lazy { AndroidListeningStats(this) }
     private var activeAudioVariant by mutableStateOf<ModelVariant?>(null)
 
+    /** Live loudness (0..1, every 0.1 s) while the microphone is open, for the measuring waveform. */
+    internal val audioLevels = MutableSharedFlow<Float>(extraBufferCapacity = 64, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
     // Both capture flows subscribe here so a foreground measurement can reuse the listener's microphone.
     internal val audioWindows by lazy {
         callbackFlow<Result<AudioSample>> {
@@ -75,7 +80,8 @@ class CiuinApplication : Application() {
             val variant = settings.modelVariant.takeIf { it == ModelVariant.M } ?: ModelVariant.S
             activeAudioVariant = variant
             try {
-                AndroidLiveListener(this@CiuinApplication, variant).listen { send(Result.success(it)) }
+                AndroidLiveListener(this@CiuinApplication, variant)
+                    .listen(onLevel = { audioLevels.tryEmit(it) }) { send(Result.success(it)) }
             } finally {
                 activeAudioVariant = null
             }
