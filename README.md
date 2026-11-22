@@ -33,6 +33,8 @@ open iosApp/iosApp.xcodeproj           # iOS on macOS: select a simulator and ru
 ```
 The first build downloads Gradle and dependencies (a few minutes).
 
+Both mobile apps use the Student S and M models in `ml/export` for foreground sound classification. Android also uses the selected model for background listening. Xcode resolves Google's pinned LiteRT package on the first iOS build. The `iosApp` scheme tests both bundled models against the repository's reference audio clips.
+
 **Which backend the app talks to:**
 | Target | Default | Override |
 |---|---|---|

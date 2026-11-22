@@ -6,7 +6,7 @@ Everything not written during the event (pretrained models, datasets, libraries,
 
 | What | Kind | Source / licence | Used for |
 |---|---|---|---|
-| TensorFlow, Keras, LiteRT (`ai-edge-litert`) | Library | Google, Apache 2.0 | Audio model training, TFLite export and verification |
+| TensorFlow, Keras, LiteRT | Library | Google, Apache 2.0 | Audio training and export, reference inference, and on-device execution of the Student exports |
 | Camera2 and SensorManager | Platform APIs | [Android SDK](https://developer.android.com/reference/android/hardware/package-summary) | Android YUV frames and ambient light in lux (`TYPE_LIGHT`) |
 | AVFoundation | Platform framework | [Apple AVFoundation](https://developer.apple.com/documentation/avfoundation) | iOS camera (brightness and flicker only) and microphone capture. |
 | side-eye | Prior work (idea, no code) | [b00rg/side-eye](https://github.com/b00rg/side-eye), Emma's earlier project | Inspired the crowd proxy: count nearby Bluetooth LE devices, with a signal-strength (RSSI) cut-off for "near". Ciúin reimplements it with Android's `BluetoothLeScanner`; only the count leaves the phone. |
