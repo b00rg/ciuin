@@ -48,7 +48,7 @@ class KtorPlacesApiTest {
         val places = api { ok("[$placeJson]") }.places(BBox.LAUSANNE)
         val url = requests.single().url
         assertEquals("/places", url.encodedPath)
-        assertEquals("6.58,46.5,6.67,46.54", url.parameters["bbox"])
+        assertEquals("6.55,46.5,6.67,46.54", url.parameters["bbox"])
         assertEquals("Starbucks", places.single().name)
         assertEquals(1, places.single().measured?.n)
         assertEquals(0.36, places.single().score?.noise)

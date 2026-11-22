@@ -43,7 +43,7 @@ data class BBox(val minLon: Double, val minLat: Double, val maxLon: Double, val 
     fun toQuery(): String = "$minLon,$minLat,$maxLon,$maxLat"
 
     companion object {
-        val LAUSANNE = BBox(minLon = 6.58, minLat = 46.50, maxLon = 6.67, maxLat = 46.54)
+        val LAUSANNE = BBox(minLon = 6.55, minLat = 46.50, maxLon = 6.67, maxLat = 46.54)
     }
 }
 
