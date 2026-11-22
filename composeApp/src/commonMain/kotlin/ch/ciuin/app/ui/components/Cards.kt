@@ -32,6 +32,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import ch.ciuin.app.ui.doodles.CrayonDoodle
+import ch.ciuin.app.ui.doodles.Doodle
 import ch.ciuin.app.ui.icons.CiuinIcon
 import ch.ciuin.app.ui.icons.CiuinIcons
 import ch.ciuin.app.ui.theme.CiuinColors
@@ -115,19 +117,26 @@ fun IconDisc(
 /**
  * The wool square a character sits in beside a sheet's verdict: 72 with 24 dp corners for the sheep
  * on the map and route sheets, 84 with 28 dp corners for the empty state of a layer with no data.
+ *
+ * Empty states pass a [doodle], drawn small in the top corner behind the character.
  */
 @Composable
 fun CharacterTile(
     modifier: Modifier = Modifier,
     size: Dp = 72.dp,
     cornerRadius: Dp = CiuinRadii.Card,
+    doodle: Doodle? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
         modifier = modifier.size(size).background(CiuinColors.Wool, RoundedCornerShape(cornerRadius)),
         contentAlignment = Alignment.Center,
-        content = content,
-    )
+    ) {
+        if (doodle != null) {
+            CrayonDoodle(doodle, Modifier.align(Alignment.TopEnd).padding(top = size / 12, end = size / 12).size(size / 4), rotation = 10f)
+        }
+        content()
+    }
 }
 
 /**

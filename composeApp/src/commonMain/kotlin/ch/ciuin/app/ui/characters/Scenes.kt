@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import ch.ciuin.app.ui.components.LabelPill
 import ch.ciuin.app.ui.components.LabelPillStyle
 import ch.ciuin.app.ui.components.Level
+import ch.ciuin.app.ui.doodles.CrayonDoodle
+import ch.ciuin.app.ui.doodles.Doodle
 import ch.ciuin.app.ui.components.LevelPill
 import ch.ciuin.app.ui.theme.CiuinColors
 import ch.ciuin.app.ui.theme.CiuinRadii
@@ -110,6 +112,9 @@ private fun SceneScope.Ground(top: Float) {
 @Composable
 fun WelcomeScene(modifier: Modifier = Modifier, pose: SheepPose = SheepPose.Awake) {
     Scene(330f, modifier, contentDescription = "A sheep on a pasture with two ducks") {
+        CrayonDoodle(Doodle.Sun, Modifier.frame(274f, 18f, 50f), rotation = 8f)
+        CrayonDoodle(Doodle.Cloud, Modifier.frame(16f, 30f, 54f))
+        CrayonDoodle(Doodle.Sparkle, Modifier.frame(28f, 148f, 22f), rotation = -10f)
         Ground(top = 230f)
         Sheep(pose, Modifier.frame(58f, 42f, 226f), contentDescription = null)
         Duck(Modifier.frame(236f, 214f, 74f), contentDescription = null)
@@ -129,6 +134,9 @@ fun AllSetScene(modifier: Modifier = Modifier, onHopEnd: () -> Unit = {}) {
     Scene(270f, modifier, contentDescription = "The sheep hops; three ducks stand beside it") {
         Ground(top = 196f)
         HopArc(Modifier.frame(26f, 176f, 120f, 40f))
+        CrayonDoodle(Doodle.Sparkle, Modifier.frame(40f, 56f, 30f), rotation = -8f)
+        CrayonDoodle(Doodle.Sparkle, Modifier.frame(66f, 112f, 16f), rotation = 12f, seed = 9)
+        CrayonDoodle(Doodle.Sparkle, Modifier.frame(286f, 38f, 24f), rotation = 6f, seed = 4)
         Sheep(SheepPose.Hop, Modifier.frame(84f, 32f, 190f), contentDescription = null, onHopEnd = onHopEnd)
         Duck(Modifier.frame(214f, 186f, 60f), contentDescription = null)
         Duck(Modifier.frame(258f, 200f, 44f), contentDescription = null)
@@ -170,6 +178,10 @@ fun SharedScene(modifier: Modifier = Modifier, ducks: Int = 3, newLabel: String 
     val shown = ducks.coerceIn(1, 3)
     Scene(300f, modifier, contentDescription = "The sheep hops beside the pond as a new duck joins") {
         Oval(CiuinColors.Pond, left = 120f, top = 196f, width = 250f, height = 84f)
+        CrayonDoodle(Doodle.Wave, Modifier.frame(290f, 246f, 30f), seed = 2)
+        CrayonDoodle(Doodle.Sparkle, Modifier.frame(232f, 40f, 30f), rotation = 8f)
+        CrayonDoodle(Doodle.Sparkle, Modifier.frame(296f, 84f, 20f), rotation = -12f, seed = 5)
+        CrayonDoodle(Doodle.Sparkle, Modifier.frame(206f, 104f, 14f), seed = 8)
         Sheep(SheepPose.Hop, Modifier.frame(27.6f, 31.4f, 170f), contentDescription = null)
         if (shown >= 2) Duck(Modifier.frame(150f, 172f, 64f), DuckMotion.Bob, phase = 0f, contentDescription = null)
         if (shown >= 3) Duck(Modifier.frame(214f, 190f, 46f), DuckMotion.Bob, phase = 1f / 3f, contentDescription = null)
@@ -194,6 +206,11 @@ fun PondScene(ducks: Int, modifier: Modifier = Modifier, pose: SheepPose = Sheep
     }
     Scene(188f, modifier, cornerRadius = CiuinRadii.SceneSmall, contentDescription = description) {
         Oval(CiuinColors.Pond, left = 136f, top = 104f, width = 230f, height = 68f)
+        // A moon while the sheep sleeps, a sun while it listens.
+        val sky = if (pose == SheepPose.Rest) Doodle.Moon else Doodle.Sun
+        CrayonDoodle(sky, Modifier.frame(294f, 12f, 34f), rotation = -12f)
+        CrayonDoodle(Doodle.Cloud, Modifier.frame(190f, 10f, 40f), seed = 6)
+        CrayonDoodle(Doodle.Wave, Modifier.frame(298f, 138f, 26f), seed = 3)
         val sheepHeight = if (pose == SheepPose.Rest) 112f * SheepRestArt.HEIGHT / SheepRestArt.WIDTH else 112f
         Sheep(pose, Modifier.frame(20f, 150f - sheepHeight, 112f, sheepHeight), contentDescription = null)
         val shown = PondDucks.take(ducks.coerceIn(0, PondDucks.size))

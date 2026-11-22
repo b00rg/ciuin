@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import ch.ciuin.app.route.RoutePoint
 import ch.ciuin.app.ui.components.Level
+import ch.ciuin.app.ui.doodles.drawScribbleCircle
 import ch.ciuin.app.ui.theme.CiuinColors
 import ch.ciuin.app.ui.theme.CiuinMotion
 import ch.ciuin.app.ui.theme.CiuinType
@@ -76,6 +77,9 @@ private data class MarkerHit(val marker: MapMarker, val point: Offset, val label
 private const val HEX_FILL = 1.0f
 private const val HEX_OVERLAP_PX = 0.5f
 private const val LABELS_ZOOM = 18.0
+
+/** Mean radius of the crayon circle round the selected place: clear of its 6 dp dot. */
+private val SELECTED_SCRIBBLE_RADIUS = 17.dp
 private const val TILE_PX = 256
 private const val MAX_TILE_ZOOM = 19
 private val tileColor = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.2f) })
@@ -190,6 +194,8 @@ internal fun MapView(
                 val point = state.toScreen(marker.lat, marker.lon, size, tilePx)
                 if (point.x !in 0f..size.width || point.y !in 0f..size.height) continue
                 val selected = marker.id == selectedId
+                // Scribbled round the selected place, under its label so the label reads on top.
+                if (selected) drawScribbleCircle(point, SELECTED_SCRIBBLE_RADIUS.toPx(), CiuinColors.Ink, 2.5.dp.toPx())
                 var labelBounds: Rect? = null
                 if (selected || marker.showLabel || labelsVisible) {
                     val label = textMeasurer.measure(
