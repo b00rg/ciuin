@@ -6,7 +6,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import ch.ciuin.app.listener.AndroidLiveListener
+import ch.ciuin.app.listener.EscalationRule
 import ch.ciuin.app.listener.OverwhelmAlertPolicy
+import ch.ciuin.app.listener.SoundClassSmoother
 import ch.ciuin.app.measure.AudioSample
 import ch.ciuin.app.personal.AndroidPersonalModelStorage
 import ch.ciuin.app.personal.PersonalModelController
@@ -28,6 +30,8 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.double
+import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -56,8 +60,21 @@ class CiuinApplication : Application() {
         }
     }
     internal val personalModel by lazy { PersonalModelController(AndroidPersonalModelStorage(this), scope) }
+    private val cascadeConfig by lazy {
+        assets.open("cascade.json").bufferedReader().use { Json.parseToJsonElement(it.readText()) }
+    }
+    internal val liveSmoothingWindows by lazy {
+        cascadeConfig.jsonObject["live_smoothing"]?.jsonObject?.get("windows")?.jsonPrimitive?.intOrNull
+            ?: SoundClassSmoother.DEFAULT_WINDOWS
+    }
+    /** S's top-2 margin below which a window is re-run on stage 2 (cascade.json `stage1_to_2`). */
+    internal val escalationMargin by lazy {
+        cascadeConfig.jsonObject["stage1_to_2"]?.jsonObject?.get("models")?.jsonObject
+            ?.get("audio-student-s")?.jsonObject?.get("threshold")?.jsonPrimitive?.doubleOrNull
+            ?: EscalationRule.DEFAULT_MARGIN
+    }
     internal val overwhelmAlerts by lazy {
-        val config = assets.open("cascade.json").bufferedReader().use { Json.parseToJsonElement(it.readText()) }
+        val config = cascadeConfig
         val threshold = config.jsonObject.getValue("stage1_to_2").jsonObject
             .getValue("p_overwhelm_threshold").jsonPrimitive.double
         // Elapsed-realtime deadlines can be reused across app restarts within the same boot.

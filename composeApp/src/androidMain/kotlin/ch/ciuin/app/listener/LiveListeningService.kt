@@ -142,11 +142,13 @@ class LiveListeningService : Service() {
 
     private suspend fun captureWindows() {
         val wakeLock = acquireWakeLock()
+        // One 1 s window is noisy: score the mean of the last few (cascade.json `live_smoothing`).
+        val smoother = SoundClassSmoother(app.liveSmoothingWindows)
         try {
             app.audioWindows.collect { result ->
                 if (activeService !== this) return@collect
                 val audio = result.getOrThrow()
-                val window = FeatureVector(audio.dbMean, audio.dbPeak, audio.soundClasses)
+                val window = FeatureVector(audio.dbMean, audio.dbPeak, smoother.smooth(audio.soundClasses))
                 val model = app.personalModel
                 val liveWindow = model.onLiveWindow(window) ?: return@collect
                 val score = liveWindow.score ?: return@collect
