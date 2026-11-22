@@ -75,7 +75,8 @@ internal fun OnThisPhoneScreen(
     onReset: () -> Unit,
 ) {
     val models = environment.models
-    val variants = models.variants
+    // Only the models this build ships (Student S and M). L stays in the catalogue but isn't offered.
+    val variants = models.variants.filter { it.available }
     val active = models.active
     val selected = models.selected
     val displayed = variants.firstOrNull { it.variant == (active ?: selected) && it.available }
