@@ -1,5 +1,17 @@
 package ch.ciuin.app.ui.components
 
+import ch.ciuin.app.ui.theme.LocalReduceMotion
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -71,19 +83,51 @@ fun BottomSheetSurface(
     bottomPadding: Dp = 18.dp,
     bottomInset: Dp = 0.dp,
     shadow: Boolean = true,
+    collapsed: Boolean = false,
+    onCollapsedChange: ((Boolean) -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(topStart = CiuinRadii.Sheet, topEnd = CiuinRadii.Sheet)
+    val reduceMotion = LocalReduceMotion.current
     Column(
         modifier = modifier
             .fillMaxWidth()
             .then(if (shadow) Modifier.ciuinShadow(CiuinElevation.Sheet, shape) else Modifier)
             .background(CiuinColors.Ground, shape)
-            .padding(start = horizontalPadding, end = horizontalPadding, top = 10.dp, bottom = bottomPadding + bottomInset),
+            .padding(start = horizontalPadding, end = horizontalPadding, top = 10.dp, bottom = bottomPadding + bottomInset)
+            .then(if (reduceMotion) Modifier else Modifier.animateContentSize()),
         verticalArrangement = Arrangement.spacedBy(gap),
     ) {
-        DragHandle()
-        content()
+        if (onCollapsedChange == null) {
+            DragHandle()
+            content()
+        } else {
+            // Collapsible sheet: drag the handle down (or tap it) to fold the sheet to a slim strip; drag up or
+            // tap to open it again. The handle area is a full touch target.
+            var drag by remember { mutableFloatStateOf(0f) }
+            val threshold = with(LocalDensity.current) { 24.dp.toPx() }
+            DragHandle(
+                Modifier
+                    .height(24.dp)
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = "Map details"
+                        stateDescription = if (collapsed) "Collapsed" else "Expanded"
+                    }
+                    .clickable { onCollapsedChange(!collapsed) }
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { delta -> drag += delta },
+                        onDragStarted = { drag = 0f },
+                        onDragStopped = {
+                            if (drag > threshold && !collapsed) onCollapsedChange(true)
+                            else if (drag < -threshold && collapsed) onCollapsedChange(false)
+                            drag = 0f
+                        },
+                    ),
+            )
+            if (!collapsed) content()
+        }
     }
 }
 

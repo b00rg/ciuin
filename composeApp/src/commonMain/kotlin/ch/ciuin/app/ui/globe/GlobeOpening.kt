@@ -113,7 +113,7 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: () -> Unit, m
             }
         }
         PrimaryButton(
-            "Fly to Lausanne",
+            "Explore near you",
             modifier = Modifier.fillMaxWidth(),
             enabled = !flying,
             onClick = {

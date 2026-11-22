@@ -10,6 +10,7 @@ import ch.ciuin.app.listener.LiveListeningService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 internal class AndroidListeningControl(
@@ -23,6 +24,7 @@ internal class AndroidListeningControl(
     override val liveScore: Double? get() = app.personalModel.liveScore
     override val liveDb: Double? get() = app.liveDb
     override val todayStats: ListeningStats get() = app.listeningStats.today
+    override fun levels(): Flow<Float> = app.audioLevels
 
     private var starting: Job? = null
 
