@@ -52,6 +52,17 @@ cd backend && CIUIN_DB=/tmp/e2e.db uvicorn main:app --port 8000      # terminal 
 CIUIN_LIVE_API=http://localhost:8000 ./gradlew :shared:desktopTest --tests '*LiveTest'   # terminal 2
 ```
 
+### Verify Android audio classification
+
+With a booted emulator or device, run the bundled Student S and M models through the same extractor that powers measurements and listening:
+
+```sh
+./gradlew :composeApp:installDebug :composeApp:installDebugAndroidTest
+adb shell am instrument -w ch.ciuin.app.test/ch.ciuin.app.listener.StudentModelVerification
+```
+
+The runner checks the app’s model file hashes and compares all nine scores against independent CPU LiteRT results for the tracked WAV fixtures. Each fixture uses its first second at 16 kHz, with zeros padding shorter clips. The app’s usual silence gate skips the tenth clip. A passing run reports `INSTRUMENTATION_CODE: -1`.
+
 ### Backend
 ```sh
 cd backend

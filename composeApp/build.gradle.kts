@@ -90,6 +90,7 @@ android {
     namespace = "ch.ciuin.app"
     sourceSets.getByName("main").assets.srcDirs(listenerAssets, mapAssets, "src/androidMain/assets")
     sourceSets.getByName("main").res.srcDir(fontResources)
+    sourceSets.getByName("androidTest").assets.srcDir(rootProject.layout.projectDirectory.dir("ml/export/test_clips"))
     androidResources.noCompress += "tflite"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     defaultConfig {
@@ -98,6 +99,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "0.1"
+        testInstrumentationRunner = "ch.ciuin.app.listener.StudentModelVerification"
         // Backend URL: default = the hosted backend on Railway. Override with -Pciuin.apiUrl=...
         // (http://10.0.2.2:8000 = a backend on the host machine, as seen from the Android emulator; or "fake").
         val apiUrl = (project.findProperty("ciuin.apiUrl") as String?) ?: "https://ciuin-production.up.railway.app"
