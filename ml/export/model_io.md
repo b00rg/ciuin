@@ -77,7 +77,7 @@ Same signature for every model: `waveform [1, 15600]` in, `probabilities [1, 9]`
 | File | Params | MACs / window | What |
 |---|---:|---:|---|
 | `audio-student-s.tflite` | 68k | 29.5M | Retrained with FSD50K + augmentation. Test macro-F1 0.671 (Handoff 1 S: 0.532 on the same test split) |
-| `audio-student-m.tflite` | 259k | 50.0M | Same architecture, 2× wide, 1.93 MB. Test macro-F1 0.650: **below S for now** (10 epochs wasn't enough; val was still rising). Use S as the default until the overnight retrain |
+| `audio-student-m.tflite` | 259k | 50.0M | Same architecture, 2× wide, 1.93 MB. **Stage 2** (bundled with the app): S runs on every window, and windows where S's top-2 margin < 0.2204 (~15%) are re-run on M. Test macro-F1 **0.702** (3,216 clips; S 0.671), retrained 22 Nov with the frozen CNN14 teacher and a cosine learning-rate schedule, 60 epochs |
 | `audio-student-l.tflite` | 1.0M | 128.3M | Same architecture, 4× wide, 4.91 MB. Test macro-F1 0.612: **below S** (only 5 epochs). For latency / memory benchmarks; better weights come from the GPU retrain |
 | `audio-teacher.tflite` | 4.3M | | Reference only, retrained with FSD50K |
 | `test_clips/expected.json` | | | Regenerated **from the new S**. Same 10 WAVs |

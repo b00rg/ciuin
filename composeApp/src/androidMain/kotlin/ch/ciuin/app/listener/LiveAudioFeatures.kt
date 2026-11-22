@@ -22,10 +22,27 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
     private val output = arrayOf(FloatArray(SoundClass.COUNT))
     // The emulator's arm64 runtime faults in XNNPACK. The built-in CPU kernels match the export.
     private val interpreter = try {
-        Interpreter(loadModel(context), Interpreter.Options().setUseXNNPACK(false))
+        Interpreter(loadModel(context, STAGE1_MODEL_ASSET), Interpreter.Options().setUseXNNPACK(false))
     } catch (error: LinkageError) {
         throw IllegalStateException("Could not load the on-device audio runtime", error)
     }
+    // Stage 2 (cascade.json `stage1_to_2`): the larger student, run only on windows where S is unsure.
+    // Same input/output as S. Missing asset -> stage 1 only.
+    private val stage2 = try {
+        Interpreter(loadModel(context, STAGE2_MODEL_ASSET), Interpreter.Options().setUseXNNPACK(false))
+    } catch (error: java.io.IOException) {
+        null
+    }
+    private val escalation = EscalationRule(
+        (context.applicationContext as? ch.ciuin.app.CiuinApplication)?.escalationMargin
+            ?: EscalationRule.DEFAULT_MARGIN,
+    )
+
+    /** Windows classified, and how many of those were escalated to stage 2 (frugality evidence). */
+    var classifiedWindows = 0
+        private set
+    var escalatedWindows = 0
+        private set
 
     fun extract(window: FloatArray): AudioSample {
         val metrics = analyzer.analyze(window)
@@ -35,9 +52,16 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
         val modelWindow = input[0]
         window.copyInto(modelWindow, startIndex = window.size - modelWindow.size)
         val power = modelWindow.sumOf { it.toDouble() * it } / modelWindow.size
+        var model = STAGE1_NAME
         val soundClasses = if (power >= SILENCE_POWER) {
             try {
                 interpreter.run(input, output)
+                classifiedWindows++
+                if (stage2 != null && escalation.shouldEscalate(output[0])) {
+                    stage2.run(input, output) // same window, overwrites S's probabilities
+                    escalatedWindows++
+                    model = STAGE2_NAME
+                }
                 SoundClass.entries.associate { it.label to output[0][it.index].toDouble() }
             } finally {
                 modelWindow.fill(0f)
@@ -46,13 +70,19 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
             modelWindow.fill(0f)
             emptyMap()
         }
-        return AudioSample(dbMean, dbPeak, soundClasses, "Student S")
+        return AudioSample(dbMean, dbPeak, soundClasses, model)
     }
 
-    override fun close() = interpreter.close()
+    override fun close() {
+        interpreter.close()
+        stage2?.close()
+    }
 
     private companion object {
-        const val AUDIO_MODEL_ASSET = "audio-student-s.tflite"
+        const val STAGE1_MODEL_ASSET = "audio-student-s.tflite"
+        const val STAGE2_MODEL_ASSET = "audio-student-m.tflite"
+        const val STAGE1_NAME = "Student S"
+        const val STAGE2_NAME = "Student M"
         const val MODEL_WINDOW_SAMPLES = 15_600
         const val PEAK_WINDOW_SAMPLES = AUDIO_SAMPLE_RATE / 8 // 125 ms RMS
         const val SILENCE_POWER = 1e-6 // -60 dBFS
@@ -76,7 +106,7 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
             return 10.0 * log10(peakToMean)
         }
 
-        fun loadModel(context: Context) = context.assets.openFd(AUDIO_MODEL_ASSET).use { asset ->
+        fun loadModel(context: Context, name: String) = context.assets.openFd(name).use { asset ->
             asset.createInputStream().use { input ->
                 input.channel.map(FileChannel.MapMode.READ_ONLY, asset.startOffset, asset.declaredLength)
             }

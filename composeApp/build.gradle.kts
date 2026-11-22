@@ -12,7 +12,7 @@ plugins {
 val listenerAssets = layout.buildDirectory.dir("generated/listenerAssets")
 val bundleListenerAssets by tasks.registering(Sync::class) {
     from(rootProject.layout.projectDirectory.dir("ml/export")) {
-        include("audio-student-s.tflite", "cascade.json")
+        include("audio-student-s.tflite", "audio-student-m.tflite", "cascade.json")
     }
     from(rootProject.layout.projectDirectory.file("data/processed/places_lausanne.geojson"))
     into(listenerAssets)

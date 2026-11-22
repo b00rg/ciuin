@@ -147,6 +147,46 @@
       }
     },
     "default_model": "audio-student-s",
-    "note": "Thresholds re-fit on the val split after FSD50K joined the index (12,080 windows, harder clips), so the fp32 threshold moved from 0.2576 (Handoff 1 val) to 0.2204."
+    "note": "Thresholds re-fit on the val split after FSD50K joined the index (12,080 windows, harder clips), so the fp32 threshold moved from 0.2576 (Handoff 1 val) to 0.2204.",
+    "stage2_model": "audio-student-m",
+    "stage2_how": "app runs S on every window; if S's top-2 margin < models.audio-student-s.threshold, the same window is re-run on audio-student-m and M's probabilities are used (then smoothed, see live_smoothing)"
+  },
+  "live_smoothing": {
+    "windows": 3,
+    "how": "live alerts score the mean sound-class probabilities of the last `windows` 1 s windows; a silent window (no model run) clears the history",
+    "evaluated_on": "test split, student S (Handoff 2), one decision per second within each clip (cache windows every 0.5 s, every other one kept), 3,116 clips, 16,653 decisions",
+    "by_windows": {
+      "1": {
+        "window_acc": 0.5783,
+        "window_macro_f1": 0.552,
+        "siren_f1": 0.6397,
+        "alarm_beep_f1": 0.6418
+      },
+      "2": {
+        "window_acc": 0.5986,
+        "window_macro_f1": 0.5722,
+        "siren_f1": 0.669,
+        "alarm_beep_f1": 0.6587
+      },
+      "3": {
+        "window_acc": 0.6032,
+        "window_macro_f1": 0.5774,
+        "siren_f1": 0.6805,
+        "alarm_beep_f1": 0.6588
+      },
+      "4": {
+        "window_acc": 0.6058,
+        "window_macro_f1": 0.5797,
+        "siren_f1": 0.6863,
+        "alarm_beep_f1": 0.66
+      },
+      "5": {
+        "window_acc": 0.6076,
+        "window_macro_f1": 0.5807,
+        "siren_f1": 0.6863,
+        "alarm_beep_f1": 0.6601
+      }
+    },
+    "why_3": "most of the gain (macro-F1 +2.5, siren F1 +4.1 over one window); 4-5 windows add <0.4 more but delay alerts further"
   }
 }
