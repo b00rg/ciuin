@@ -3,6 +3,7 @@ package ch.ciuin.app.insight
 import ch.ciuin.app.Category
 import ch.ciuin.app.Level
 import ch.ciuin.app.heat.AccessShares
+import ch.ciuin.app.heat.BreakdownSection
 import ch.ciuin.app.heat.ViewBounds
 import ch.ciuin.app.heat.summarise
 import ch.ciuin.shared.api.NoisePeriod
@@ -23,7 +24,12 @@ data class PersonalInsight(
     val crowdLevel: Level?,
 )
 
-data class SoundInsight(val noise: RatedMean?, val roadMeanDb: Double?, val railMeanDb: Double?)
+data class SoundInsight(
+    val noise: RatedMean?,
+    val roadMeanDb: Double?,
+    val railMeanDb: Double?,
+    val measuredSoundTypes: BreakdownSection? = null,
+)
 data class AccessInsight(val shares: AccessShares?, val taggedPlaces: Int)
 
 data class AreaInsight(
@@ -66,6 +72,7 @@ fun areaInsight(
             noise = sound.mean?.let { RatedMean(it, Category.SOUND.levelOf(it)) },
             roadMeanDb = sound.roadMeanDb,
             railMeanDb = sound.railMeanDb,
+            measuredSoundTypes = sound.measuredSoundTypes,
         ),
         light = light,
         crowd = crowd,

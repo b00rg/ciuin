@@ -92,6 +92,7 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.roundToInt
 
 private val categories = listOf(Category.PERSONAL, Category.SOUND, Category.LIGHT, Category.CROWD, Category.ACCESS)
 private val layers = categories.map { if (it == Category.PERSONAL) "For you" else it.title }
@@ -183,11 +184,12 @@ internal fun MapScreen(
             }
         }
         val visibleBounds = bounds
-        val markers = remember(places, selected, chosenLayer, personalScores, nearest, streetLevel, route, noise, visibleBounds, overviewPins) {
+        val showHeat = data.showHeat
+        val markers = remember(places, selected, chosenLayer, personalScores, nearest, streetLevel, route, noise, visibleBounds, overviewPins, showHeat) {
             val shown = when {
                 route != null -> listOfNotNull(byId[route.destinationId])
                 selected != null -> listOf(selected)
-                streetLevel -> places
+                streetLevel || !showHeat -> places
                 !overviewPins -> emptyList()
                 else -> sequenceOf(nearest?.place).filterNotNull()
                     .plus(places.asSequence().filter { visibleBounds.containsLocation(it.lat, it.lon) }
@@ -201,7 +203,7 @@ internal fun MapScreen(
             shown.map { place ->
                 val value = chosenLayer.mapValue(place, personalScores[place.placeId], noise)
                 val level = value?.let(chosenLayer::levelOf).toUi()
-                MapMarker(place.placeId, place.lat, place.lon, place.name, level, showLabel = !streetLevel)
+                MapMarker(place.placeId, place.lat, place.lon, place.name, level, showLabel = !streetLevel && showHeat)
             }
         }
         val routeTop = routeHeaderPx + with(density) { 12.dp.toPx() }
@@ -224,10 +226,10 @@ internal fun MapScreen(
                 if (route == null) onSelectPlace(marker?.let { byId[it.id] })
             },
             modifier = Modifier.fillMaxSize(),
-            heat = heat,
+            heat = if (showHeat) heat else emptyList(),
             routeOverlay = overlay,
             userLocation = userLocation,
-            layerKey = chosenLayer to noise,
+            layerKey = if (showHeat) chosenLayer to noise else null,
             reduceMotion = reduceMotion,
             tileCache = tiles,
         )
@@ -258,7 +260,10 @@ internal fun MapScreen(
                         else "Some map details may be missing",
                     )
                 } else {
-                    listening?.message?.let {
+                    val liveStatus = listening?.message ?: personal.liveScore?.let {
+                        "Live overwhelm ${(it * 100).roundToInt()}%"
+                    } ?: "Waiting for live audio…".takeIf { listening?.isListening == true }
+                    liveStatus?.let {
                         Text(
                             it,
                             Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -309,7 +314,7 @@ internal fun MapScreen(
                             Modifier.align(Alignment.BottomEnd).padding(bottom = 14.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            MapControls(state, viewport, tilePx)
+                            MapControls(state, viewport, tilePx, showHeat) { data.showHeat = !showHeat }
                             RoundIconButton(
                                 CiuinIcons.Gps01, "My location",
                                 onClick = {
@@ -392,7 +397,7 @@ private fun MapOverlay(
 }
 
 @Composable
-private fun MapControls(state: MapState, viewport: Size, tilePx: Float) {
+private fun MapControls(state: MapState, viewport: Size, tilePx: Float, showHeat: Boolean, toggleHeat: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         RoundIconButton(CiuinIcons.Maps, "Map controls", { open = true }, style = RoundIconButtonStyle.Floating)
@@ -411,6 +416,10 @@ private fun MapControls(state: MapState, viewport: Size, tilePx: Float) {
             }, enabled = state.zoom > MapState.MIN_ZOOM)
             DropdownMenuItem({ Text("Center on Lausanne", style = CiuinType.Label) }, {
                 state.centerOn(LAUSANNE_LAT, LAUSANNE_LON, LAUSANNE_ZOOM)
+                open = false
+            })
+            DropdownMenuItem({ Text(if (showHeat) "Hide heatmap" else "Show heatmap", style = CiuinType.Label) }, {
+                toggleHeat()
                 open = false
             })
         }

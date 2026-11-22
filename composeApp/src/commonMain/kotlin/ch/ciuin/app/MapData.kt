@@ -45,6 +45,7 @@ internal class MapData {
     var loaded by mutableStateOf(false)
         private set
     var noisePeriod by mutableStateOf(NoisePeriod.DAY)
+    var showHeat by mutableStateOf(true)
     var grids by mutableStateOf<Map<NoisePeriod, NoiseGrid>>(emptyMap())
         private set
     var retryCount by mutableIntStateOf(0)

@@ -168,6 +168,7 @@ data class AreaSummary(
     val roadMeanDb: Double? = null,
     val railMeanDb: Double? = null,
     val accessShares: AccessShares? = null,
+    val measuredSoundTypes: BreakdownSection? = null,
 )
 
 data class AccessShares(val accessible: Double, val limited: Double, val notAccessible: Double)
@@ -215,6 +216,17 @@ fun summarise(
         )
     } else null
 
+    val measured = if (category == Category.SOUND && noisePeriod == NoisePeriod.DAY) {
+        placesIn.mapNotNull { it.measured }
+    } else emptyList()
+    val measuredSoundTypes = if (measured.isNotEmpty()) {
+        val totalN = measured.sumOf { it.n }.toDouble()
+        val shares = SOUND_GROUPS.map { (label, classes) ->
+            Share(label, measured.sumOf { m -> m.n * classes.sumOf { m.features.sound(it) } } / totalN)
+        }.filter { it.fraction >= 0.01 }.sortedByDescending { it.fraction }.take(5)
+        if (shares.isEmpty()) null else BreakdownSection("Measured sound types (${measured.size} places)", shares)
+    } else null
+
     val sections = buildList {
         when (category) {
             Category.SOUND -> {
@@ -227,14 +239,7 @@ fun summarise(
                         Share("Rail", railEnergy / (roadEnergy + railEnergy)),
                     ).sortedByDescending { it.fraction }))
                 }
-                val measured = if (noisePeriod == NoisePeriod.DAY) placesIn.mapNotNull { it.measured } else emptyList()
-                if (measured.isNotEmpty()) {
-                    val totalN = measured.sumOf { it.n }.toDouble()
-                    val shares = SOUND_GROUPS.map { (label, classes) ->
-                        Share(label, measured.sumOf { m -> m.n * classes.sumOf { m.features.sound(it) } } / totalN)
-                    }.filter { it.fraction >= 0.01 }.sortedByDescending { it.fraction }.take(5)
-                    add(BreakdownSection("Measured sound types (${measured.size} places)", shares))
-                }
+                measuredSoundTypes?.let(::add)
             }
             Category.ACCESS -> {
                 if (access != null) {
@@ -253,5 +258,6 @@ fun summarise(
         roadMeanDb = Averaging.DECIBELS.mean(road),
         railMeanDb = Averaging.DECIBELS.mean(rail),
         accessShares = access,
+        measuredSoundTypes = measuredSoundTypes,
     )
 }

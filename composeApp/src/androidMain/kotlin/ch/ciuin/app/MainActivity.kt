@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.snapshotFlow
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import ch.ciuin.app.core.AndroidListeningControl
 import ch.ciuin.app.core.AndroidLocationSource
@@ -26,6 +27,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
         val app = ciuin
         val permissions = AndroidPermissions(this)
         location = AndroidLocationSource(this)

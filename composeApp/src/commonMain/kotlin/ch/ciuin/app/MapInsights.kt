@@ -113,18 +113,6 @@ internal fun MapInsights(
                     LevelGlyph(personalLevel(nearest.predictedOverwhelm))
                 }
             }
-            if (liveFeedback != null) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SecondaryButton(
-                        "Too much", { liveFeedback(1) }, Modifier.weight(1f),
-                        SecondaryButtonSize.Small, enabled = feedbackEnabled,
-                    )
-                    SecondaryButton(
-                        "This is fine", { liveFeedback(0) }, Modifier.weight(1f),
-                        SecondaryButtonSize.Small, enabled = feedbackEnabled,
-                    )
-                }
-            }
         }
         Category.SOUND -> SoundPanel(insight.sound, noisePeriod, onNoisePeriod)
         Category.LIGHT -> MeasuredPanel("Light", insight.light, category, onMeasure)
@@ -156,6 +144,18 @@ internal fun MapInsights(
             )
         }
     }
+    if (liveFeedback != null) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            SecondaryButton(
+                "Too much", { liveFeedback(1) }, Modifier.weight(1f),
+                SecondaryButtonSize.Small, enabled = feedbackEnabled,
+            )
+            SecondaryButton(
+                "This is fine", { liveFeedback(0) }, Modifier.weight(1f),
+                SecondaryButtonSize.Small, enabled = feedbackEnabled,
+            )
+        }
+    }
 }
 
 @Composable
@@ -175,6 +175,14 @@ private fun SoundPanel(sound: SoundInsight, period: NoisePeriod, onPeriod: (Nois
             Text("Where it comes from", style = CiuinType.Label)
             sound.roadMeanDb?.let { SourceBar("Road", it) }
             sound.railMeanDb?.let { SourceBar("Rail", it) }
+        }
+    }
+    sound.measuredSoundTypes?.let { soundTypes ->
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(soundTypes.heading, style = CiuinType.Label)
+            soundTypes.shares.forEach { share ->
+                BarRow(share.label, share.fraction.toFloat(), percent(share.fraction), labelWidth = 132.dp)
+            }
         }
     }
 }
