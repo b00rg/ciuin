@@ -10,14 +10,15 @@ import androidx.compose.ui.platform.ViewConfiguration
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.ComposeUIViewController
-import ch.ciuin.app.core.AlertCenter
 import ch.ciuin.app.core.AppEnvironment
+import ch.ciuin.app.core.IosListeningControl
 import ch.ciuin.app.core.IosLocationSource
 import ch.ciuin.app.core.IosPermissions
 import ch.ciuin.app.core.IosSettingsStorage
 import ch.ciuin.app.core.ModelCatalog
 import ch.ciuin.app.core.RouteController
 import ch.ciuin.app.core.SettingsController
+import ch.ciuin.app.measure.IosAudioCapture
 import ch.ciuin.app.measure.IosMeasurementCapture
 import ch.ciuin.app.measure.IosMeasurementDevices
 import ch.ciuin.app.measure.MeasurementController
@@ -39,17 +40,20 @@ fun MainViewController(measurementDevices: IosMeasurementDevices) = ComposeUIVie
         val api = createPlacesApi(BundledPlacesApi(::readBundledPlaces))
         val personal = PersonalModelController(IosPersonalModelStorage(), scope)
         val settings = SettingsController(IosSettingsStorage(), UIAccessibilityIsReduceMotionEnabled(), scope)
+        val permissions = IosPermissions(scope, location)
+        val audio = IosAudioCapture(measurementDevices, settings, scope)
+        val capture = IosMeasurementCapture(measurementDevices, audio)
         val router = WalkingRouter()
         val routes = RouteController(scope, router)
+        val listening = IosListeningControl(audio, settings, permissions, personal, routes, scope)
         AppEnvironment(
-            api, personal, router, settings, IosPermissions(scope, location), location,
-            listening = null,
-            alerts = AlertCenter(settings, routes, scope, recordOkay = { alert ->
-                personal.recordAlertFeedback(alert.window, label = 0)
-            }),
+            api, personal, router, settings, permissions, location,
+            listening = listening.takeIf { audio.availableModels.isNotEmpty() },
+            alerts = listening.alerts,
             routes = routes,
-            measurement = MeasurementController(IosMeasurementCapture(measurementDevices), api, settings, location, scope),
-            models = ModelCatalog(settings, emptySet()).apply { load(scope) },
+            measurement = MeasurementController(capture, api, settings, location, scope),
+            models = ModelCatalog(settings, audio.availableModels, runningVariant = { audio.activeVariant })
+                .apply { load(scope) },
         )
     }
     DisposableEffect(environment) {
@@ -60,13 +64,13 @@ fun MainViewController(measurementDevices: IosMeasurementDevices) = ComposeUIVie
             location.setForeground(value)
             if (value) {
                 environment.permissions.refresh()
+                (environment.listening as? IosListeningControl)?.refreshStats()
                 environment.settings.refreshSystemReduceMotion(UIAccessibilityIsReduceMotionEnabled())
             }
         }
         foreground(UIApplication.sharedApplication.applicationState != UIApplicationStateBackground)
         val background = notifications.addObserverForName(UIApplicationDidEnterBackgroundNotification, null, queue) {
             foreground(false)
-            measurementDevices.stopAll()
         }
         val foregrounded = notifications.addObserverForName(UIApplicationDidBecomeActiveNotification, null, queue) {
             foreground(true)
@@ -74,6 +78,7 @@ fun MainViewController(measurementDevices: IosMeasurementDevices) = ComposeUIVie
         onDispose {
             notifications.removeObserver(background)
             notifications.removeObserver(foregrounded)
+            environment.listening?.setListening(false)
             location.stop()
             measurementDevices.stopAll()
             environment.walkingRouter?.close()

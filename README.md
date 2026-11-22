@@ -33,6 +33,8 @@ open iosApp/iosApp.xcodeproj           # iOS on macOS: select a simulator and ru
 ```
 The first build downloads Gradle and dependencies (a few minutes).
 
+Both mobile apps use the Student S and M models in `ml/export` for Measure and background listening. Student S reruns uncertain windows on Student M. Selecting Student M runs it directly. Xcode resolves Google's pinned LiteRT package on the first iOS build. Run the `iosApp` scheme's tests to check both bundled models and the cascade against the reference audio clips.
+
 **Which backend the app talks to:**
 | Target | Default | Override |
 |---|---|---|

@@ -1,18 +1,13 @@
 package ch.ciuin.app.measure
 
-import ch.ciuin.shared.audio.Stage0AudioAnalyzer
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.Foundation.NSData
 import platform.UIKit.UIDevice
-import platform.posix.memcpy
 import kotlin.coroutines.resume
-import kotlin.math.log10
 
 interface IosMeasurementOperation {
     fun stop()
@@ -26,6 +21,7 @@ interface IosCameraSink {
 
 interface IosMicrophoneSink {
     fun window(samples: NSData, sampleRate: Int)
+    fun level(value: Float)
     fun ended()
 }
 
@@ -33,15 +29,24 @@ interface IosPermissionSink {
     fun complete(camera: Boolean, microphone: Boolean)
 }
 
+interface IosAudioClassifier {
+    /** Consumes a borrowed Float32 model window synchronously and returns nine Float32 probabilities. */
+    fun classify(window: NSData): NSData?
+}
+
 interface IosMeasurementDevices {
     fun requestPermissions(sink: IosPermissionSink)
     fun startCamera(sink: IosCameraSink): IosMeasurementOperation
     fun startMicrophone(sink: IosMicrophoneSink): IosMeasurementOperation
+    fun supportsAudioClassifier(modelVariant: String): Boolean
+    fun createAudioClassifier(modelVariant: String): IosAudioClassifier?
     fun stopAll()
 }
 
-@OptIn(ExperimentalForeignApi::class)
-internal class IosMeasurementCapture(private val devices: IosMeasurementDevices) : MeasurementCapture {
+internal class IosMeasurementCapture(
+    private val devices: IosMeasurementDevices,
+    private val audioCapture: IosAudioCapture,
+) : MeasurementCapture {
     override val device = "iOS ${UIDevice.currentDevice.model}"
     override val canMeasureLux = false
 
@@ -72,45 +77,7 @@ internal class IosMeasurementCapture(private val devices: IosMeasurementDevices)
         awaitClose(operation::stop)
     }
 
-    override fun audio() = callbackFlow {
-        val operation = devices.startMicrophone(object : IosMicrophoneSink {
-            private var analyzer: Stage0AudioAnalyzer? = null
+    override fun audio() = audioCapture.windows.map { it.getOrThrow() }
 
-            override fun window(samples: NSData, sampleRate: Int) {
-                if (sampleRate !in 8_000..192_000 || samples.length != (sampleRate * Float.SIZE_BYTES).toULong()) return
-                val window = FloatArray(sampleRate)
-                try {
-                    window.usePinned { memcpy(it.addressOf(0), samples.bytes, samples.length) }
-                    val meter = analyzer?.takeIf { it.sampleRateHz == sampleRate }
-                        ?: Stage0AudioAnalyzer(sampleRate).also { analyzer = it }
-                    val mean = meter.analyze(window).levelDbfsA.coerceAtLeast(-120.0)
-                    trySend(AudioSample(mean, mean + peakAboveMean(window), null, null, dbfs = true))
-                } finally {
-                    window.fill(0f)
-                }
-            }
-
-            override fun ended() {
-                close()
-            }
-        })
-        awaitClose(operation::stop)
-    }
-}
-
-private fun peakAboveMean(window: FloatArray): Double {
-    var totalPower = 0.0
-    var peak = 0.0
-    for (block in 0 until 8) {
-        val first = block * window.size / 8
-        val last = (block + 1) * window.size / 8
-        var blockPower = 0.0
-        for (index in first until last) {
-            val sample = window[index].toDouble()
-            blockPower += sample * sample
-        }
-        totalPower += blockPower
-        peak = maxOf(peak, blockPower / (last - first))
-    }
-    return if (totalPower > 0.0) 10.0 * log10(peak / (totalPower / window.size)) else 0.0
+    override fun audioLevels() = audioCapture.levels
 }

@@ -1,10 +1,25 @@
 import AVFoundation
 import ComposeApp
+import OSLog
 import UIKit
 
 final class MeasurementDevices: NSObject, IosMeasurementDevices {
+    private static let log = Logger(subsystem: "ch.ciuin.app", category: "MeasurementDevices")
     private weak var camera: CameraMeasurement?
     private weak var microphone: MicrophoneMeasurement?
+
+    func supportsAudioClassifier(modelVariant: String) -> Bool {
+        StudentAudioClassifier.modelPath(variant: modelVariant) != nil
+    }
+
+    func createAudioClassifier(modelVariant: String) -> IosAudioClassifier? {
+        do {
+            return try StudentAudioClassifier(variant: modelVariant)
+        } catch {
+            Self.log.error("Could not start Student \(modelVariant, privacy: .public): \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
 
     func requestPermissions(sink: IosPermissionSink) {
         requestCamera { camera in
