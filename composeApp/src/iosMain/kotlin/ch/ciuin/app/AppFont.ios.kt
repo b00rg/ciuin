@@ -24,6 +24,10 @@ internal actual val appFontFamily: FontFamily by lazy {
     )
 }
 
+internal actual val displayFontFamily: FontFamily by lazy {
+    FontFamily(Font("Pressworn-Regular", bundledFont("pressworn_regular"), FontWeight.Normal))
+}
+
 /** The one glyph the app uses that Poppins lacks, cut from the Noto Sans Symbols that Android falls back to. */
 internal actual val symbolFontFamily: FontFamily? by lazy {
     FontFamily(Font("NotoSansSymbols-House", bundledFont("NotoSansSymbols-House")))

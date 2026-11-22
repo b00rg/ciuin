@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import ch.ciuin.app.core.LocationSource
+import ch.ciuin.app.core.MeasurementRecord
 import ch.ciuin.app.core.SettingsController
 import ch.ciuin.app.route.RoutePoint
 import ch.ciuin.shared.api.FallbackPlacesApi
@@ -191,7 +192,7 @@ internal class MeasurementController(
 
     private suspend fun share(measurement: Measurement): MeasurementResult {
         val result = api.postMeasurement(measurement)
-        if (result.stored || fallback != null) settings.recordSharedMeasurement()
+        if (result.stored || fallback != null) settings.recordSharedMeasurement(measurement.toRecord(place))
         refreshPending()
         return result
     }
@@ -211,3 +212,19 @@ internal class MeasurementController(
 }
 
 private fun coarseCoordinate(value: Double) = round(value * 1_000) / 1_000
+
+/** What the You tab keeps of a shared measurement: where, when, and the numbers that were sent. */
+private fun Measurement.toRecord(chosen: Place?): MeasurementRecord {
+    val listed = placeId.takeUnless { it == UNLISTED_MEASUREMENT_PLACE_ID }
+    return MeasurementRecord(
+        placeId = listed,
+        placeName = chosen?.takeIf { listed != null && it.placeId == listed }?.name,
+        lat = lat,
+        lon = lon,
+        timestamp = timestamp,
+        dbMean = features.dbMean,
+        luxMean = features.luxMean,
+        nearbyDevices = features.nearbyDevices,
+        flickerHz = flickerHz,
+    )
+}

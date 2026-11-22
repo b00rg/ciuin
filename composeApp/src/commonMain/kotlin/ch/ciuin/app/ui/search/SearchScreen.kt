@@ -38,6 +38,7 @@ import ch.ciuin.app.route.distanceMeters
 import ch.ciuin.app.ui.characters.Sheep
 import ch.ciuin.app.ui.characters.SheepPose
 import ch.ciuin.app.ui.components.CharacterTile
+import ch.ciuin.app.ui.doodles.Doodle
 import ch.ciuin.app.ui.components.PlaceResultRow
 import ch.ciuin.app.ui.components.RecentRow
 import ch.ciuin.app.ui.components.SearchField
@@ -176,7 +177,7 @@ private fun NoMatch(query: String) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        CharacterTile { Sheep(SheepPose.Reading, Modifier.size(56.dp), contentDescription = null) }
+        CharacterTile(doodle = Doodle.Squiggle) { Sheep(SheepPose.Reading, Modifier.size(56.dp), contentDescription = null) }
         TitleBlock(
             title = "Nothing called “$query” yet",
             modifier = Modifier.weight(1f),

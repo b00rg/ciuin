@@ -2,8 +2,10 @@ package ch.ciuin.app
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -16,6 +18,8 @@ import ch.ciuin.app.insight.SoundInsight
 import ch.ciuin.app.insight.SoundSources
 import ch.ciuin.app.insight.walkingMinutes
 import ch.ciuin.app.route.QuietSpot
+import ch.ciuin.app.ui.characters.LayerCharacter
+import ch.ciuin.app.ui.characters.LayerSheep
 import ch.ciuin.app.ui.characters.Sheep
 import ch.ciuin.app.ui.characters.SheepPose
 import ch.ciuin.app.ui.components.BarRow
@@ -134,11 +138,9 @@ internal fun MapInsights(
         Category.ACCESS -> {
             val access = insight.access
             val shares = access.shares
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconDisc(CiuinIcons.Wheelchair)
-                TitleBlock(
+            LayerHeader(LayerCharacter.Access, "This area · Access") {
+                LayerTitle(
                     title = shares?.let { "${percent(it.accessible)} wheelchair accessible" } ?: "No access tags here",
-                    modifier = Modifier.weight(1f),
                     subtitle = shares?.let {
                         if (access.taggedPlaces == 1) "From 1 tagged place" else "From ${access.taggedPlaces} tagged places"
                     },
@@ -174,22 +176,21 @@ internal fun MapInsights(
 
 @Composable
 private fun SoundPanel(sound: SoundInsight, period: NoisePeriod, onPeriod: (NoisePeriod) -> Unit) {
-    Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("This area · Sound", style = CiuinType.Eyebrow, color = CiuinColors.SecondaryText)
-            val reading = sound.noise
-            if (reading == null) Text("No sound data", style = CiuinType.Subtitle)
-            else BigReading(dbText(reading.mean), Category.SOUND.levelName(reading.level))
-        }
-        SegmentedControl(listOf("Day", "Night"), period.ordinal, { onPeriod(NoisePeriod.entries[it]) })
+    LayerHeader(LayerCharacter.Sound, "This area · Sound") {
+        val reading = sound.noise
+        if (reading == null) Text("No sound data", style = CiuinType.Subtitle)
+        else BigReading(dbText(reading.mean), Category.SOUND.levelName(reading.level))
     }
+    SegmentedControl(listOf("Day", "Night"), period.ordinal, { onPeriod(NoisePeriod.entries[it]) })
     LevelLegend(listOf(Level.Calm to "Quiet, under 50", Level.Moderate to "Moderate", Level.Loud to "Loud, over 65"))
-    if (sound.roadMeanDb != null || sound.railMeanDb != null) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Where it comes from", style = CiuinType.Label)
-            sound.roadMeanDb?.let { SourceBar("Road", it) }
-            sound.railMeanDb?.let { SourceBar("Rail", it) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Where it comes from", style = CiuinType.Label)
+        if (sound.roadMeanDb == null && sound.railMeanDb == null) {
+            // Say so rather than leave a gap: outside the noise data the section would otherwise vanish.
+            Text("No road or rail data here yet", style = CiuinType.BodySmall, color = CiuinColors.SecondaryText)
         }
+        sound.roadMeanDb?.let { SourceBar("Road", it) }
+        sound.railMeanDb?.let { SourceBar("Rail", it) }
     }
     sound.measuredSoundTypes?.let { soundTypes ->
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -203,8 +204,15 @@ private fun SoundPanel(sound: SoundInsight, period: NoisePeriod, onPeriod: (Nois
 
 @Composable
 private fun SourceBar(label: String, db: Double) {
-    BarRow(label, Category.SOUND.heat(db).toFloat(), dbText(db), labelWidth = 48.dp, valueWidth = 48.dp, gap = 12.dp)
+    BarRow(label, sourceBarFraction(db), dbText(db), labelWidth = 48.dp, valueWidth = 48.dp, gap = 12.dp)
 }
+
+/**
+ * Bar length for a noise source on a plain dB scale, 20 dB (silent) to 80 dB (very loud). Not the map's
+ * level scale, which treats everything quieter than "quiet" as empty: a 27 dB railway would draw no bar.
+ * Any measured source keeps a sliver, so a quiet one never looks missing.
+ */
+internal fun sourceBarFraction(db: Double): Float = ((db - 20.0) / 60.0).coerceIn(0.04, 1.0).toFloat()
 
 @Composable
 private fun MeasuredPanel(
@@ -215,21 +223,18 @@ private fun MeasuredPanel(
     flickerIndex: Double? = null,
 ) {
     val isLight = category == Category.LIGHT
+    val character = if (isLight) LayerCharacter.Light else LayerCharacter.Crowd
     if (insight is MeasuredInsight.Data) {
-        Text("This area · $name", style = CiuinType.Eyebrow, color = CiuinColors.SecondaryText)
-        BigReading(
-            if (isLight) "${insight.mean.roundToInt()} lux" else "${insight.mean.roundToInt()} devices",
-            category.levelName(insight.level),
-        )
+        LayerHeader(character, "This area · $name") {
+            BigReading(
+                if (isLight) "${insight.mean.roundToInt()} lux" else "${insight.mean.roundToInt()} devices",
+                category.levelName(insight.level),
+            )
+        }
     } else {
-        Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            CharacterTile(size = 84.dp, cornerRadius = 28.dp) {
-                Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null)
-            }
-            TitleBlock(
+        LayerHeader(character, "This area · $name") {
+            LayerTitle(
                 title = if (isLight) "No brightness readings yet" else "No crowd readings yet",
-                modifier = Modifier.weight(1f),
-                eyebrow = "This area · $name",
                 subtitle = if (isLight) "Light and flicker come from phones. A 30-second measure can add a reading."
                 else "Nearby Bluetooth devices give an estimate of how busy a place is.",
             )
@@ -257,11 +262,9 @@ internal fun flickerLevel(index: Double): Level = when {
 
 @Composable
 private fun FlickerPanel(index: Double?, onMeasure: (() -> Unit)?) {
-    if (index != null) {
-        Text("This area · Flicker", style = CiuinType.Eyebrow, color = CiuinColors.SecondaryText)
-        BigReading(index.fmt2(), "Measured flicker index")
-    } else {
-        TitleBlock("No flicker readings yet", eyebrow = "This area · Flicker", subtitle = "A camera measurement can add a reading.")
+    LayerHeader(LayerCharacter.Light, "This area · Flicker") {
+        if (index != null) BigReading(index.fmt2(), "Measured flicker index")
+        else LayerTitle("No flicker readings yet", "A camera measurement can add a reading.")
     }
     LevelLegend(listOf(Level.Calm to "Low", Level.Moderate to "Moderate", Level.Loud to "High", Level.NoData to "No data"))
     if (index == null && onMeasure != null) PrimaryButton("Measure where I am", onMeasure, Modifier.fillMaxWidth())
@@ -275,3 +278,32 @@ private fun ShareRow(label: String, value: Double, level: Level) {
 }
 
 private fun percent(share: Double): String = "${(share * 100).roundToInt()}%"
+
+/**
+ * The head of every layer sheet: the layer's sheep in a wool tile, then "This area · <layer>" over the
+ * reading or verdict in [content]. The For you layer has its own, with the sheep's mood.
+ */
+@Composable
+private fun LayerHeader(character: LayerCharacter, eyebrow: String, content: @Composable ColumnScope.() -> Unit) =
+    LayerHeader(eyebrow, { CharacterTile { LayerSheep(character) } }, content)
+
+/** A [LayerHeader] with another [picture] on the left: the wheelchair disc on the Access layer. */
+@Composable
+private fun LayerHeader(eyebrow: String, picture: @Composable () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    // The picture is pinned to the top and the text starts a little lower, so the picture's top sits
+    // just above the eyebrow however many lines the text runs to (as on the Sound sheet).
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
+        picture()
+        Column(Modifier.weight(1f).padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(eyebrow, style = CiuinType.Eyebrow, color = CiuinColors.SecondaryText)
+            content()
+        }
+    }
+}
+
+/** A verdict and its second line under a [LayerHeader] eyebrow, in the type of a [TitleBlock]. */
+@Composable
+private fun LayerTitle(title: String, subtitle: String?) {
+    Text(title, style = CiuinType.SheetTitle)
+    if (subtitle != null) Text(subtitle, style = CiuinType.BodySmall, color = CiuinColors.SecondaryText)
+}

@@ -53,11 +53,7 @@ internal fun OnboardingPermissions(environment: AppEnvironment) {
     }
     Column {
         for ((index, row) in PermissionRows.withIndex()) {
-            val status = if (row.permission == AppPermission.NOTIFICATIONS && environment.listening == null) {
-                PermissionStatus.UNAVAILABLE
-            } else {
-                permissions.status(row.permission)
-            }
+            val status = permissions.status(row.permission)
             val divider = index != PermissionRows.lastIndex
             if (status == PermissionStatus.UNAVAILABLE || requesting == row.permission) {
                 PermissionStatusRow(row, divider, if (status == PermissionStatus.UNAVAILABLE) "Unavailable" else "Waiting…")
@@ -125,5 +121,4 @@ private val PermissionRows = listOf(
     PermissionCopy(AppPermission.MICROPHONE, CiuinIcons.Mic01, "Microphone", "Loudness, on this phone."),
     PermissionCopy(AppPermission.CAMERA, CiuinIcons.Camera01, "Camera", "Light and flicker."),
     PermissionCopy(AppPermission.LOCATION, CiuinIcons.Location01, "Location", "Quiet places near you."),
-    PermissionCopy(AppPermission.NOTIFICATIONS, CiuinIcons.Notification02, "Gentle alerts", "A nudge before overload."),
 )

@@ -12,4 +12,6 @@ internal actual val appFontFamily: FontFamily = FontFamily(
     Font(R.font.poppins_bold, FontWeight.Bold),
 )
 
+internal actual val displayFontFamily: FontFamily = FontFamily(Font(R.font.pressworn_regular, FontWeight.Normal))
+
 internal actual val symbolFontFamily: FontFamily? = null

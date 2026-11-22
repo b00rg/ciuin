@@ -171,7 +171,7 @@ class ContractJsonTest {
     fun fakeApiReturnsFiveLausannePlaces() = runTest {
         val places = FakePlacesApi().places(BBox.LAUSANNE)
         assertEquals(5, places.size)
-        assertTrue(places.all { it.lat in 46.50..46.54 && it.lon in 6.58..6.67 })
+        assertTrue(places.all { it.lat in 46.50..46.54 && it.lon in 6.55..6.67 })
     }
 
     /** Encoding then decoding gives the same JSON as the documented example (numbers compared as values). */

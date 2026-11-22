@@ -1,11 +1,5 @@
 package ch.ciuin.app.ui.measure
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.height
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.semantics.contentDescription
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -33,7 +27,6 @@ import ch.ciuin.app.measure.MEASUREMENT_SECONDS
 import ch.ciuin.app.measure.MeasurementPhase
 import ch.ciuin.app.measure.MeasurementReadings
 import ch.ciuin.app.measure.MeasurementReview
-import ch.ciuin.app.ui.characters.Duck
 import ch.ciuin.app.ui.characters.SharedScene
 import ch.ciuin.app.ui.characters.Sheep
 import ch.ciuin.app.ui.characters.SheepPose
@@ -44,13 +37,11 @@ import ch.ciuin.app.ui.components.MeasureRing
 import ch.ciuin.app.ui.components.PrimaryButton
 import ch.ciuin.app.ui.components.ReadingRow
 import ch.ciuin.app.ui.components.SecondaryButton
+import ch.ciuin.app.ui.components.SoundWaveform
 import ch.ciuin.app.ui.components.StatTile
 import ch.ciuin.app.ui.components.StatTileStyle
 import ch.ciuin.app.ui.components.SummaryTile
 import ch.ciuin.app.ui.components.TextLinkButton
-import ch.ciuin.app.ui.components.TitleBlock
-import ch.ciuin.app.ui.components.WoolCard
-import ch.ciuin.app.ui.components.WoolCardStyle
 import ch.ciuin.app.ui.icons.CiuinIcons
 import ch.ciuin.app.ui.theme.CiuinColors
 import ch.ciuin.app.ui.theme.CiuinType
@@ -95,7 +86,7 @@ internal fun MeasureCaptureScreen(
                     drawProgress = { if (reduceMotion) progress else smoothProgress.floatValue },
                     diameter = diameter,
                 ) {
-                    Sheep(SheepPose.Reading, Modifier.size(diameter * (156f / 264f)), contentDescription = null)
+                    Sheep(SheepPose.Reading, Modifier.size(diameter * (156f / 264f)), contentDescription = null, microphone = true)
                 }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -167,16 +158,8 @@ internal fun MeasureReviewScreen(
                 }
             }
             if (review.canUpload) {
-                WoolCard(WoolCardStyle.Reward) {
-                    Duck(Modifier.size(64.dp), contentDescription = null)
-                    TitleBlock(
-                        title = "Share it and a duck joins the pond",
-                        modifier = Modifier.weight(1f),
-                        subtitle = rewardLine(place, review),
-                        titleStyle = CiuinType.Subtitle,
-                        subtitleStyle = CiuinType.Caption,
-                    )
-                }
+                // What sharing sends, said before the button rather than in a reward card.
+                Text(rewardLine(place, review), style = CiuinType.Caption, color = CiuinColors.SecondaryText)
             } else {
                 Text("There are no readings to share.", color = CiuinColors.SecondaryText, style = CiuinType.Body)
             }
@@ -213,12 +196,11 @@ internal fun MeasureSharedScreen(
     stored: Boolean,
     updatedPlace: Place?,
     summary: String?,
-    ducks: Int,
     onBackToMap: () -> Unit,
     onMeasureAgain: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val title = if (stored) "Shared. A duck joined your pond." else "Queued until you're online."
+    val title = if (stored) "Shared with Ciúin. Thanks for adding to the map." else "Queued until you're online."
     val count = updatedPlace?.measured?.n?.takeIf { it > 0 }
     val detail = when {
         !stored -> "Keep Ciúin running so it can send this reading. If the app stops before sending, the reading is lost."
@@ -227,48 +209,13 @@ internal fun MeasureSharedScreen(
     }
     MeasureFrame(modifier) {
         MeasureContent(top = 16.dp, gap = 24.dp) {
-            if (stored) SharedScene(ducks = ducks)
+            if (stored) SharedScene()
             MeasureCopyBlock(title, detail)
             if (summary != null) SummaryTile(summary)
         }
         MeasureFooter(gap = 10.dp) {
             PrimaryButton("Back to the map", onBackToMap, Modifier.fillMaxWidth())
             TextLinkButton("Measure another place", onMeasureAgain, Modifier.fillMaxWidth())
-        }
-    }
-}
-
-private const val WAVEFORM_BARS = 48
-
-/**
- * The last ~5 s of loudness as a quiet row of rounded bars, newest on the right: shows the phone is listening and
- * where the spikes are. Calm on purpose: ink on the ring's track colour, no glow, no colour changes.
- */
-@Composable
-private fun SoundWaveform(levels: Flow<Float>, modifier: Modifier = Modifier) {
-    val bars = remember { mutableStateListOf<Float>().apply { repeat(WAVEFORM_BARS) { add(0f) } } }
-    LaunchedEffect(levels) {
-        levels.collect { level ->
-            bars.removeAt(0)
-            bars.add(level)
-        }
-    }
-    Canvas(
-        modifier.height(44.dp).semantics { contentDescription = "Live sound level" },
-    ) {
-        val slot = size.width / WAVEFORM_BARS
-        val barWidth = slot * 0.55f
-        val minHeight = barWidth
-        val mid = size.height / 2
-        bars.forEachIndexed { i, level ->
-            val h = minHeight + (size.height - minHeight) * level
-            val x = i * slot + (slot - barWidth) / 2
-            drawRoundRect(
-                color = if (level > 0f) CiuinColors.Ink else CiuinColors.RingTrack,
-                topLeft = Offset(x, mid - h / 2),
-                size = Size(barWidth, h),
-                cornerRadius = CornerRadius(barWidth / 2),
-            )
         }
     }
 }

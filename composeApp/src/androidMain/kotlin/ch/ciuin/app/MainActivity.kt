@@ -1,10 +1,12 @@
 package ch.ciuin.app
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import ch.ciuin.app.core.AndroidListeningControl
@@ -18,6 +20,7 @@ import ch.ciuin.app.measure.AndroidMeasurementCapture
 import ch.ciuin.app.measure.MeasurementController
 import ch.ciuin.app.route.quietPlaceRoute
 import ch.ciuin.app.route.saveQuietPlaceRoute
+import ch.ciuin.app.ui.theme.CiuinColors
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -27,7 +30,18 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightStatusBars = true
+        // The status and navigation bars follow the app's palette: dark icons on light, light on dark.
+        lifecycleScope.launch {
+            snapshotFlow { CiuinColors.dark to CiuinColors.Ground.toArgb() }.collect { (dark, ground) ->
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = !dark
+                    isAppearanceLightNavigationBars = !dark
+                }
+                @Suppress("DEPRECATION")
+                window.navigationBarColor = ground
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
+            }
+        }
         val app = ciuin
         val permissions = AndroidPermissions(this)
         location = AndroidLocationSource(this)

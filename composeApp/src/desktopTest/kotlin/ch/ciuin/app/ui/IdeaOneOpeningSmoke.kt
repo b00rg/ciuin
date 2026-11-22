@@ -89,7 +89,7 @@ class IdeaOneOpeningSmoke {
         assertEquals(1, finished)
         var entered = 0
         ImageComposeScene(width = 780, height = 1688, density = Density(2f)) {
-            CiuinTheme(reduceMotion = true) { GlobeOpening(environment, { entered++ }, insets) }
+            CiuinTheme(reduceMotion = true) { GlobeOpening(environment, { _ -> entered++ }, insets) }
         }.use { scene ->
             scene.render(0)
             scene.shot("06-globe", 150)

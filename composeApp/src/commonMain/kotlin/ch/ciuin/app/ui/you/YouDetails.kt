@@ -23,7 +23,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import ch.ciuin.app.core.AppEnvironment
-import ch.ciuin.app.core.ListeningStats
 import ch.ciuin.app.core.ModelInfo
 import ch.ciuin.app.core.ModelVariant
 import ch.ciuin.app.ui.characters.Sheep
@@ -76,7 +75,8 @@ internal fun OnThisPhoneScreen(
     onReset: () -> Unit,
 ) {
     val models = environment.models
-    val variants = models.variants
+    // Only the models this build ships (Student S and M). L stays in the catalogue but isn't offered.
+    val variants = models.variants.filter { it.available }
     val active = models.active
     val selected = models.selected
     val displayed = variants.firstOrNull { it.variant == (active ?: selected) && it.available }
@@ -114,7 +114,7 @@ internal fun OnThisPhoneScreen(
                     val pending = model.variant == selected && active != null && active != selected
                     RadioRow(
                         title = model.variant.sizeLabel,
-                        subtitle = if (pending) "Applies after listening and measuring stop" else model.optionSubtitle,
+                        subtitle = if (pending) "Applies after measuring stops" else model.optionSubtitle,
                         state = when {
                             !model.available -> RadioState.Unavailable
                             model.variant == selected -> RadioState.Selected
@@ -126,41 +126,16 @@ internal fun OnThisPhoneScreen(
                 }
             }
         }
-        ListeningToday(environment.listening?.todayStats)
         personal.state.session?.let { session ->
             val count = session.exampleCount
-            val countText = if (count == 1) "1 saved tap" else "$count saved taps"
             Column {
                 SectionLabel("Personal model", bottomPadding = 0.dp)
-                LinkRow("Your sheep: $countText", "Reset", onReset, actionEnabled = personal.canResetLearnedSettings)
-            }
-        }
-    }
-}
-
-@Composable
-private fun ListeningToday(stats: ListeningStats?) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        SectionLabel("Listening today", bottomPadding = 0.dp)
-        when {
-            stats == null -> Text("Background listening is unavailable on this phone.", style = CiuinType.BodySmall, color = CiuinColors.SecondaryText)
-            stats.totalMillis == 0L -> Text("No background listening activity today.", style = CiuinType.BodySmall, color = CiuinColors.SecondaryText)
-            else -> {
-                BarRow("Asleep, no model", stats.asleepShare.toFloat(), percent(stats.asleepShare), labelWidth = 150.dp)
-                BarRow("Model running", stats.smallModelShare.toFloat(), percent(stats.smallModelShare), labelWidth = 150.dp)
-                if (stats.largeModelMillis > 0) {
-                    BarRow("Large model", stats.largeModelShare.toFloat(), percent(stats.largeModelShare), labelWidth = 150.dp)
-                }
-                if (stats.asleepShare > 0.5) {
-                    IconNote(
-                        icon = CiuinIcons.BatteryFull,
-                        text = "Most of the time no model is running.",
-                        modifier = Modifier.padding(top = 2.dp),
-                        iconSize = 22.dp,
-                        gap = 10.dp,
-                        style = CiuinType.Caption,
-                    )
-                }
+                LinkRow(learnedFromText(count), "Reset", onReset, actionEnabled = personal.canResetLearnedSettings)
+                Text(
+                    "Each time you tap Too much or This is fine, your sheep learns what bothers you.",
+                    style = CiuinType.Caption,
+                    color = CiuinColors.SecondaryText,
+                )
             }
         }
     }
@@ -216,4 +191,11 @@ internal fun WhatIsSharedScreen(insets: WindowInsets, onBack: () -> Unit) {
             )
         }
     }
+}
+
+/** How many of the user's own answers the personal model has learned from: "Learned from 23 of your answers". */
+internal fun learnedFromText(count: Int): String = when (count) {
+    0 -> "Nothing learned yet"
+    1 -> "Learned from 1 of your answers"
+    else -> "Learned from $count of your answers"
 }

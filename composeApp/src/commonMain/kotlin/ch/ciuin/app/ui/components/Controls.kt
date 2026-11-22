@@ -1,5 +1,15 @@
 package ch.ciuin.app.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.snap
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -110,11 +120,53 @@ fun SegmentedControl(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(modifier.background(CiuinColors.Wool, RoundedCornerShape(20.dp)).padding(3.dp)) {
+    // The white pill is drawn behind the options and slides to the chosen one; each option reports
+    // where it sits. Under reduce motion the pill and the text colour change at once.
+    val reduceMotion = LocalReduceMotion.current
+    val bounds = remember(options.size) { mutableStateListOf<Pair<Float, Float>>().apply { repeat(options.size) { add(0f to 0f) } } }
+    val pillX = remember { Animatable(0f) }
+    val pillWidth = remember { Animatable(0f) }
+    val target = bounds.getOrNull(selectedIndex)
+    LaunchedEffect(target) {
+        if (target == null || target.second == 0f) return@LaunchedEffect
+        if (pillWidth.value == 0f || reduceMotion) {
+            pillX.snapTo(target.first)
+            pillWidth.snapTo(target.second)
+        } else {
+            val slide = tween<Float>(CiuinMotion.SWITCH_MILLIS, easing = CiuinMotion.EaseInOut)
+            launch { pillX.animateTo(target.first, slide) }
+            pillWidth.animateTo(target.second, slide)
+        }
+    }
+    Row(
+        modifier
+            .background(CiuinColors.Wool, RoundedCornerShape(20.dp))
+            .padding(3.dp)
+            .drawBehind {
+                // Until the pill has settled once, draw it straight where the chosen option sits, so
+                // the first frame already has it.
+                val (x, width) = if (pillWidth.value > 0f) pillX.value to pillWidth.value
+                else bounds.getOrNull(selectedIndex) ?: (0f to 0f)
+                if (width > 0f) {
+                    drawRoundRect(
+                        CiuinColors.Ground,
+                        topLeft = Offset(x, 0f),
+                        size = Size(width, size.height),
+                        cornerRadius = CornerRadius(size.height / 2),
+                    )
+                }
+            },
+    ) {
         options.forEachIndexed { index, option ->
             val selected = index == selectedIndex
+            val textColor by animateColorAsState(
+                if (selected) CiuinColors.Ink else CiuinColors.SecondaryText,
+                if (reduceMotion) snap() else tween(CiuinMotion.SWITCH_MILLIS, easing = CiuinMotion.EaseInOut),
+                label = "segment text",
+            )
             Box(
                 modifier = Modifier
+                    .onPlaced { bounds[index] = it.positionInParent().x to it.size.width.toFloat() }
                     .semantics { this.selected = selected }
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -123,14 +175,13 @@ fun SegmentedControl(
                         onClick = { onSelect(index) },
                     )
                     .height(34.dp)
-                    .then(if (selected) Modifier.background(CiuinColors.Ground, RoundedCornerShape(17.dp)) else Modifier)
                     .padding(horizontal = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Label(
                     text = option,
                     style = CiuinType.Pill,
-                    color = if (selected) CiuinColors.Ink else CiuinColors.SecondaryText,
+                    color = textColor,
                     maxLines = 1,
                 )
             }
@@ -245,7 +296,7 @@ fun SearchField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.weight(1f).focusRequester(focusRequester).semantics { contentDescription = placeholder },
-            textStyle = CiuinType.Body,
+            textStyle = CiuinType.Body.copy(color = CiuinColors.Ink),
             singleLine = true,
             cursorBrush = SolidColor(CiuinColors.Ink),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),

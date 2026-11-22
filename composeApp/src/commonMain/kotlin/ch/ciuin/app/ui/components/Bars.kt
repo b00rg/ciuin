@@ -1,5 +1,11 @@
 package ch.ciuin.app.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.getValue
+import ch.ciuin.app.ui.theme.CiuinMotion
+import ch.ciuin.app.ui.theme.LocalReduceMotion
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -30,16 +36,23 @@ import ch.ciuin.app.ui.theme.CiuinType
 import kotlin.math.roundToInt
 
 /**
- * The bar itself: 8 high, black on a light grey track, both fully rounded. [fraction] is 0 to 1; the
- * fill is rounded to a whole dp as on the artboards.
+ * The bar itself: 8 high, ink on a light grey track, both fully rounded. [fraction] is 0 to 1; the
+ * fill is rounded to a whole dp as on the artboards. When [fraction] changes (Day to Night on the
+ * Sound sheet) the fill eases to its new length; it does not grow in when first shown, and under
+ * reduce motion it jumps.
  */
 @Composable
 fun ProgressBar(fraction: Float, modifier: Modifier = Modifier) {
-    val clamped = fraction.coerceIn(0f, 1f)
+    val target = fraction.coerceIn(0f, 1f)
+    val clamped by animateFloatAsState(
+        target,
+        if (LocalReduceMotion.current) snap() else tween(CiuinMotion.SWITCH_MILLIS, easing = CiuinMotion.EaseInOut),
+        label = "bar fill",
+    )
     Box(
         modifier
             .height(8.dp)
-            .semantics { progressBarRangeInfo = ProgressBarRangeInfo(clamped, 0f..1f) }
+            .semantics { progressBarRangeInfo = ProgressBarRangeInfo(target, 0f..1f) }
             .drawBehind {
                 val corner = CornerRadius(size.height / 2)
                 drawRoundRect(CiuinColors.Hairline, cornerRadius = corner)

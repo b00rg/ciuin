@@ -108,7 +108,7 @@ internal fun OnboardingFlow(
                         WelcomeScene()
                         OnboardingCopy(
                             "Find your quiet.",
-                            "Ciúin maps how loud, bright and busy places are, so you can choose where to go before you get there.",
+                            "Ciúin, Irish for quiet, maps how loud, bright and busy places are, so you can choose where to go before you get there.",
                             hero = true,
                         )
                     }
@@ -137,7 +137,7 @@ internal fun OnboardingFlow(
                         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             NumberedStep(1, "Tap any place to see how it feels.")
                             NumberedStep(2, "Tell the sheep when it's too much.")
-                            NumberedStep(3, "Measure a place and a duck joins in.")
+                            NumberedStep(3, "Measure a place to help others find calm.")
                         }
                     }
                 }

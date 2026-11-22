@@ -87,7 +87,13 @@ internal fun MeasureTab(
 
     when (phase) {
         MeasurementPhase.Ready, MeasurementPhase.PermissionDenied -> {
-            val origin = environment.location.current?.takeIf { it.isValid }
+            // Fixes arrive about once a second and jitter by metres: recomputing the list on each one reorders
+            // the nearest places and changes their distances under the user's finger. Follow real moves only.
+            val current = environment.location.current?.takeIf { it.isValid }
+            var origin by remember { mutableStateOf(current) }
+            if (current != null && (origin == null || distanceMeters(origin!!, current) > CHOICES_REFRESH_METERS)) {
+                origin = current
+            }
             val permission = environment.permissions.status(AppPermission.LOCATION)
             val choices = remember(places, origin, preselected, choiceId) {
                 val nearby = placeChoices(places, origin, preselected)
@@ -155,7 +161,6 @@ internal fun MeasureTab(
             stored = phase.stored,
             updatedPlace = phase.updatedPlace,
             summary = submittedReview?.let(::sharedSummary),
-            ducks = environment.settings.sharedMeasurements,
             onBackToMap = onBackToMap,
             onMeasureAgain = {
                 onResetPlace()
@@ -165,6 +170,9 @@ internal fun MeasureTab(
         )
     }
 }
+
+/** How far the user has to move before the Measure tab's nearby places are worked out again. */
+private const val CHOICES_REFRESH_METERS = 25.0
 
 private val PlaceChoice.key: String get() = place?.placeId ?: UNLISTED_MEASUREMENT_PLACE_ID
 

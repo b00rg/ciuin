@@ -69,8 +69,9 @@ object DesignShots {
         atMillis: Int = 0,
         reduceMotion: Boolean = false,
         density: Float = DENSITY,
+        dark: Boolean = false,
         content: @Composable () -> Unit,
-    ): File = render(name, width, height, atMillis, reduceMotion, density) {
+    ): File = render(name, width, height, atMillis, reduceMotion, density, dark) {
         Box(Modifier.fillMaxSize().background(CiuinColors.Ground)) { content() }
     }
 
@@ -84,6 +85,7 @@ object DesignShots {
         atMillis: Int = 0,
         reduceMotion: Boolean = false,
         density: Float = DENSITY,
+        dark: Boolean = false,
         content: @Composable () -> Unit,
     ): File {
         var measuredPx = 0
@@ -95,9 +97,9 @@ object DesignShots {
             }
         }
         // One throwaway frame to learn the height, then the real render at that height.
-        scene(width, MEASURE_HEIGHT, reduceMotion, density, wrapped).use { it.render(0) }
+        scene(width, MEASURE_HEIGHT, reduceMotion, density, dark, wrapped).use { it.render(0) }
         val height = ceil(measuredPx / density).toInt().coerceAtLeast(1)
-        return render(name, width, height, atMillis, reduceMotion, density, wrapped)
+        return render(name, width, height, atMillis, reduceMotion, density, dark, wrapped)
     }
 
     private fun render(
@@ -107,10 +109,11 @@ object DesignShots {
         atMillis: Int,
         reduceMotion: Boolean,
         density: Float,
+        dark: Boolean,
         content: @Composable () -> Unit,
     ): File {
         val file = File(directory, "$name.png").apply { parentFile.mkdirs() }
-        scene(width, height, reduceMotion, density, content).use { scene ->
+        scene(width, height, reduceMotion, density, dark, content).use { scene ->
             // Step the virtual clock so one-shot animations start and chain as they would on a phone.
             var millis = 0
             var image = scene.render(0)
@@ -123,13 +126,14 @@ object DesignShots {
         return file
     }
 
-    private fun scene(width: Int, height: Int, reduceMotion: Boolean, density: Float, content: @Composable () -> Unit) =
+    private fun scene(width: Int, height: Int, reduceMotion: Boolean, density: Float, dark: Boolean, content: @Composable () -> Unit) =
         ImageComposeScene(
             width = (width * density).toInt(),
             height = (height * density).toInt(),
             density = Density(density),
         ) {
-            CiuinTheme(reduceMotion = reduceMotion, content = content)
+            // Pinned, so a computer in dark mode does not change the light shots.
+            CiuinTheme(reduceMotion = reduceMotion, dark = dark, content = content)
         }
 
     private const val MEASURE_HEIGHT = 6000

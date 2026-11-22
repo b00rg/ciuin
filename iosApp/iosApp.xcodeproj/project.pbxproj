@@ -8,15 +8,22 @@
 
 /* Begin PBXBuildFile section */
 		0F3C85BE5D6430316BC6CA16 /* MeasurementDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = F155E2325DF0842E39BDEE63 /* MeasurementDevices.swift */; };
+		1B9D11BCEDF226C86B085A2A /* AudioStudentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DB1016B48E920A9EF970778 /* AudioStudentTests.swift */; };
+		1C81D6F669B7BB6D2FFCCEB3 /* LiteRT in Frameworks */ = {isa = PBXBuildFile; productRef = E40A55D1472D9DD7BDC938B7 /* LiteRT */; };
 		2114EB24ABFDED3DA0A759C9 /* Roboto-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CA7E45B4FF9D12A3A6B8F5C3 /* Roboto-Regular.ttf */; };
+		23271A69D3204D13EC0AFA92 /* audio-student-s.tflite in Resources */ = {isa = PBXBuildFile; fileRef = 39B0DD056529C4A154F297EF /* audio-student-s.tflite */; };
+		2F9A80610DBF348590301218 /* audio-student-m-expected.json in Resources */ = {isa = PBXBuildFile; fileRef = 66B2950DC350ACD3DD317C20 /* audio-student-m-expected.json */; };
 		22EA1CB33A17DCC6FC82406D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F543015C899423D4B01CEB2E /* Assets.xcassets */; };
 		307C2654CD5972A25FB7FD87 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 668CECA83ACC03A83C85A623 /* iOSApp.swift */; };
 		56B0305B5D3847FC6B326502 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE8509E5A49E4A5CAAEB3ADB /* ContentView.swift */; };
+		5A3067C02805587162D640EA /* StudentAudioClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0803AD561C9916D906F14724 /* StudentAudioClassifier.swift */; };
 		5FD86738425C27AB25A149BE /* NotoSansSymbols-House.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3DB959E0211656DD27DF9BF0 /* NotoSansSymbols-House.ttf */; };
 		7F450C9055A19CB49E1ACDB1 /* poppins_bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 86225EE6412A70FB24896534 /* poppins_bold.ttf */; };
 		840407BC7EDEE48154493013 /* poppins_regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 34A55D6F3803A86C3CE4CD10 /* poppins_regular.ttf */; };
 		94B0840311FFF8CA9583A1DC /* CameraMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFED63D135F7554D104A4FA7 /* CameraMeasurement.swift */; };
 		9648BAB56AAD31C350EDF878 /* MicrophoneMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5A6C2E7D9462A72A90D930 /* MicrophoneMeasurement.swift */; };
+		B1E1F7FD9ED920F469B00751 /* test_clips in Resources */ = {isa = PBXBuildFile; fileRef = 23388757EE08A8903A8498E6 /* test_clips */; };
+		BB87E0B536D77B37C901169F /* audio-student-m.tflite in Resources */ = {isa = PBXBuildFile; fileRef = 6D9E74C22C865EE2C58FA6F4 /* audio-student-m.tflite */; };
 		C961365EC8F3D18DD6ED77CE /* Roboto-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4CE6DC3F6176A791CC0A0DE0 /* Roboto-Medium.ttf */; };
 		D787D7B449B326325310BB36 /* places_lausanne.geojson in Resources */ = {isa = PBXBuildFile; fileRef = 0F86072F502E24C7E1FE78D3 /* places_lausanne.geojson */; };
 		DC686E5342C57EC0874BCA12 /* poppins_semibold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 925FA4DC830A95D20055961F /* poppins_semibold.ttf */; };
@@ -24,15 +31,32 @@
 		FB3FD13ADCCA2AC5EE126408 /* poppins_medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 97C6118DD9E20C3AB4F17F9C /* poppins_medium.ttf */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		0FBF91AC48015D09643FAF6B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 242FB5348943441C388468CE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 78B53CC79860CBFC2F5543C6;
+			remoteInfo = iosApp;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
+		0803AD561C9916D906F14724 /* StudentAudioClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentAudioClassifier.swift; sourceTree = "<group>"; };
 		0F86072F502E24C7E1FE78D3 /* places_lausanne.geojson */ = {isa = PBXFileReference; path = places_lausanne.geojson; sourceTree = "<group>"; };
+		23388757EE08A8903A8498E6 /* test_clips */ = {isa = PBXFileReference; lastKnownFileType = folder; name = test_clips; path = ../ml/export/test_clips; sourceTree = SOURCE_ROOT; };
 		34A55D6F3803A86C3CE4CD10 /* poppins_regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = poppins_regular.ttf; sourceTree = "<group>"; };
+		39B0DD056529C4A154F297EF /* audio-student-s.tflite */ = {isa = PBXFileReference; path = "audio-student-s.tflite"; sourceTree = "<group>"; };
 		3DB959E0211656DD27DF9BF0 /* NotoSansSymbols-House.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "NotoSansSymbols-House.ttf"; sourceTree = "<group>"; };
 		4CE6DC3F6176A791CC0A0DE0 /* Roboto-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Roboto-Medium.ttf"; sourceTree = "<group>"; };
+		56583BC252B5F01ED9DEA19D /* iosAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = iosAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		668CECA83ACC03A83C85A623 /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
+		66B2950DC350ACD3DD317C20 /* audio-student-m-expected.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "audio-student-m-expected.json"; sourceTree = "<group>"; };
+		6D9E74C22C865EE2C58FA6F4 /* audio-student-m.tflite */ = {isa = PBXFileReference; path = "audio-student-m.tflite"; sourceTree = "<group>"; };
 		6DE5B3AE6B32EDD8BCF80776 /* poppins_ofl.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = poppins_ofl.txt; sourceTree = "<group>"; };
 		86038AE1032E284E79B32AD6 /* iosApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		86225EE6412A70FB24896534 /* poppins_bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = poppins_bold.ttf; sourceTree = "<group>"; };
+		8DB1016B48E920A9EF970778 /* AudioStudentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioStudentTests.swift; sourceTree = "<group>"; };
 		925FA4DC830A95D20055961F /* poppins_semibold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = poppins_semibold.ttf; sourceTree = "<group>"; };
 		97C6118DD9E20C3AB4F17F9C /* poppins_medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = poppins_medium.ttf; sourceTree = "<group>"; };
 		CA7E45B4FF9D12A3A6B8F5C3 /* Roboto-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Roboto-Regular.ttf"; sourceTree = "<group>"; };
@@ -42,6 +66,17 @@
 		F543015C899423D4B01CEB2E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FFED63D135F7554D104A4FA7 /* CameraMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraMeasurement.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		EF8A6E9BFD470986D9D5C9B5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1C81D6F669B7BB6D2FFCCEB3 /* LiteRT in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		074D3FB078EA53C80CD81546 /* font */ = {
@@ -64,6 +99,7 @@
 				668CECA83ACC03A83C85A623 /* iOSApp.swift */,
 				F155E2325DF0842E39BDEE63 /* MeasurementDevices.swift */,
 				EB5A6C2E7D9462A72A90D930 /* MicrophoneMeasurement.swift */,
+				0803AD561C9916D906F14724 /* StudentAudioClassifier.swift */,
 				B3EE582A4C033615D3BAD068 /* Fonts */,
 			);
 			path = iosApp;
@@ -72,11 +108,31 @@
 		38B69C3F79CD97858CF7B609 = {
 			isa = PBXGroup;
 			children = (
+				23388757EE08A8903A8498E6 /* test_clips */,
+				F298303C90C353B6E4B34A88 /* export */,
 				1DB4B685CAEE8BEFEBBAEF94 /* iosApp */,
+				407F741E7FEBA273A8579B0E /* iosAppTests */,
 				C3B1A8B668D5E4F3945481FE /* Poppins */,
 				699944ABA05AFD4019A8E435 /* processed */,
 				94C98B8B3A2BFC1966447269 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		3E9B20DA945B200B28A22D88 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				66B2950DC350ACD3DD317C20 /* audio-student-m-expected.json */,
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		407F741E7FEBA273A8579B0E /* iosAppTests */ = {
+			isa = PBXGroup;
+			children = (
+				8DB1016B48E920A9EF970778 /* AudioStudentTests.swift */,
+				3E9B20DA945B200B28A22D88 /* Fixtures */,
+			);
+			path = iosAppTests;
 			sourceTree = "<group>";
 		};
 		653243D97E1E601C4589D813 /* raw */ = {
@@ -100,6 +156,7 @@
 			isa = PBXGroup;
 			children = (
 				86038AE1032E284E79B32AD6 /* iosApp.app */,
+				56583BC252B5F01ED9DEA19D /* iosAppTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -124,6 +181,16 @@
 			path = ../composeApp/src/commonMain/fontRes;
 			sourceTree = "<group>";
 		};
+		F298303C90C353B6E4B34A88 /* export */ = {
+			isa = PBXGroup;
+			children = (
+				6D9E74C22C865EE2C58FA6F4 /* audio-student-m.tflite */,
+				39B0DD056529C4A154F297EF /* audio-student-s.tflite */,
+			);
+			name = export;
+			path = ../ml/export;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -134,6 +201,7 @@
 				023A317BF958E1425F15291A /* Build ComposeApp framework */,
 				297B59D9CE634556D6007C40 /* Sources */,
 				1623B02D10928C8101C1F806 /* Resources */,
+				EF8A6E9BFD470986D9D5C9B5 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -141,10 +209,30 @@
 			);
 			name = iosApp;
 			packageProductDependencies = (
+				E40A55D1472D9DD7BDC938B7 /* LiteRT */,
 			);
 			productName = iosApp;
 			productReference = 86038AE1032E284E79B32AD6 /* iosApp.app */;
 			productType = "com.apple.product-type.application";
+		};
+		EDDC9037D014CD9DDCA653AC /* iosAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D61171475B3FE2835E331C49 /* Build configuration list for PBXNativeTarget "iosAppTests" */;
+			buildPhases = (
+				3CB0F17B3E63CC78541E1D6D /* Sources */,
+				1098AE7F69C59F747DBA2060 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D6369A31B29DDC1641D6E6F0 /* PBXTargetDependency */,
+			);
+			name = iosAppTests;
+			packageProductDependencies = (
+			);
+			productName = iosAppTests;
+			productReference = 56583BC252B5F01ED9DEA19D /* iosAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
 
@@ -166,17 +254,30 @@
 			);
 			mainGroup = 38B69C3F79CD97858CF7B609;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				280812CDC8D5F772DD8C9C7C /* XCRemoteSwiftPackageReference "LiteRT-Swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 94C98B8B3A2BFC1966447269 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				78B53CC79860CBFC2F5543C6 /* iosApp */,
+				EDDC9037D014CD9DDCA653AC /* iosAppTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		1098AE7F69C59F747DBA2060 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2F9A80610DBF348590301218 /* audio-student-m-expected.json in Resources */,
+				B1E1F7FD9ED920F469B00751 /* test_clips in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1623B02D10928C8101C1F806 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -185,6 +286,8 @@
 				5FD86738425C27AB25A149BE /* NotoSansSymbols-House.ttf in Resources */,
 				C961365EC8F3D18DD6ED77CE /* Roboto-Medium.ttf in Resources */,
 				2114EB24ABFDED3DA0A759C9 /* Roboto-Regular.ttf in Resources */,
+				BB87E0B536D77B37C901169F /* audio-student-m.tflite in Resources */,
+				23271A69D3204D13EC0AFA92 /* audio-student-s.tflite in Resources */,
 				D787D7B449B326325310BB36 /* places_lausanne.geojson in Resources */,
 				7F450C9055A19CB49E1ACDB1 /* poppins_bold.ttf in Resources */,
 				FB3FD13ADCCA2AC5EE126408 /* poppins_medium.ttf in Resources */,
@@ -227,11 +330,28 @@
 				56B0305B5D3847FC6B326502 /* ContentView.swift in Sources */,
 				0F3C85BE5D6430316BC6CA16 /* MeasurementDevices.swift in Sources */,
 				9648BAB56AAD31C350EDF878 /* MicrophoneMeasurement.swift in Sources */,
+				5A3067C02805587162D640EA /* StudentAudioClassifier.swift in Sources */,
 				307C2654CD5972A25FB7FD87 /* iOSApp.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3CB0F17B3E63CC78541E1D6D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1B9D11BCEDF226C86B085A2A /* AudioStudentTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D6369A31B29DDC1641D6E6F0 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 78B53CC79860CBFC2F5543C6 /* iosApp */;
+			targetProxy = 0FBF91AC48015D09643FAF6B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		11814011E7D6EC822BFBC66D /* Release */ = {
@@ -287,6 +407,38 @@
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		24229CBC853481EF040BD930 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iosApp.app/iosApp";
+			};
+			name = Debug;
+		};
+		658C518871404178F6E62E6C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/iosApp.app/iosApp";
 			};
 			name = Release;
 		};
@@ -417,6 +569,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		D61171475B3FE2835E331C49 /* Build configuration list for PBXNativeTarget "iosAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				24229CBC853481EF040BD930 /* Debug */,
+				658C518871404178F6E62E6C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		FF7CA1CA754D017066F1822F /* Build configuration list for PBXProject "iosApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -427,6 +588,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		280812CDC8D5F772DD8C9C7C /* XCRemoteSwiftPackageReference "LiteRT-Swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google-ai-edge/LiteRT-Swift.git";
+			requirement = {
+				kind = exactVersion;
+				version = 2.3.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E40A55D1472D9DD7BDC938B7 /* LiteRT */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 280812CDC8D5F772DD8C9C7C /* XCRemoteSwiftPackageReference "LiteRT-Swift" */;
+			productName = LiteRT;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 242FB5348943441C388468CE /* Project object */;
 }

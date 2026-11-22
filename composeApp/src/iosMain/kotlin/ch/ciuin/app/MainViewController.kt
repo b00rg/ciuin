@@ -16,6 +16,7 @@ import ch.ciuin.app.core.IosLocationSource
 import ch.ciuin.app.core.IosPermissions
 import ch.ciuin.app.core.IosSettingsStorage
 import ch.ciuin.app.core.ModelCatalog
+import ch.ciuin.app.core.ModelVariant
 import ch.ciuin.app.core.RouteController
 import ch.ciuin.app.core.SettingsController
 import ch.ciuin.app.measure.IosMeasurementCapture
@@ -39,6 +40,11 @@ fun MainViewController(measurementDevices: IosMeasurementDevices) = ComposeUIVie
         val api = createPlacesApi(BundledPlacesApi(::readBundledPlaces))
         val personal = PersonalModelController(IosPersonalModelStorage(), scope)
         val settings = SettingsController(IosSettingsStorage(), UIAccessibilityIsReduceMotionEnabled(), scope)
+        val availableModels = listOf(ModelVariant.S, ModelVariant.M)
+            .filter { measurementDevices.supportsAudioClassifier(it.name) }.toSet()
+        val capture = IosMeasurementCapture(measurementDevices) {
+            (settings.modelVariant.takeIf { it in availableModels } ?: availableModels.firstOrNull())?.name
+        }
         val router = WalkingRouter()
         val routes = RouteController(scope, router)
         AppEnvironment(
@@ -48,8 +54,8 @@ fun MainViewController(measurementDevices: IosMeasurementDevices) = ComposeUIVie
                 personal.recordAlertFeedback(alert.window, label = 0)
             }),
             routes = routes,
-            measurement = MeasurementController(IosMeasurementCapture(measurementDevices), api, settings, location, scope),
-            models = ModelCatalog(settings, emptySet()).apply { load(scope) },
+            measurement = MeasurementController(capture, api, settings, location, scope),
+            models = ModelCatalog(settings, availableModels).apply { load(scope) },
         )
     }
     DisposableEffect(environment) {

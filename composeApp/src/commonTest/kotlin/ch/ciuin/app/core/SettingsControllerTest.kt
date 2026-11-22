@@ -31,6 +31,40 @@ class SettingsControllerTest {
     }
 
     @Test
+    fun keepsSharedMeasurementsNewestFirstUpToTheLimit() {
+        val storage = MemorySettingsStorage()
+        val settings = SettingsController(storage)
+        fun record(i: Int) = MeasurementRecord("osm:node/$i", "Place $i", 46.5, 6.6, "2026-11-22T10:00:${i % 60}Z", dbMean = i.toDouble())
+        settings.recordSharedMeasurement(record(1))
+        settings.recordSharedMeasurement(record(2))
+        assertEquals(listOf("osm:node/2", "osm:node/1"), settings.measurementHistory.map { it.placeId })
+        assertEquals(settings.measurementHistory, SettingsController(storage).measurementHistory)
+
+        repeat(MEASUREMENT_HISTORY_LIMIT) { settings.recordSharedMeasurement(record(it + 3)) }
+        assertEquals(MEASUREMENT_HISTORY_LIMIT, settings.measurementHistory.size)
+        assertEquals("osm:node/${MEASUREMENT_HISTORY_LIMIT + 2}", settings.measurementHistory.first().placeId)
+        assertEquals(MEASUREMENT_HISTORY_LIMIT + 2, settings.sharedMeasurements)
+    }
+
+    @Test
+    fun remembersTheAppearanceAndDefaultsToLight() {
+        val storage = MemorySettingsStorage()
+        val settings = SettingsController(storage)
+        assertEquals(Appearance.Light, settings.appearance)
+        settings.appearance = Appearance.Dark
+        assertEquals(Appearance.Dark, SettingsController(storage).appearance)
+        // "System" was saved by an earlier build that had a Match phone option.
+        assertEquals(Appearance.Light, SettingsController(MemorySettingsStorage("""{"appearance":"System"}""")).appearance)
+    }
+
+    @Test
+    fun readsSettingsSavedBeforeTheHistoryExisted() {
+        val settings = SettingsController(MemorySettingsStorage("""{"sharedMeasurements":3}"""))
+        assertEquals(3, settings.sharedMeasurements)
+        assertEquals(emptyList(), settings.measurementHistory)
+    }
+
+    @Test
     fun restoresDefaultsFromCorruptDataAndFollowsSystemMotion() {
         val settings = SettingsController(MemorySettingsStorage("{bad"), systemReduceMotion = false)
         assertEquals(AppSettings(), settings.state)

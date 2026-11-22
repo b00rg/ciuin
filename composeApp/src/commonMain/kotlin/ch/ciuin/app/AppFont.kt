@@ -22,6 +22,17 @@ import androidx.compose.ui.text.font.FontFamily
 internal expect val appFontFamily: FontFamily
 
 /**
+ * Pressworn, the worn-letterpress display face, for fixed English headings and big numbers only.
+ *
+ * It has one weight and 86 characters: ASCII letters, digits and common punctuation, plus curly
+ * quotes and dashes. It has no accented letters and no "·", "%", "°", "…" or "→", so it cannot spell
+ * "Ciúin" or most Lausanne place names; anything a user or the data supplies stays in [appFontFamily].
+ * As with Poppins, its `hhea` and `OS/2` typo metrics are trimmed to 1.1 em (840 / -260, from
+ * 860 / -280) so the 40/44 headlines are the same height on Android 15 as elsewhere.
+ */
+internal expect val displayFontFamily: FontFamily
+
+/**
  * Typeface for symbols Poppins lacks (the "⌂" button), or null to let the platform fall back.
  * Android falls back to Noto Sans Symbols; platforms whose fallback differs supply that glyph here.
  */

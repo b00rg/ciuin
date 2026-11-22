@@ -51,21 +51,26 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     leadingIcon: ImageVector? = null,
+    compact: Boolean = false,
 ) {
     Row(
         modifier = modifier
             .pressable(onClick, enabled = enabled, haptic = true)
             .graphicsLayer { alpha = if (enabled) 1f else DISABLED_ALPHA }
-            .height(56.dp)
+            .height(if (compact) COMPACT_HEIGHT else 56.dp)
             .background(CiuinColors.Ink, CircleShape)
-            .pillPadding(28.dp),
+            .pillPadding(if (compact) COMPACT_PADDING else 28.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     ) {
-        if (leadingIcon != null) CiuinIcon(leadingIcon, null, size = 22.dp, tint = CiuinColors.OnInk)
-        Label(text, CiuinType.Button, color = CiuinColors.OnInk, maxLines = 1)
+        if (leadingIcon != null) CiuinIcon(leadingIcon, null, size = if (compact) 20.dp else 22.dp, tint = CiuinColors.OnInk)
+        Label(text, if (compact) CiuinType.ButtonMedium else CiuinType.Button, color = CiuinColors.OnInk, maxLines = 1)
     }
 }
+
+/** A [PrimaryButton] with `compact` and [SecondaryButtonSize.Sheet] match: 48 high, 15/18 label. */
+private val COMPACT_HEIGHT = 48.dp
+private val COMPACT_PADDING = 22.dp
 
 /** The four heights the outlined button comes in. */
 enum class SecondaryButtonSize(internal val height: Dp, internal val padding: Dp) {
@@ -75,8 +80,14 @@ enum class SecondaryButtonSize(internal val height: Dp, internal val padding: Dp
     /** 52 high, 15/18 label: a pair of choices under a primary button ("I'm okay here", "Snooze 15 min", "End route"). */
     Medium(52.dp, 20.dp),
 
-    /** 44 high, 14/18 label: inline in a sheet row ("Too much", "This is fine" on the place sheet). */
-    Small(44.dp, 16.dp),
+    /** 48 high, 15/18 label: beside a compact primary button on the place sheet ("Measure here"). */
+    Sheet(COMPACT_HEIGHT, COMPACT_PADDING),
+
+    /**
+     * 40 high, 14/20 regular label: inline in a sheet row ("Too much", "This is fine" after "Here now?"),
+     * so the answers are the same size as the question.
+     */
+    Small(40.dp, 14.dp),
 
     /** 40 high, 14/18 label: the "Allow" button in a permission row, which is 92 wide. */
     Compact(40.dp, 14.dp),
@@ -123,8 +134,9 @@ private fun OutlinedPill(
 ) {
     val style = when (size) {
         SecondaryButtonSize.Large -> CiuinType.Button
-        SecondaryButtonSize.Medium -> CiuinType.ButtonMedium
-        SecondaryButtonSize.Small, SecondaryButtonSize.Compact -> CiuinType.Chip
+        SecondaryButtonSize.Medium, SecondaryButtonSize.Sheet -> CiuinType.ButtonMedium
+        SecondaryButtonSize.Small -> CiuinType.BodySmall
+        SecondaryButtonSize.Compact -> CiuinType.Chip
     }
     Box(
         modifier = modifier

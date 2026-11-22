@@ -1,5 +1,14 @@
 package ch.ciuin.app
 
+import ch.ciuin.app.ui.components.SheetTopSpace
+import ch.ciuin.app.ui.components.SheetToggle
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.Layout
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.snap
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -67,7 +76,10 @@ import ch.ciuin.app.ui.components.BottomSheetSurface
 import ch.ciuin.app.ui.components.CharacterTile
 import ch.ciuin.app.ui.components.Level as UiLevel
 import ch.ciuin.app.ui.components.LevelGlyph
-import ch.ciuin.app.ui.components.ListeningButton
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import ch.ciuin.app.ui.components.SoundWaveform
 import ch.ciuin.app.ui.components.LayerChipRow
 import ch.ciuin.app.ui.components.MapVeil
 import ch.ciuin.app.ui.components.OfflineBanner
@@ -94,8 +106,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 
-private val categories = listOf(Category.PERSONAL, Category.SOUND, Category.LIGHT, Category.CROWD, Category.ACCESS)
-private val layers = categories.map { if (it == Category.PERSONAL) "For you" else it.title }
+// The map's layer tabs. There is no For you tab; the personal verdict lives on the place sheet, and a
+// walking route still colours the map by it.
+private val categories = listOf(Category.SOUND, Category.LIGHT, Category.CROWD, Category.ACCESS)
+private val layers = categories.map { it.title }
 
 @Composable
 internal fun MapScreen(
@@ -179,6 +193,9 @@ internal fun MapScreen(
         val density = LocalDensity.current
         val viewport = with(density) { Size(maxWidth.toPx(), maxHeight.toPx()) }
         val maxInsightsHeight = maxHeight * 0.38f
+        // Collapsed, a layer sheet shows only its arrow and header row, so the map has the room. Every
+        // layer opens in full: switching layers starts this over, so collapsing is only for the moment.
+        var sheetCollapsed by rememberSaveable(category) { mutableStateOf(false) }
         val tilePx = with(density) { 256.dp.toPx() }
         val insets = WindowInsets.safeDrawing.asPaddingValues()
         val bottomInset = insets.calculateBottomPadding()
@@ -266,9 +283,6 @@ internal fun MapScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     SearchBar(onSearch, Modifier.weight(1f))
-                    if (listening != null) {
-                        ListeningButton(listening.isListening, { listening.setListening(!listening.isListening) })
-                    }
                 }
                 LayerChipRow(layers, categories.indexOf(category), { onCategory(categories[it]) }, Modifier.padding(top = 12.dp))
                 if (data.offline) {
@@ -282,7 +296,18 @@ internal fun MapScreen(
                     val liveStatus = listening?.message ?: personal.liveScore?.let {
                         "Live overwhelm ${(it * 100).roundToInt()}%"
                     } ?: "Waiting for live audio…".takeIf { listening?.isListening == true }
-                    liveStatus?.let {
+                    if (listening?.isListening == true) {
+                        val levels = remember(listening) { listening.levels() }
+                        Column(
+                            Modifier.padding(horizontal = 16.dp, vertical = 8.dp).width(220.dp)
+                                .background(CiuinColors.Ground, RoundedCornerShape(12.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            liveStatus?.let { Text(it, style = CiuinType.Caption) }
+                            SoundWaveform(levels, Modifier.fillMaxWidth().height(28.dp))
+                        }
+                    } else liveStatus?.let {
                         Text(
                             it,
                             Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -366,14 +391,29 @@ internal fun MapScreen(
                             )
                         }
                     }
-                    BottomSheetSurface(gap = if (data.offline) 14.dp else 16.dp) {
-                        Column(
-                            Modifier.fillMaxWidth().heightIn(max = maxInsightsHeight)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                    val insightsScroll = rememberScrollState()
+                    
+                    // For you is short and stays open; the other layers open and close with the arrow.
+                    val collapsible = category != Category.PERSONAL
+                    val collapsed = sheetCollapsed && collapsible
+                    LaunchedEffect(collapsed) { if (collapsed) insightsScroll.scrollTo(0) }
+                    BottomSheetSurface(
+                        gap = if (data.offline) 14.dp else 16.dp,
+                        handle = {
+                            if (collapsible) SheetToggle(!collapsed, { sheetCollapsed = !sheetCollapsed })
+                            else SheetTopSpace()
+                        },
+                    ) {
+                        PeekColumn(
+                            collapsed = collapsed,
+                            gap = 16.dp,
+                            modifier = Modifier.fillMaxWidth()
+                                .animateContentSize(if (reduceMotion) snap() else CiuinMotion.sheetSpring())
+                                .heightIn(max = maxInsightsHeight)
+                                .verticalScroll(insightsScroll, enabled = !collapsed),
                         ) {
                             if (!data.loaded) {
-                                TitleBlock("Loading Lausanne", eyebrow = "Around you")
+                                TitleBlock("Loading places", eyebrow = "Around you")
                             } else {
                                 MapInsights(
                                     category, insight, period, { data.noisePeriod = it },
@@ -449,7 +489,7 @@ private fun MapControls(
             DropdownMenuItem({ Text("Zoom out", style = CiuinType.Label) }, {
                 state.zoomAt(0.5, center, viewport, tilePx)
             }, enabled = state.zoom > MapState.MIN_ZOOM)
-            DropdownMenuItem({ Text("Center on Lausanne", style = CiuinType.Label) }, {
+            DropdownMenuItem({ Text("Back to the mapped area", style = CiuinType.Label) }, {
                 state.centerOn(LAUSANNE_LAT, LAUSANNE_LON, LAUSANNE_ZOOM)
                 open = false
             })
@@ -475,4 +515,27 @@ private fun UiLevel.hexAlpha(offline: Boolean): Float = when (this) {
     UiLevel.Moderate -> if (offline) CiuinColors.HexAlphaModerateSaved else CiuinColors.HexAlphaModerate
     UiLevel.Loud -> if (offline) CiuinColors.HexAlphaLoudSaved else CiuinColors.HexAlphaLoud
     UiLevel.NoData -> 0f
+}
+
+/**
+ * A column with [gap] between its children that, when [collapsed], shows only its first child (the
+ * layer's header row, whatever its height) and leaves the rest out, so screen readers skip them too.
+ */
+@Composable
+private fun PeekColumn(collapsed: Boolean, gap: Dp, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        // Children take their own width (the Day/Night switch stays snug), up to the sheet's.
+        val childConstraints = constraints.copy(minWidth = 0, minHeight = 0, maxHeight = Constraints.Infinity)
+        val shown = if (collapsed) measurables.take(1) else measurables
+        val placeables = shown.map { it.measure(childConstraints) }
+        val gapPx = gap.roundToPx()
+        val height = placeables.sumOf { it.height } + gapPx * (placeables.size - 1).coerceAtLeast(0)
+        layout(constraints.maxWidth, height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
+            var y = 0
+            placeables.forEach { placeable ->
+                placeable.place(0, y)
+                y += placeable.height + gapPx
+            }
+        }
+    }
 }

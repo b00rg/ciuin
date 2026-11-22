@@ -441,7 +441,7 @@ fun SharedFactRow(text: String, shared: Boolean, modifier: Modifier = Modifier, 
 }
 
 /**
- * A closing line under a hairline, with a text link at its right: "Your sheep: 23 saved taps" and a
+ * A closing line under a hairline, with a text link at its right: "Learned from 23 of your answers" and a
  * red "Reset" at the bottom of the model screen. 52 high.
  */
 @Composable

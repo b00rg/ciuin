@@ -1,5 +1,6 @@
 package ch.ciuin.app.ui
 
+import ch.ciuin.app.ui.you.learnedFromText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import ch.ciuin.app.ui.characters.AlertScene
 import ch.ciuin.app.ui.characters.AllSetScene
 import ch.ciuin.app.ui.characters.Duck
+import ch.ciuin.app.ui.characters.LayerCharacter
+import ch.ciuin.app.ui.characters.LayerSheep
 import ch.ciuin.app.ui.characters.SharedScene
 import ch.ciuin.app.ui.characters.Sheep
 import ch.ciuin.app.ui.characters.SheepPose
@@ -218,7 +221,7 @@ internal fun Onboarding5() = Screen {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             NumberedStep(1, "Tap any place to see how it feels.")
             NumberedStep(2, "Tell the sheep when it's too much.")
-            NumberedStep(3, "Measure a place and a duck joins in.")
+            NumberedStep(3, "Measure a place to help others find calm.")
         }
     }
     Footer {
@@ -236,10 +239,10 @@ internal fun Globe() = Screen {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             StatTile("2,873", "places", Modifier.weight(1f))
             StatTile("148", "readings", Modifier.weight(1f))
-            StatTile("143", "tags", Modifier.weight(1f))
+            StatTile("859", "quiet spots", Modifier.weight(1f))
         }
     }
-    Footer { PrimaryButton("Fly to Lausanne", {}, Modifier.fillMaxWidth()) }
+    Footer { PrimaryButton("Explore near you", {}, Modifier.fillMaxWidth()) }
 }
 
 /** The top of every map screen: search row and layer chips, over the map. */
@@ -251,7 +254,7 @@ private fun MapTop(selectedLayer: Int, listening: Boolean = true, showListening:
             if (showListening) ListeningButton(listening, {})
         }
         LayerChipRow(
-            layers = listOf("For you", "Sound", "Light", "Crowd", "Access"),
+            layers = listOf("Sound", "Light", "Crowd", "Access"),
             selectedIndex = selectedLayer,
             onSelect = {},
             modifier = Modifier.padding(top = 12.dp),
@@ -280,34 +283,12 @@ private fun MapScreen(top: @Composable () -> Unit, bottom: @Composable () -> Uni
 private const val NoiseCredit = "© OpenStreetMap · noise: sonBASE © FOEN"
 
 @Composable
-internal fun MapForYou() = MapScreen(
-    top = { MapTop(selectedLayer = 0, showListening = false) },
-    bottom = {
-        MapBottom(NoiseCredit) {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                CharacterTile { Sheep(SheepPose.Rest, Modifier.size(62.dp, 56.dp), contentDescription = null, zzz = false) }
-                TitleBlock("Calm for you", Modifier.weight(1f), eyebrow = "Around you · Flon", subtitle = "46 dB · dim light · few people")
-            }
-            LevelLegend(listOf(Level.Calm to "Calm", Level.Moderate to "Moderate", Level.Loud to "Too much", Level.NoData to "No data"))
-            InfoTile("Nearest quiet spot: Library", "120 m · 2 min walk · open now", onClick = {}) {
-                LevelGlyph(Level.Calm, contentDescription = "Calm")
-            }
-        }
-    },
-)
-
-@Composable
 internal fun MapSound() = MapScreen(
-    top = { MapTop(selectedLayer = 1) },
+    top = { MapTop(selectedLayer = 0) },
     bottom = {
         MapBottom(NoiseCredit) {
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("This area · Sound", style = CiuinType.Eyebrow, color = CiuinColors.SecondaryText)
-                    BigReading("60 dB", "Moderate")
-                }
-                SegmentedControl(listOf("Day", "Night"), 0, {})
-            }
+            LayerHeaderReplica(LayerCharacter.Sound, "This area · Sound") { BigReading("60 dB", "Moderate") }
+            SegmentedControl(listOf("Day", "Night"), 0, {})
             LevelLegend(listOf(Level.Calm to "Quiet, under 50", Level.Moderate to "Moderate", Level.Loud to "Loud, over 65"))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Where it comes from", style = CiuinType.Label)
@@ -320,16 +301,15 @@ internal fun MapSound() = MapScreen(
 
 @Composable
 internal fun MapLightNoData() = MapScreen(
-    top = { MapTop(selectedLayer = 2) },
+    top = { MapTop(selectedLayer = 1) },
     bottom = {
         MapBottom("© OpenStreetMap contributors") {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                CharacterTile(size = 84.dp, cornerRadius = 28.dp) { Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null) }
-                TitleBlock(
-                    title = "No light readings yet",
-                    modifier = Modifier.weight(1f),
-                    eyebrow = "This area · Light",
-                    subtitle = "Light and flicker come from phones. One 30 second measure fills this in.",
+            LayerHeaderReplica(LayerCharacter.Light, "This area · Light") {
+                Text("No light readings yet", style = CiuinType.SheetTitle)
+                Text(
+                    "Light and flicker come from phones. One 30 second measure fills this in.",
+                    style = CiuinType.BodySmall,
+                    color = CiuinColors.SecondaryText,
                 )
             }
             LevelLegend(listOf(Level.Calm to "Dim", Level.Moderate to "Moderate", Level.Loud to "Bright", Level.NoData to "No data"))
@@ -340,12 +320,12 @@ internal fun MapLightNoData() = MapScreen(
 
 @Composable
 internal fun MapAccess() = MapScreen(
-    top = { MapTop(selectedLayer = 4) },
+    top = { MapTop(selectedLayer = 3) },
     bottom = {
         MapBottom("© OpenStreetMap contributors") {
-            Row(Modifier.height(98.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconDisc(CiuinIcons.Wheelchair)
-                TitleBlock("63% wheelchair accessible", Modifier.weight(1f), subtitle = "From 521 tagged places")
+            LayerHeaderReplica(LayerCharacter.Access, "This area · Access") {
+                Text("63% wheelchair accessible", style = CiuinType.SheetTitle)
+                Text("From 521 tagged places", style = CiuinType.BodySmall, color = CiuinColors.SecondaryText)
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 BarRow("Accessible", 0.63f, "63%") { LevelGlyph(Level.Calm, size = LevelGlyphSize.Small, lane = 16.dp) }
@@ -360,6 +340,48 @@ internal fun MapAccess() = MapScreen(
         }
     },
 )
+
+/** Not a Paper artboard: the Crowd layer with a reading, to check the three-sheep tile. */
+@Composable
+internal fun MapCrowd() = MapScreen(
+    top = { MapTop(selectedLayer = 2) },
+    bottom = {
+        MapBottom("© OpenStreetMap contributors") {
+            LayerHeaderReplica(LayerCharacter.Crowd, "This area · Crowd") { BigReading("12 devices", "Busy") }
+            LevelLegend(listOf(Level.Calm to "Quiet", Level.Moderate to "Busy", Level.Loud to "Crowded", Level.NoData to "No data"))
+        }
+    },
+)
+
+/** Not a Paper artboard: the Light layer with a reading, to check the streetlight tile. */
+@Composable
+internal fun MapLight() = MapScreen(
+    top = { MapTop(selectedLayer = 1) },
+    bottom = {
+        MapBottom("© OpenStreetMap contributors") {
+            LayerHeaderReplica(LayerCharacter.Light, "This area · Light") { BigReading("82 lux", "Moderate") }
+            LevelLegend(listOf(Level.Calm to "Dim", Level.Moderate to "Moderate", Level.Loud to "Bright", Level.NoData to "No data"))
+        }
+    },
+)
+
+/** The layer sheet header from `MapInsights.kt`: the layer's sheep, then the eyebrow over [content]. */
+@Composable
+private fun LayerHeaderReplica(character: LayerCharacter, eyebrow: String, content: @Composable ColumnScope.() -> Unit) =
+    LayerHeaderReplica(eyebrow, { CharacterTile { LayerSheep(character) } }, content)
+
+@Composable
+private fun LayerHeaderReplica(eyebrow: String, picture: @Composable () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    // The picture is pinned to the top and the text starts a little lower, so the picture's top sits
+    // just above the eyebrow however many lines the text runs to (as on the Sound sheet).
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
+        picture()
+        Column(Modifier.weight(1f).padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(eyebrow, style = CiuinType.Eyebrow, color = CiuinColors.SecondaryText)
+            content()
+        }
+    }
+}
 
 @Composable
 internal fun MapOffline() = MapScreen(
@@ -443,8 +465,8 @@ internal fun PlaceSheet() = Box(Modifier.fillMaxSize().background(CiuinColors.Ma
             SecondaryButton("This is fine", {}, size = SecondaryButtonSize.Small)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PrimaryButton("Take me there", {}, Modifier.weight(1f), leadingIcon = CiuinIcons.Navigation03)
-            SecondaryButton("Measure here", {}, Modifier.weight(1f))
+            PrimaryButton("Take me there", {}, Modifier.weight(1f), leadingIcon = CiuinIcons.Navigation03, compact = true)
+            SecondaryButton("Measure here", {}, Modifier.weight(1f), SecondaryButtonSize.Sheet)
         }
     }
 }
@@ -459,7 +481,7 @@ internal fun MeasureStart() = Screen {
             SelectableCard("Somewhere else", "Measure this spot without a place", false, {})
         }
         WoolCard(WoolCardStyle.HowTo) {
-            Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null)
+            Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null, microphone = true)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 ChecklistItem("Hold the phone steady")
                 ChecklistItem("Aim the camera at the room")
@@ -481,7 +503,7 @@ internal fun MeasureCapturing() = Screen {
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         CenteredHeading("Measuring", "Café du Grütli")
-        MeasureRing(0.4f) { Sheep(SheepPose.Reading, Modifier.size(156.dp), contentDescription = null) }
+        MeasureRing(0.4f) { Sheep(SheepPose.Reading, Modifier.size(156.dp), contentDescription = null, microphone = true) }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("18 seconds left", style = CiuinType.Display)
             Text(
@@ -539,7 +561,7 @@ internal fun MeasureReview() = Screen {
 internal fun MeasureShared() = Screen {
     Content(top = 16.dp, gap = 24.dp) {
         SharedScene()
-        Copy("Shared. A duck joined your pond.", "Café du Grütli now has 5 measurements, and your map is up to date.")
+        Copy("Shared with Ciúin. Thanks for adding to the map.", "Café du Grütli now has 5 measurements, and your map is up to date.")
         SummaryTile("57 dB · 82 lux · 3 people")
     }
     Footer(gap = 10.dp) {
@@ -623,7 +645,7 @@ internal fun ResetSheet() = Box(Modifier.fillMaxSize().background(CiuinColors.Sc
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Reset what the sheep learned?", style = CiuinType.PlaceTitle)
             Text(
-                "This clears your 23 saved taps and goes back to A bit of everything. Your ducks stay.",
+                "Your sheep forgets your 23 answers and goes back to A bit of everything. Your measurements stay.",
                 style = CiuinType.Body,
                 color = CiuinColors.SecondaryText,
             )
@@ -670,7 +692,12 @@ internal fun Model() = Screen {
                 style = CiuinType.Caption,
             )
         }
-        LinkRow("Your sheep: 23 saved taps", "Reset", {})
+        LinkRow(learnedFromText(23), "Reset", {})
+        Text(
+            "Each time you tap Too much or This is fine, your sheep learns what bothers you.",
+            style = CiuinType.Caption,
+            color = CiuinColors.SecondaryText,
+        )
     }
 }
 

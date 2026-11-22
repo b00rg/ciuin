@@ -168,9 +168,11 @@ internal fun rememberMapData(api: PlacesApi, category: Category): MapData {
             delay(60_000)
         } while (true)
     }
-    val showNight = category == Category.SOUND && data.noisePeriod == NoisePeriod.NIGHT
-    LaunchedEffect(data, showNight, data.retryCount) {
-        if (showNight) {
+    // Fetch the night grid as soon as the Sound layer is open, not on the first tap on Night: without
+    // it the Sound sheet briefly lost its numbers and bars and jumped shorter, then back.
+    val soundShown = category == Category.SOUND
+    LaunchedEffect(data, soundShown, data.retryCount) {
+        if (soundShown) {
             do {
                 data.refreshNoise(api, NoisePeriod.NIGHT)
                 delay(60_000)

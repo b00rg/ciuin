@@ -151,7 +151,7 @@ private val standHooves = Offset(SheepStandArt.shadow.cx, SheepStandArt.shadow.c
 private val earLeftRoot = Offset(SheepStandArt.EAR_LEFT_PIVOT_X, SheepStandArt.EAR_LEFT_PIVOT_Y)
 private val earRightRoot = Offset(SheepStandArt.EAR_RIGHT_PIVOT_X, SheepStandArt.EAR_RIGHT_PIVOT_Y)
 
-internal fun DrawScope.drawSheepStand(frame: StandFrame) {
+internal fun DrawScope.drawSheepStand(frame: StandFrame, headphones: Boolean = false) {
     val art = SheepStandArt
     scale(frame.shadowScale, frame.shadowScale, standHooves) { drawArt(art.shadow) }
     withTransform({
@@ -174,6 +174,10 @@ internal fun DrawScope.drawSheepStand(frame: StandFrame) {
             }
             translate(top = SheepStandArt.ALERT_NOSE_DROP * frame.alertFace) { drawArt(art.nose) }
             drawArt(art.forelock)
+            if (headphones) {
+                drawArt(HeadphonesArt.band)
+                HeadphonesArt.cups.forEach { drawArt(it) }
+            }
         }
         art.marks.forEachIndexed { index, mark -> if (frame.marks[index] > 0f) drawArt(mark, frame.marks[index]) }
     }
@@ -192,14 +196,18 @@ private fun DrawScope.drawEye(pupil: ArtOval, alertPupil: ArtOval, light: ArtOva
 private val readWoolCentre: Offset by lazy(LazyThreadSafetyMode.NONE) { SheepReadArt.wool.path.getBounds().center }
 private val pageEdge = Color(0xFFCECBC9)
 
-internal fun DrawScope.drawSheepRead(frame: ReadFrame) {
+internal fun DrawScope.drawSheepRead(frame: ReadFrame, microphone: Boolean = false) {
     val art = SheepReadArt
     scale(frame.woolScale, frame.woolScale, readWoolCentre) { drawArt(art.wool) }
     art.limbs.forEach { drawArt(it) }
-    drawArt(art.bookCover)
-    drawArt(art.bookSpine)
-    drawArt(art.bookPages)
-    if (frame.pageTurn in 0f..1f) drawTurningPage(frame.pageTurn)
+    if (microphone) {
+        drawArt(MicrophoneArt.handle)
+    } else {
+        drawArt(art.bookCover)
+        drawArt(art.bookSpine)
+        drawArt(art.bookPages)
+        if (frame.pageTurn in 0f..1f) drawTurningPage(frame.pageTurn)
+    }
     art.hooves.forEach { drawArt(it) }
     translate(top = frame.headDy) {
         drawArt(art.earLeft)
@@ -213,6 +221,8 @@ internal fun DrawScope.drawSheepRead(frame: ReadFrame) {
         }
         drawArt(art.nose)
     }
+    // The mic's head is held up in front of the chin, so it goes over the face.
+    if (microphone) drawArt(MicrophoneArt.head)
 }
 
 /**

@@ -1,0 +1,15 @@
+{
+  "originHash" : "2bfc9956ede2b9d33c2d4d2fe0744a5d9c50817cb3863d8247270716aaaf4c9d",
+  "pins" : [
+    {
+      "identity" : "litert-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/google-ai-edge/LiteRT-Swift.git",
+      "state" : {
+        "revision" : "65ec922f3f9f575eb439fe04554ca4fe14eb1d76",
+        "version" : "2.3.0"
+      }
+    }
+  ],
+  "version" : 3
+}

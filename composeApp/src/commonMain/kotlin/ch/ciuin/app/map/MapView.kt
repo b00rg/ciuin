@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import ch.ciuin.app.route.RoutePoint
 import ch.ciuin.app.ui.components.Level
+import ch.ciuin.app.ui.doodles.drawScribbleCircle
 import ch.ciuin.app.ui.theme.CiuinColors
 import ch.ciuin.app.ui.theme.CiuinMotion
 import ch.ciuin.app.ui.theme.CiuinType
@@ -76,9 +77,33 @@ private data class MarkerHit(val marker: MapMarker, val point: Offset, val label
 private const val HEX_FILL = 1.0f
 private const val HEX_OVERLAP_PX = 0.5f
 private const val LABELS_ZOOM = 18.0
+
+/** Mean radius of the crayon circle round the selected place: clear of its 6 dp dot. */
+private val SELECTED_SCRIBBLE_RADIUS = 17.dp
 private const val TILE_PX = 256
 private const val MAX_TILE_ZOOM = 19
-private val tileColor = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.2f) })
+private val lightTiles = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.2f) })
+
+/**
+ * The same faded tiles turned over for the dark palette: white land becomes the slate map ground and
+ * dark labels and outlines become a soft cream, so roads read as light lines on dark land.
+ */
+private val darkTiles = ColorFilter.colorMatrix(
+    ColorMatrix().apply {
+        setToSaturation(0.2f)
+        val faded = values.copyOf()
+        // Per channel: out = top - (top - land) * faded(in) / 255, so 255 maps to land and 0 to top.
+        val land = floatArrayOf(35f, 38f, 47f)
+        val top = floatArrayOf(196f, 198f, 184f)
+        for (row in 0..2) {
+            val k = (top[row] - land[row]) / 255f
+            for (col in 0..3) values[row * 5 + col] = -k * faded[row * 5 + col]
+            values[row * 5 + 4] = top[row]
+        }
+    },
+)
+
+private val tileColor: ColorFilter get() = if (CiuinColors.dark) darkTiles else lightTiles
 
 @Composable
 internal fun rememberMapTileCache(tileUrl: String = TileCache.OSM_TILES): TileCache {
@@ -190,6 +215,8 @@ internal fun MapView(
                 val point = state.toScreen(marker.lat, marker.lon, size, tilePx)
                 if (point.x !in 0f..size.width || point.y !in 0f..size.height) continue
                 val selected = marker.id == selectedId
+                // Scribbled round the selected place, under its label so the label reads on top.
+                if (selected) drawScribbleCircle(point, SELECTED_SCRIBBLE_RADIUS.toPx(), CiuinColors.Ink, 2.5.dp.toPx())
                 var labelBounds: Rect? = null
                 if (selected || marker.showLabel || labelsVisible) {
                     val label = textMeasurer.measure(
@@ -340,18 +367,22 @@ private fun DrawScope.drawTiles(state: MapState, cache: TileCache, tilePx: Float
                 drawImage(img, dstOffset = dstOffset, dstSize = dstSize, colorFilter = tileColor)
                 continue
             }
-            // While loading, stretch the matching quarter of the parent tile if we have it.
-            if (tz > 0) {
-                val parent = cache.peek(TileKey(tz - 1, wx / 2, ty / 2)) ?: continue
-                val half = parent.width / 2
+            // While loading, stretch the matching part of the nearest loaded ancestor tile (up to 8 levels up), so
+            // a fast zoom (the globe fly-in) shows a soft map instead of blank paper.
+            for (up in 1..minOf(8, tz)) {
+                val ancestor = cache.peek(TileKey(tz - up, wx shr up, ty shr up)) ?: continue
+                val part = ancestor.width shr up
+                if (part < 1) break
+                val mask = (1 shl up) - 1
                 drawImage(
-                    parent,
-                    srcOffset = IntOffset((wx % 2) * half, (ty % 2) * half),
-                    srcSize = IntSize(half, half),
+                    ancestor,
+                    srcOffset = IntOffset((wx and mask) * part, (ty and mask) * part),
+                    srcSize = IntSize(part, part),
                     dstOffset = dstOffset,
                     dstSize = dstSize,
                     colorFilter = tileColor,
                 )
+                break
             }
         }
     }

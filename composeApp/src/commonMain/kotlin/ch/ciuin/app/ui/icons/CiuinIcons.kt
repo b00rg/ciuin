@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 object CiuinIcons {
     val ArrowLeft01: ImageVector by lazy { hugeicon("ArrowLeft01", "M15 6C15 6 9 10.4 9 12C9 13.6 15 18 15 18") }
     val ArrowRight01: ImageVector by lazy { hugeicon("ArrowRight01", "M9 6C9 6 15 10.4 15 12C15 13.6 9 18 9 18") }
+    val ArrowUp01: ImageVector by lazy { hugeicon("ArrowUp01", "M2.5 14.5C2.5 14.5 10.4 9.5 12 9.5C13.6 9.5 21.5 14.5 21.5 14.5") }
+    val ArrowDown01: ImageVector by lazy { hugeicon("ArrowDown01", "M2.5 9.5C2.5 9.5 10.4 14.5 12 14.5C13.6 14.5 21.5 9.5 21.5 9.5") }
     val Search01: ImageVector by lazy {
         hugeicon("Search01", "M17 17L21 21M19 11C19 6.6 15.4 3 11 3C6.6 3 3 6.6 3 11C3 15.4 6.6 19 11 19C15.4 19 19 15.4 19 11Z")
     }

@@ -1,5 +1,8 @@
 package ch.ciuin.app.ui.components
 
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,10 +42,13 @@ import ch.ciuin.app.ui.theme.CiuinRadii
 import ch.ciuin.app.ui.theme.CiuinType
 import ch.ciuin.app.ui.theme.ciuinShadow
 
-/** The grey handle at the top of a sheet: 36 by 4, centred. */
+/**
+ * The grey handle at the top of a sheet: 36 by 4, centred in a 24 dp strip. Decoration only; a sheet
+ * that opens and closes uses [SheetToggle] in its place, and a fixed one [SheetTopSpace].
+ */
 @Composable
 fun DragHandle(modifier: Modifier = Modifier) {
-    Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    Box(modifier.fillMaxWidth().height(HandleStrip), contentAlignment = Alignment.Center) {
         Box(Modifier.size(width = 36.dp, height = 4.dp).background(CiuinColors.Handle, CircleShape))
     }
 }
@@ -62,6 +68,8 @@ fun DragHandle(modifier: Modifier = Modifier) {
  * are up to the screen.
  *
  * @param bottomInset height of the system navigation area under the sheet, added below the content.
+ * @param handle what sits in the 24 dp strip at the top: a [DragHandle] by default, a [SheetToggle] on
+ *   the map's layer sheets, or [SheetTopSpace] on the fixed For you sheet.
  */
 @Composable
 fun BottomSheetSurface(
@@ -71,6 +79,7 @@ fun BottomSheetSurface(
     bottomPadding: Dp = 18.dp,
     bottomInset: Dp = 0.dp,
     shadow: Boolean = true,
+    handle: @Composable () -> Unit = { DragHandle() },
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(topStart = CiuinRadii.Sheet, topEnd = CiuinRadii.Sheet)
@@ -78,14 +87,68 @@ fun BottomSheetSurface(
         modifier = modifier
             .fillMaxWidth()
             .then(if (shadow) Modifier.ciuinShadow(CiuinElevation.Sheet, shape) else Modifier)
+            // Clipped to its own corners so the toggle's press highlight follows the rounded top.
+            .clip(shape)
             .background(CiuinColors.Ground, shape)
-            .padding(start = horizontalPadding, end = horizontalPadding, top = 10.dp, bottom = bottomPadding + bottomInset),
-        verticalArrangement = Arrangement.spacedBy(gap),
+            .padding(bottom = bottomPadding + bottomInset),
     ) {
-        DragHandle()
-        content()
+        // The handle strip spans the whole sheet, edge to edge; only the content is inset. The bar sits
+        // 10 dp from the top and the content [gap] below it, as before the strip grew.
+        handle()
+        Spacer(Modifier.height(gap - (HandleStrip - 4.dp) / 2))
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = horizontalPadding),
+            verticalArrangement = Arrangement.spacedBy(gap),
+            content = content,
+        )
     }
 }
+
+/**
+ * The arrow at the top of a sheet that can hide its details: down while they show, up while they are
+ * hidden. A wide, shallow chevron in the handle's grey, where the bar would be. The whole 24 dp strip,
+ * from one edge of the sheet to the other, is the button.
+ */
+@Composable
+fun SheetToggle(expanded: Boolean, onToggle: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .fillMaxWidth()
+            .height(HandleStrip + ToggleTopRoom)
+            .clickable(
+                onClickLabel = if (expanded) "Hide details to see the map" else "Show details",
+                role = Role.Button,
+                onClick = onToggle,
+            )
+            .semantics { stateDescription = if (expanded) "Details shown" else "Details hidden" }
+            // Room above the arrow, inside the button so its press highlight still reaches the top edge.
+            .padding(top = ToggleTopRoom),
+        contentAlignment = Alignment.Center,
+    ) {
+        CiuinIcon(
+            if (expanded) CiuinIcons.ArrowDown01 else CiuinIcons.ArrowUp01,
+            contentDescription = null,
+            size = 32.dp,
+            tint = CiuinColors.Handle,
+            strokeWidth = CiuinIconStroke.SheetToggle,
+        )
+    }
+}
+
+/**
+ * The empty top of a map sheet that does not open and close (For you): as tall as a [SheetToggle],
+ * so the content sits at the same height on every layer.
+ */
+@Composable
+fun SheetTopSpace() {
+    Spacer(Modifier.fillMaxWidth().height(HandleStrip + ToggleTopRoom))
+}
+
+/** Extra space above a [SheetToggle]'s arrow, so it does not crowd the sheet's top edge. */
+private val ToggleTopRoom = 8.dp
+
+/** Height of the handle's strip; the 4 dp bar is centred in it, 10 dp from the top. */
+private val HandleStrip = 24.dp
 
 /**
  * The dark layer behind a confirmation sheet (ink at 40%), covering the whole screen. Tapping it
@@ -241,6 +304,7 @@ fun CiuinTopBar(
     onBack: (() -> Unit)? = null,
     backDescription: String = "Back",
     wordmark: Boolean = false,
+    wordmarkMeaning: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     Row(modifier = modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -248,6 +312,9 @@ fun CiuinTopBar(
             RoundIconButton(CiuinIcons.ArrowLeft01, backDescription, onBack, style = RoundIconButtonStyle.Plain)
         }
         if (wordmark) Wordmark()
+        if (wordmark && wordmarkMeaning) {
+            Label("Irish for quiet", CiuinType.Caption, Modifier.padding(start = 10.dp), color = CiuinColors.SecondaryText)
+        }
         if (title != null) {
             Label(title, CiuinType.Title, Modifier.weight(1f).semantics { heading() }, maxLines = 1)
         } else {
