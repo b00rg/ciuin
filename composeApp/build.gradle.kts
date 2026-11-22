@@ -98,9 +98,9 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "0.1"
-        // Backend URL: -Pciuin.apiUrl=https://xyz.trycloudflare.com (or "fake").
-        // Default 10.0.2.2 = the host machine as seen from the Android emulator.
-        val apiUrl = (project.findProperty("ciuin.apiUrl") as String?) ?: "http://10.0.2.2:8000"
+        // Backend URL: default = the hosted backend on Railway. Override with -Pciuin.apiUrl=...
+        // (http://10.0.2.2:8000 = a backend on the host machine, as seen from the Android emulator; or "fake").
+        val apiUrl = (project.findProperty("ciuin.apiUrl") as String?) ?: "https://ciuin-production.up.railway.app"
         buildConfigField("String", "API_URL", "\"$apiUrl\"")
         val walkingRouterUrl = providers.gradleProperty("ciuin.walkingRouterUrl").orNull
         val walkingRouterField = walkingRouterUrl?.let { "\"${it.replace("\\", "\\\\").replace("\"", "\\\"")}\"" } ?: "null"

@@ -144,12 +144,15 @@ def seed(conn: sqlite3.Connection, files: list[Path] = SEED_FILES) -> int:
 
 
 def ensure_ready() -> None:
-    """Create tables and seed on first start (empty places table)."""
+    """Create tables (and add new columns) on start. Seeds places when the table is empty, or on every start
+    when CIUIN_RESEED_ON_START=1 (the hosted deploy: new data files ship with each deploy; measurements are kept)."""
+    db_path().parent.mkdir(parents=True, exist_ok=True)
     with closing(connect()) as conn:
         init(conn)
-        if conn.execute("SELECT COUNT(*) FROM places").fetchone()[0] == 0:
+        empty = conn.execute("SELECT COUNT(*) FROM places").fetchone()[0] == 0
+        if empty or os.environ.get("CIUIN_RESEED_ON_START") == "1":
             n = seed(conn)
-            print(f"seeded {n} places into {db_path()}", file=sys.stderr)
+            print(f"{'seeded' if empty else 're-seeded'} {n} places into {db_path()}", file=sys.stderr)
 
 
 def main() -> int:

@@ -10,7 +10,12 @@ import org.tensorflow.lite.Interpreter
 import java.nio.channels.FileChannel
 import kotlin.math.log10
 
-/** Extracts audio-only feature windows. Use one instance from a single consumer. */
+/**
+ * Extracts audio-only feature windows. Use one instance from a single consumer.
+ *
+ * Stage 1 runs the [variant] chosen in settings. When that is Student S, windows where S is unsure (top-2 margin
+ * below cascade.json `stage1_to_2`) are re-run on Student M (stage 2). A chosen M runs alone.
+ */
 internal class LiveAudioFeatures(context: Context, audioSource: Int, private val variant: ModelVariant) : AutoCloseable {
     private val analyzer = Stage0AudioAnalyzer(AUDIO_SAMPLE_RATE)
     // Android CDD §7.5.3 microphone sensitivity at 1 kHz. The resulting levels are estimates.
@@ -27,6 +32,23 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int, private val
     } catch (error: LinkageError) {
         throw IllegalStateException("Could not load the on-device audio runtime", error)
     }
+    // Stage 2: the larger student, only behind S and only on unsure windows. Same input/output as S.
+    // Missing asset -> stage 1 only.
+    private val stage2 = if (variant != ModelVariant.S) null else try {
+        Interpreter(loadModel(context, ModelVariant.M), Interpreter.Options().setUseXNNPACK(false))
+    } catch (error: java.io.IOException) {
+        null
+    }
+    private val escalation = EscalationRule(
+        (context.applicationContext as? ch.ciuin.app.CiuinApplication)?.escalationMargin
+            ?: EscalationRule.DEFAULT_MARGIN,
+    )
+
+    /** Windows classified, and how many of those were escalated to stage 2 (frugality evidence). */
+    var classifiedWindows = 0
+        private set
+    var escalatedWindows = 0
+        private set
 
     fun extract(window: FloatArray): AudioSample {
         val metrics = analyzer.analyze(window)
@@ -36,9 +58,16 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int, private val
         val modelWindow = input[0]
         window.copyInto(modelWindow, startIndex = window.size - modelWindow.size)
         val power = modelWindow.sumOf { it.toDouble() * it } / modelWindow.size
+        var model = "Student ${variant.name}"
         val soundClasses = if (power >= SILENCE_POWER) {
             try {
                 interpreter.run(input, output)
+                classifiedWindows++
+                if (stage2 != null && escalation.shouldEscalate(output[0])) {
+                    stage2.run(input, output) // same window, overwrites S's probabilities
+                    escalatedWindows++
+                    model = "Student ${ModelVariant.M.name}"
+                }
                 SoundClass.entries.associate { it.label to output[0][it.index].toDouble() }
             } finally {
                 modelWindow.fill(0f)
@@ -47,10 +76,13 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int, private val
             modelWindow.fill(0f)
             emptyMap()
         }
-        return AudioSample(dbMean, dbPeak, soundClasses, "Student ${variant.name}")
+        return AudioSample(dbMean, dbPeak, soundClasses, model)
     }
 
-    override fun close() = interpreter.close()
+    override fun close() {
+        interpreter.close()
+        stage2?.close()
+    }
 
     private companion object {
         const val MODEL_WINDOW_SAMPLES = 15_600

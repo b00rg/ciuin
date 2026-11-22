@@ -122,6 +122,7 @@ internal fun MeasureTab(
         MeasurementPhase.Requesting, is MeasurementPhase.Capturing -> MeasureCaptureScreen(
             placeName = controller.place?.name ?: "This spot",
             capture = phase as? MeasurementPhase.Capturing,
+            levels = remember(controller.capture) { controller.capture.audioLevels() },
             onCancel = ::backToChoices,
             modifier = modifier,
         )

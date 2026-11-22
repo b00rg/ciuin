@@ -13,7 +13,7 @@ class ModelCatalogTest {
         val available = setOf(ModelVariant.S, ModelVariant.M)
         val variants = parseModelResults(modelResultsJson, available)
         assertEquals(listOf(ModelVariant.S, ModelVariant.M, ModelVariant.L), variants.map { it.variant })
-        assertEquals(ModelInfo(ModelVariant.M, 1.93, 0.6691, 259_021, null), variants[1])
+        assertEquals(ModelInfo(ModelVariant.M, 1.93, 0.717, 259_021, null), variants[1])
         assertTrue(variants[0].available)
         assertEquals("Not available yet", variants[2].unavailableReason)
         assertFalse(parseModelResults(modelResultsJson, emptySet()).any { it.available })

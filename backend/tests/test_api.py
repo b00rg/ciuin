@@ -14,7 +14,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-LAUSANNE = "6.58,46.50,6.67,46.54"
+LAUSANNE = "6.55,46.50,6.67,46.54"
 # Section 0 key sets (Claude/todo.md). If these change, the Kotlin classes must change too.
 PLACE_KEYS = {
     "place_id", "name", "lat", "lon", "category", "wheelchair", "sensory_friendly", "quiet_room",
@@ -291,6 +291,29 @@ def test_prior_is_separate_from_measured(client, a_place):
     assert r["place"]["prior"] == a_place["prior"]
 
 
+def test_reseed_on_start_keeps_measurements(client, a_place, monkeypatch):
+    """Hosted deploy (CIUIN_RESEED_ON_START=1): each start refreshes places from the shipped files, but
+    measurements and the place's aggregate stay."""
+    import db
+
+    pid, lat, lon = a_place["place_id"], a_place["lat"], a_place["lon"]
+    assert client.post("/measurements", json=measurement(pid, lat, lon, db_mean=61)).status_code == 201
+    monkeypatch.setenv("CIUIN_RESEED_ON_START", "1")
+    db.ensure_ready()  # what the next container start does
+    again = [p for p in client.get("/places", params={"bbox": LAUSANNE}).json() if p["place_id"] == pid][0]
+    assert again["measured"]["n"] == 1 and again["measured"]["features"]["db_mean"] == 61
+    assert again["name"] == a_place["name"]
+
+
+def test_ensure_ready_creates_the_database_folder(tmp_path, monkeypatch):
+    """On Railway the DB lives on a volume path (/data/ciuin.db) whose folder may not exist yet."""
+    import db
+
+    monkeypatch.setenv("CIUIN_DB", str(tmp_path / "volume" / "ciuin.db"))
+    db.ensure_ready()
+    assert (tmp_path / "volume" / "ciuin.db").is_file()
+
+
 def test_meta_lists_required_attribution_and_data(client):
     m = client.get("/meta").json()
     texts = [a["text"] for a in m["attribution"] if a["required"]]
@@ -310,13 +333,15 @@ def test_heatmap_noise_day_and_night(client):
     f = day["features"][0]
     assert f["geometry"]["type"] == "Point" and set(f["properties"]) == {"value", "road_db", "rail_db", "source"}
     assert day["res_m"] == 50  # the key the app reads for cell size
-    # value is the energetic sum of road and rail (where both exist)
+    # value = median of the combined (road+rail) 10 m cells; road_db / rail_db = median of each source.
+    # The energetic sum of the two medians matches value closely in uniform cells, but not in cells
+    # straddling a road or railway edge (median of sums != sum of medians): ~1% of cells.
     import math
-    both = [x["properties"] for x in day["features"] if x["properties"]["rail_db"] is not None][:200]
+    both = [x["properties"] for x in day["features"] if x["properties"]["rail_db"] is not None]
     assert both
-    for p in both:
-        expected = 10 * math.log10(10 ** (p["road_db"] / 10) + 10 ** (p["rail_db"] / 10))
-        assert abs(p["value"] - expected) < 1.5  # medians of each source vs median of the sum: close, not exact
+    devs = [p["value"] - 10 * math.log10(10 ** (p["road_db"] / 10) + 10 ** (p["rail_db"] / 10)) for p in both]
+    assert sum(abs(d) < 1.5 for d in devs) / len(devs) > 0.95
+    assert min(devs) > -1.5  # never clearly quieter than its sources combined
     assert f["properties"]["source"] == "sonbase"
     dv = statistics.median(x["properties"]["value"] for x in day["features"])
     nv = statistics.median(x["properties"]["value"] for x in night["features"])
