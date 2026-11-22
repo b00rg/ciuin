@@ -1,4 +1,8 @@
 name: iosApp
+packages:
+  LiteRT:
+    url: https://github.com/google-ai-edge/LiteRT-Swift.git
+    exactVersion: 2.3.0
 options:
   deploymentTarget:
     iOS: "16.0"
@@ -15,6 +19,13 @@ targets:
         buildPhase: resources
       - path: ../data/processed/places_lausanne.geojson
         buildPhase: resources
+      - path: ../ml/export/audio-student-s.tflite
+        buildPhase: resources
+      - path: ../ml/export/audio-student-m.tflite
+        buildPhase: resources
+    dependencies:
+      - package: LiteRT
+        product: LiteRT
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ch.ciuin.app
@@ -40,8 +51,25 @@ targets:
           fi
           cd "$SRCROOT/.."
           ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
+  iosAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: iosAppTests
+        optional: true
+      - path: ../ml/export/test_clips
+        type: folder
+        buildPhase: resources
+    dependencies:
+      - target: iosApp
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   iosApp:
     build:
       targets:
         iosApp: all
+    test:
+      targets:
+        - iosAppTests
