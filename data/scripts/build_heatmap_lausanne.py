@@ -23,7 +23,7 @@ from rasterio.warp import transform
 
 DATA = Path(__file__).resolve().parents[1]
 OUT = DATA / "processed" / "heatmap_lausanne_noise.geojson"
-BBOX = (46.50, 6.58, 46.54, 6.67)  # south, west, north, east; same as BBox.LAUSANNE
+BBOX = (46.50, 6.55, 46.54, 6.67)  # south, west, north, east; same as BBox.LAUSANNE
 CELL_M = 50
 MIN_VALID = 5  # of 25 sub-cells
 
