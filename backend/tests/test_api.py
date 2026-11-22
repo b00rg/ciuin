@@ -291,6 +291,29 @@ def test_prior_is_separate_from_measured(client, a_place):
     assert r["place"]["prior"] == a_place["prior"]
 
 
+def test_reseed_on_start_keeps_measurements(client, a_place, monkeypatch):
+    """Hosted deploy (CIUIN_RESEED_ON_START=1): each start refreshes places from the shipped files, but
+    measurements and the place's aggregate stay."""
+    import db
+
+    pid, lat, lon = a_place["place_id"], a_place["lat"], a_place["lon"]
+    assert client.post("/measurements", json=measurement(pid, lat, lon, db_mean=61)).status_code == 201
+    monkeypatch.setenv("CIUIN_RESEED_ON_START", "1")
+    db.ensure_ready()  # what the next container start does
+    again = [p for p in client.get("/places", params={"bbox": LAUSANNE}).json() if p["place_id"] == pid][0]
+    assert again["measured"]["n"] == 1 and again["measured"]["features"]["db_mean"] == 61
+    assert again["name"] == a_place["name"]
+
+
+def test_ensure_ready_creates_the_database_folder(tmp_path, monkeypatch):
+    """On Railway the DB lives on a volume path (/data/ciuin.db) whose folder may not exist yet."""
+    import db
+
+    monkeypatch.setenv("CIUIN_DB", str(tmp_path / "volume" / "ciuin.db"))
+    db.ensure_ready()
+    assert (tmp_path / "volume" / "ciuin.db").is_file()
+
+
 def test_meta_lists_required_attribution_and_data(client):
     m = client.get("/meta").json()
     texts = [a["text"] for a in m["attribution"] if a["required"]]

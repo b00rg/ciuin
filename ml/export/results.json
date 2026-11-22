@@ -210,47 +210,47 @@
     "model": "depthwise-separable CNN, width x2, in-graph log-mel frontend",
     "params": 259021,
     "size_mb": 1.93,
-    "accuracy": 0.6691,
-    "macro_f1": 0.6502,
+    "accuracy": 0.717,
+    "macro_f1": 0.7024,
     "eval": "clip-level (mean of window probabilities), test split; fp32 Keras weights",
     "test": {
-      "accuracy": 0.6691,
-      "macro_f1": 0.6502,
+      "accuracy": 0.717,
+      "macro_f1": 0.7024,
       "per_class_f1": {
-        "speech_crowd": 0.6452,
-        "music": 0.633,
-        "traffic": 0.6656,
-        "siren": 0.7419,
-        "construction": 0.8691,
-        "alarm_beep": 0.6908,
-        "dog": 0.7513,
-        "machinery_hum": 0.3654,
-        "other": 0.4896
+        "speech_crowd": 0.7286,
+        "music": 0.7105,
+        "traffic": 0.7328,
+        "siren": 0.7623,
+        "construction": 0.821,
+        "alarm_beep": 0.7174,
+        "dog": 0.6865,
+        "machinery_hum": 0.5312,
+        "other": 0.6314
       },
-      "n_clips": 3116
+      "n_clips": 3216
     },
     "val": {
-      "accuracy": 0.6471,
-      "macro_f1": 0.646,
+      "accuracy": 0.7217,
+      "macro_f1": 0.7072,
       "per_class_f1": {
-        "speech_crowd": 0.5894,
-        "music": 0.628,
-        "traffic": 0.6607,
-        "siren": 0.8125,
-        "construction": 0.8307,
-        "alarm_beep": 0.5656,
-        "dog": 0.8341,
-        "machinery_hum": 0.3774,
-        "other": 0.5152
+        "speech_crowd": 0.7135,
+        "music": 0.8,
+        "traffic": 0.7532,
+        "siren": 0.7673,
+        "construction": 0.8364,
+        "alarm_beep": 0.6739,
+        "dog": 0.8,
+        "machinery_hum": 0.3929,
+        "other": 0.6278
       },
-      "n_clips": 1380
+      "n_clips": 1509
     },
     "distillation": {
       "teacher": "teacher",
       "alpha": 0.5,
       "temperature": 3.0
     },
-    "epochs": 10,
+    "epochs": 60,
     "augment": {
       "gain_db": 6.0,
       "shift_frames": 24,
@@ -262,15 +262,15 @@
       "mixup_p": 0.5,
       "mixup_beta": 0.4
     },
-    "trained_without": [
-      "MUSAN"
-    ],
-    "trained_at": "2026-11-21T21:08:12+0100",
+    "lr_schedule": "cosine",
+    "trained_without": [],
+    "trained_at": "2026-11-22T01:55:37+0000",
     "macs": 50040384,
     "macs_breakdown": {
       "frontend": 21365952,
       "backbone": 28674432
-    }
+    },
+    "source": "Kaggle ciuin-train-cosine (22 Nov): frozen PANNs CNN14 teacher, --lr-schedule cosine, 60 epochs, no early stop"
   },
   "audio-student-l": {
     "model": "depthwise-separable CNN, width x4, in-graph log-mel frontend",

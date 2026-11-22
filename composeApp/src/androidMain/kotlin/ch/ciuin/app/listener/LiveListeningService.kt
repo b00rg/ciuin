@@ -150,6 +150,8 @@ class LiveListeningService : Service() {
         val policy = app.overwhelmAlerts.await()
         policy.resetCrossing()
         val wakeLock = acquireWakeLock()
+        // One 1 s window is noisy: score the mean of the last few (cascade.json `live_smoothing`).
+        val smoother = SoundClassSmoother(app.liveSmoothingWindows)
         try {
             app.audioWindows.collect { result ->
                 if (activeService !== this) return@collect
@@ -157,7 +159,7 @@ class LiveListeningService : Service() {
                 app.liveDb = audio.dbMean
                 // The audio stream consists of one-second windows. Empty classes mean the gate stayed closed.
                 app.listeningStats.record(1_000, ranModel = !audio.soundClasses.isNullOrEmpty())
-                val window = FeatureVector(audio.dbMean, audio.dbPeak, audio.soundClasses)
+                val window = FeatureVector(audio.dbMean, audio.dbPeak, smoother.smooth(audio.soundClasses))
                 val model = app.personalModel
                 val liveWindow = model.onLiveWindow(window) ?: return@collect
                 val score = liveWindow.score ?: return@collect

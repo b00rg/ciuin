@@ -23,6 +23,7 @@ Outputs (ml/export/):
 from __future__ import annotations
 
 import argparse
+import os
 import json
 import sys
 import time
@@ -80,6 +81,19 @@ def build_features(clips: list[dict]) -> None:
             with np.load(out) as old:
                 if np.array_equal(old["keys"], keys) and len(old["mel"]) == len(clip_of):
                     print(f"[features] {dataset}: cached")
+                    continue
+        cached = T.WIN_CACHE / f"{dataset}.npz"
+        if cached.exists():
+            with np.load(cached) as wc:
+                if np.array_equal(wc["keys"], keys) and np.array_equal(wc["win_start"], win_start):
+                    t0 = time.time()
+                    win = wc["win"]
+                    mel = np.concatenate([frontend.predict(win[i:i + 4096].astype(np.float32),
+                                                           batch_size=512, verbose=0).astype(np.float16)
+                                          for i in range(0, len(win), 4096)])
+                    np.savez(out, keys=keys, mel=mel)
+                    print(f"[features] {dataset}: {len(mel)} windows from the decode cache in "
+                          f"{time.time() - t0:.0f}s", flush=True)
                     continue
         t0 = time.time()
         per_clip = [[] for _ in keys]
@@ -261,7 +275,7 @@ def kd_loss(n_classes: int, alpha: float, temperature: float):
 # ---------------------------------------------------------------- train
 
 def train(width: int, epochs: int, alpha: float, temperature: float, patience: int = 5,
-          augment: bool = True):
+          augment: bool = True, lr_schedule: str = "constant", select: str = "epoch"):
     import keras
     import tensorflow as tf
 
@@ -286,14 +300,21 @@ def train(width: int, epochs: int, alpha: float, temperature: float, patience: i
 
     keras.utils.set_random_seed(SEED)
     model = build_backbone(width, len(classes))
-    model.compile(keras.optimizers.Adam(2e-3), kd_loss(len(classes), alpha, temperature))
+    lr = 2e-3
+    if lr_schedule == "cosine":
+        # Decay to ~0 over the whole run: with a constant LR the weights keep moving, val F1
+        # swings +-3 points epoch to epoch, and "best on val" picks a lucky epoch.
+        steps = epochs * int(np.ceil(tr.sum() / 128))
+        lr = keras.optimizers.schedules.CosineDecay(2e-3, decay_steps=steps, alpha=0.01)
+    model.compile(keras.optimizers.Adam(lr), kd_loss(len(classes), alpha, temperature))
     ds = (tf.data.Dataset.from_tensor_slices((mel[tr], target[tr]))
           .shuffle(20_000, seed=SEED)
           .map(lambda m, y: (tf.cast(m, tf.float32), y), num_parallel_calls=tf.data.AUTOTUNE)
           .batch(128))
-    if augment:
-        ds = ds.map(make_augment(noise_bank(d, mel, tr)), num_parallel_calls=tf.data.AUTOTUNE)
-    else:
+    # Augmentation runs as a compiled step on the GPU, not in tf.data (which runs on the CPU:
+    # Kaggle has 4 cores for 2 GPUs). Same maths, same random draws per batch.
+    aug_step = tf.function(make_augment(noise_bank(d, mel, tr))) if augment else None
+    if not augment:
         ds = ds.map(lambda m, y: (m[..., None], y))
     ds = ds.prefetch(tf.data.AUTOTUNE)
 
@@ -304,22 +325,45 @@ def train(width: int, epochs: int, alpha: float, temperature: float, patience: i
         p, t, _ = T.clip_scores(probs, d["clip"][mask], d["y"][mask])
         return T.metrics(p.argmax(1), t, classes)
 
-    best, best_f1, waited, t0 = None, -1.0, 0, time.time()
+    best, best_f1, best_epoch, waited, t0 = None, -1.0, 0, 0, time.time()
+    # select="smooth3": score each epoch by the mean val F1 of it and its two neighbours, so a
+    # one-epoch spike (a few val clips flipping in a small class) is not picked. The score for
+    # epoch e is only known after epoch e+1, so the last two epochs' weights are kept.
+    hist, recent = [], []  # val F1 per epoch; (epoch, weights) for the last 2 epochs
     for epoch in range(1, epochs + 1):
-        model.fit(ds, epochs=1, verbose=0)
+        if aug_step is None:
+            model.fit(ds, epochs=1, verbose=0)
+        else:
+            for m_b, y_b in ds:
+                model.train_on_batch(*aug_step(m_b, y_b))
         v = evaluate(va)
         print(f"  epoch {epoch:2d}  val acc {v['accuracy']:.4f}  macro-F1 {v['macro_f1']:.4f}  "
               f"({time.time() - t0:.0f}s)", flush=True)
-        if v["macro_f1"] > best_f1:
-            best, best_f1, waited = model.get_weights(), v["macro_f1"], 0
+        hist.append(v["macro_f1"])
+        if select == "smooth3":
+            recent = (recent + [(epoch, model.get_weights())])[-2:]
+            if epoch == 1:
+                continue
+            centre = epoch - 1  # its window is epochs centre-1..centre+1 (clipped at epoch 1)
+            score, cand = float(np.mean(hist[max(centre - 2, 0):centre + 1])), recent[0]
+        else:
+            score, cand = v["macro_f1"], (epoch, None)
+        if score > best_f1:
+            best_f1, best_epoch, waited = score, cand[0], 0
+            best = cand[1] if cand[1] is not None else model.get_weights()
         else:
             waited += 1
             if waited >= patience:
                 break
+    if select == "smooth3" and not best:  # 1-epoch run: nothing smoothed yet
+        best, best_epoch, best_f1 = model.get_weights(), epoch, hist[-1]
+    print(f"  selected epoch {best_epoch} (val F1 {hist[best_epoch - 1]:.4f}"
+          + (f", 3-epoch mean {best_f1:.4f}" if select == "smooth3" else "") + ")", flush=True)
     model.set_weights(best)
     return model, {"val": evaluate(va), "test": evaluate(te), "missing": missing,
                    "epochs": epoch, "alpha": alpha, "temperature": temperature,
-                   "augment": AUG if augment else None}
+                   "augment": AUG if augment else None, "lr_schedule": lr_schedule,
+                   "select": select, "selected_epoch": best_epoch}
 
 
 # ---------------------------------------------------------------- export
@@ -407,6 +451,17 @@ def write_calibration(n: int = 200) -> None:
     print(f"wrote calibration.npy {arr.shape} ({arr.nbytes / 1e6:.1f} MB)")
 
 
+def prepare() -> None:
+    """Build every shared cache once (log-mels, teacher logits, noise bank), so parallel
+    student runs only read them."""
+    clips = T.index_clips()
+    build_features(clips)
+    SL.load_logits(clips)
+    d = T.load_windows(clips)
+    noise_bank(d, load_features(clips), d["split"] == "train")
+    print("caches ready", flush=True)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--width", type=int, default=1, choices=sorted(SIZES))
@@ -414,10 +469,21 @@ def main() -> int:
     ap.add_argument("--alpha", type=float, default=0.5, help="weight of the distillation term")
     ap.add_argument("--temperature", type=float, default=3.0)
     ap.add_argument("--no-augment", action="store_true", help="train without augmentation")
+    ap.add_argument("--patience", type=int, default=5, help="early stop after this many epochs without val gain")
+    ap.add_argument("--lr-schedule", choices=("constant", "cosine"), default="constant",
+                    help="cosine: Adam 2e-3 decayed to 2e-5 over --epochs (use with a large --patience)")
+    ap.add_argument("--select", choices=("epoch", "smooth3"), default="epoch",
+                    help="smooth3: keep the epoch with the best 3-epoch mean val F1 (also used for --patience)")
     ap.add_argument("--hard", action="store_true",
                     help="baseline: hard labels only (alpha 0), saved as audio-student-<size>-hard; "
                          "the .tflite goes to data/cache/student/, not ml/export/")
+    ap.add_argument("--prepare", action="store_true", help="only build the shared caches")
+    ap.add_argument("--tag", default="", help="sweep variant name: saves audio-student-<size>-<tag> and "
+                    "skips test clips / calibration, so variants don't overwrite the real export")
     args = ap.parse_args()
+    if args.prepare:
+        prepare()
+        return 0
     if args.hard:
         args.alpha = 0.0
 
@@ -425,22 +491,25 @@ def main() -> int:
     from verify_tflite import verify
 
     size = SIZES[args.width]
-    name = f"audio-student-{size}" + ("-hard" if args.hard else "")
+    name = f"audio-student-{size}" + ("-hard" if args.hard else "") + (f"-{args.tag}" if args.tag else "")
     backbone, scores = train(args.width, args.epochs, args.alpha, args.temperature,
-                             augment=not args.no_augment)
+                             patience=args.patience, augment=not args.no_augment,
+                             lr_schedule=args.lr_schedule, select=args.select)
     backbone.save(FEAT_DIR / f"{name}.keras")  # log-mel -> logits, for #6 / #7 analysis
     model = deployable(backbone)
-    path = export(model, (FEAT_DIR if args.hard else EXPORT) / f"{name}.tflite")
+    path = export(model, (FEAT_DIR if (args.hard or args.tag) else EXPORT) / f"{name}.tflite")
     errors = verify(path)
     if errors:
         print("export failed verification:", errors)
         return 1
 
-    if size == "s" and not args.hard:
+    if size == "s" and not args.hard and not args.tag:
         write_test_clips(path)
         write_calibration()
 
-    results = json.loads(T.RESULTS.read_text()) if T.RESULTS.exists() else {}
+    # CIUIN_RESULTS: write to a separate file (parallel runs merge them afterwards).
+    results_path = Path(os.environ.get("CIUIN_RESULTS", T.RESULTS))
+    results = json.loads(results_path.read_text()) if results_path.exists() else {}
     t = scores["test"]
     results[name] = {
         "model": f"depthwise-separable CNN, width x{args.width}, in-graph log-mel frontend"
@@ -454,10 +523,13 @@ def main() -> int:
                                                 "temperature": scores["temperature"]},
         "epochs": scores["epochs"],
         "augment": scores["augment"],
+        "lr_schedule": scores["lr_schedule"],
+        "select": scores["select"],
+        "selected_epoch": scores["selected_epoch"],
         "trained_without": scores["missing"],
         "trained_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
-    T.RESULTS.write_text(json.dumps(results, indent=2) + "\n")
+    results_path.write_text(json.dumps(results, indent=2) + "\n")
     print(f"\n{name}: test accuracy {t['accuracy']:.4f}, macro-F1 {t['macro_f1']:.4f}, "
           f"{backbone.count_params():,} params, {path.stat().st_size / 1e6:.2f} MB")
     print("per class F1:", t["per_class_f1"])
