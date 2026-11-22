@@ -30,12 +30,7 @@ On first start the database (`ciuin.db`, gitignored) is created and seeded from 
 - Check: `curl http://localhost:8000/health` → `{"status":"ok"}`
 - API docs: http://localhost:8000/docs
 - Different DB file: set `CIUIN_DB=/path/to/file.db`
-
-Existing databases receive new columns on startup and retain prior measurements.
-In `POST /measurements`, missing readings are null and each per-place mean uses the
-measurements that have that reading. Send all nine sound labels when classification is
-available. Reuse the optional `measurement_id` with the same payload to retry an upload
-without counting it twice.
+- Schema changed? `python db.py --reset` (measurements are lost)
 
 ## Reaching it from phones
 
@@ -52,3 +47,27 @@ cloudflared tunnel --no-autoupdate --protocol http2 --url http://127.0.0.1:8000
 - Fallback: phone hotspot, with the laptop's hotspot IP as the URL (`http://192.168.x.x:8000`, run uvicorn with `--host 0.0.0.0`).
 
 Everyone should test against this one shared backend so all measurements land in one database.
+
+## Hosting on Railway (stable URL, no laptop)
+
+Files: `backend/Dockerfile`, `railway.json` (repo root), `.dockerignore` (only `backend/` + `data/processed/` ship, ~5.6 MB).
+
+One-time setup (in the Railway web UI):
+1. **New Project → Deploy from GitHub repo** → `b00rg/ciuin`, branch with the latest backend (`main` once merged).
+   Railway reads `railway.json` and builds `backend/Dockerfile` from the repo root.
+2. **Add a Volume** to the service, mount path **`/data`**. The database lives at `/data/ciuin.db`, so
+   measurements survive redeploys. Without the volume every deploy wipes them.
+3. **Settings → Region**: pick an EU region (closest to Lausanne).
+4. **Settings → Networking → Generate Domain** → `https://<name>.up.railway.app`.
+5. Check `https://<name>.up.railway.app/health` and `/docs`.
+
+Then point the app at it (and stop using the tunnel):
+- Android: `./gradlew :composeApp:installDebug -Pciuin.apiUrl=https://<name>.up.railway.app`
+- Desktop: `CIUIN_API_URL=https://<name>.up.railway.app`
+
+Behaviour:
+- Each deploy ships the current `data/processed/` files; on start the server **re-seeds places** and keeps
+  measurements (`CIUIN_RESEED_ON_START=1`, set in the Dockerfile).
+- Health check: `/health` (`railway.json`). Railway sets `$PORT`; the container listens on it.
+- Tested: `test_reseed_on_start_keeps_measurements` (a measurement and its aggregate survive a restart + re-seed).
+
