@@ -254,7 +254,7 @@ private fun MapTop(selectedLayer: Int, listening: Boolean = true, showListening:
             if (showListening) ListeningButton(listening, {})
         }
         LayerChipRow(
-            layers = listOf("For you", "Sound", "Light", "Crowd", "Access"),
+            layers = listOf("Sound", "Light", "Crowd", "Access"),
             selectedIndex = selectedLayer,
             onSelect = {},
             modifier = Modifier.padding(top = 12.dp),
@@ -283,25 +283,8 @@ private fun MapScreen(top: @Composable () -> Unit, bottom: @Composable () -> Uni
 private const val NoiseCredit = "© OpenStreetMap · noise: sonBASE © FOEN"
 
 @Composable
-internal fun MapForYou() = MapScreen(
-    top = { MapTop(selectedLayer = 0, showListening = false) },
-    bottom = {
-        MapBottom(NoiseCredit) {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                CharacterTile { Sheep(SheepPose.Rest, Modifier.size(62.dp, 56.dp), contentDescription = null, zzz = false) }
-                TitleBlock("Calm for you", Modifier.weight(1f), eyebrow = "Around you · Flon", subtitle = "46 dB · dim light · few people")
-            }
-            LevelLegend(listOf(Level.Calm to "Calm", Level.Moderate to "Moderate", Level.Loud to "Too much", Level.NoData to "No data"))
-            InfoTile("Nearest quiet spot: Library", "120 m · 2 min walk · open now", onClick = {}) {
-                LevelGlyph(Level.Calm, contentDescription = "Calm")
-            }
-        }
-    },
-)
-
-@Composable
 internal fun MapSound() = MapScreen(
-    top = { MapTop(selectedLayer = 1) },
+    top = { MapTop(selectedLayer = 0) },
     bottom = {
         MapBottom(NoiseCredit) {
             LayerHeaderReplica(LayerCharacter.Sound, "This area · Sound") { BigReading("60 dB", "Moderate") }
@@ -318,7 +301,7 @@ internal fun MapSound() = MapScreen(
 
 @Composable
 internal fun MapLightNoData() = MapScreen(
-    top = { MapTop(selectedLayer = 2) },
+    top = { MapTop(selectedLayer = 1) },
     bottom = {
         MapBottom("© OpenStreetMap contributors") {
             LayerHeaderReplica(LayerCharacter.Light, "This area · Light") {
@@ -337,7 +320,7 @@ internal fun MapLightNoData() = MapScreen(
 
 @Composable
 internal fun MapAccess() = MapScreen(
-    top = { MapTop(selectedLayer = 4) },
+    top = { MapTop(selectedLayer = 3) },
     bottom = {
         MapBottom("© OpenStreetMap contributors") {
             LayerHeaderReplica("This area · Access", { IconDisc(CiuinIcons.Wheelchair) }) {
@@ -361,7 +344,7 @@ internal fun MapAccess() = MapScreen(
 /** Not a Paper artboard: the Crowd layer with a reading, to check the three-sheep tile. */
 @Composable
 internal fun MapCrowd() = MapScreen(
-    top = { MapTop(selectedLayer = 3) },
+    top = { MapTop(selectedLayer = 2) },
     bottom = {
         MapBottom("© OpenStreetMap contributors") {
             LayerHeaderReplica(LayerCharacter.Crowd, "This area · Crowd") { BigReading("12 devices", "Busy") }
@@ -373,7 +356,7 @@ internal fun MapCrowd() = MapScreen(
 /** Not a Paper artboard: the Light layer with a reading, to check the streetlight tile. */
 @Composable
 internal fun MapLight() = MapScreen(
-    top = { MapTop(selectedLayer = 2) },
+    top = { MapTop(selectedLayer = 1) },
     bottom = {
         MapBottom("© OpenStreetMap contributors") {
             LayerHeaderReplica(LayerCharacter.Light, "This area · Light") { BigReading("82 lux", "Moderate") }
@@ -662,7 +645,7 @@ internal fun ResetSheet() = Box(Modifier.fillMaxSize().background(CiuinColors.Sc
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Reset what the sheep learned?", style = CiuinType.PlaceTitle)
             Text(
-                "Your sheep forgets your 23 answers and goes back to A bit of everything. Your ducks stay.",
+                "Your sheep forgets your 23 answers and goes back to A bit of everything. Your measurements stay.",
                 style = CiuinType.Body,
                 color = CiuinColors.SecondaryText,
             )

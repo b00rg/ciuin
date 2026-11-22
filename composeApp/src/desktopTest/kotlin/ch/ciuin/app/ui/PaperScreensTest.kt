@@ -28,7 +28,6 @@ class PaperScreensTest {
         shot("04-onboarding-4-privacy-permissions") { Onboarding4() }
         shot("05-onboarding-5-all-set") { Onboarding5() }
         shot("06-globe-opening") { Globe() }
-        shot("07-map-home-for-you") { MapForYou() }
         shot("08-map-sound-layer") { MapSound() }
         shot("09-map-light-layer-no-data") { MapLightNoData() }
         shot("10-map-access-layer") { MapAccess() }

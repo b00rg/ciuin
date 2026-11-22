@@ -83,7 +83,7 @@ internal fun App(environment: AppEnvironment) {
         is MeasurementPhase.Done -> true
         else -> false
     }
-    var mapCategory by rememberSaveable { mutableStateOf(Category.PERSONAL) }
+    var mapCategory by rememberSaveable { mutableStateOf(Category.SOUND) }
     val data = rememberMapData(environment.api, mapCategory)
     val places = data.places
     val session = personal.state.session
@@ -200,7 +200,10 @@ internal fun App(environment: AppEnvironment) {
                     })
                 }
                 !settings.onboardingComplete && route == null -> OnboardingFlow(environment, onFinished = { showGlobe = true })
-                showGlobe && route == null -> GlobeOpening(environment, onEnterMap = { showGlobe = false })
+                showGlobe && route == null -> GlobeOpening(environment, onEnterMap = { here ->
+                    showGlobe = false
+                    if (here != null) map.centerOn(here.lat, here.lon, LAUSANNE_ZOOM)
+                })
                 searchTarget != null -> {
                     BackHandler(onBack = ::dismissMapOverlay)
                     val searchPlaces = if (searchTarget == PlaceSearchTarget.Measure && data.usingSamplePlaces) emptyList() else places

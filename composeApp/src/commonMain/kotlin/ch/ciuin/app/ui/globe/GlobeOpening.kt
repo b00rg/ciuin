@@ -31,11 +31,14 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ch.ciuin.app.core.AppEnvironment
+import ch.ciuin.app.core.AppPermission
+import ch.ciuin.app.core.PermissionStatus
 import ch.ciuin.app.globe.GlobePoint
 import ch.ciuin.app.globe.GlobeSpike
 import ch.ciuin.app.globe.LAUSANNE_CENTRE
 import ch.ciuin.app.globe.globeSpikes
 import ch.ciuin.app.globe.wrapLongitude
+import ch.ciuin.app.route.RoutePoint
 import ch.ciuin.app.ui.components.CiuinTopBar
 import ch.ciuin.app.ui.components.LivePill
 import ch.ciuin.app.ui.components.PrimaryButton
@@ -47,11 +50,19 @@ import ch.ciuin.app.ui.theme.CiuinType
 import ch.ciuin.app.ui.theme.LocalReduceMotion
 import ch.ciuin.shared.api.FallbackPlacesApi
 import ch.ciuin.shared.api.Stats
+import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: () -> Unit, modifier: Modifier = Modifier) {
+/**
+ * [onEnterMap] gets where the user is when "Explore near you" found them, or null (no permission, no fix in
+ * time), in which case the map keeps its default view of the mapped area.
+ */
+internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: (RoutePoint?) -> Unit, modifier: Modifier = Modifier) {
     val api = environment.api
     val scope = rememberCoroutineScope()
     val reduceMotion = LocalReduceMotion.current
@@ -120,25 +131,35 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: () -> Unit, m
                 if (!flying) {
                     flying = true
                     scope.launch {
+                        // The button is the user asking to see where they are, so it may ask for location.
+                        val here = if (environment.permissions.request(AppPermission.LOCATION) == PermissionStatus.GRANTED) {
+                            withTimeoutOrNull(LOCATION_WAIT_MS) {
+                                snapshotFlow { environment.location.current }.filterNotNull().first()
+                            }
+                        } else null
+                        val target = here?.let { GlobePoint(it.lat, it.lon) } ?: LAUSANNE_CENTRE
                         if (reduceMotion) {
                             leave.animateTo(1f, CiuinMotion.reducedFade())
                         } else {
                             val from = centre
-                            val longitudeDelta = wrapLongitude(LAUSANNE_CENTRE.lon - from.lon)
+                            val longitudeDelta = wrapLongitude(target.lon - from.lon)
                             animate(0f, 1f, animationSpec = tween(450, easing = CiuinMotion.EaseInOut)) { progress, _ ->
                                 centre = GlobePoint(
-                                    from.lat + (LAUSANNE_CENTRE.lat - from.lat) * progress,
+                                    from.lat + (target.lat - from.lat) * progress,
                                     wrapLongitude(from.lon + longitudeDelta * progress),
                                 )
                             }
                         }
-                        enterMap()
+                        enterMap(here)
                     }
                 }
             },
         )
     }
 }
+
+/** How long "Explore near you" waits for a first position fix before flying to the mapped area instead. */
+private const val LOCATION_WAIT_MS = 4_000L
 
 private fun formattedCount(value: Int?): String = value?.toString()?.reversed()?.chunked(3)
     ?.joinToString(",")?.reversed() ?: "—"

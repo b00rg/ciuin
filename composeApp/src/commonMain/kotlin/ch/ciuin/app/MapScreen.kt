@@ -106,8 +106,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 
-private val categories = listOf(Category.PERSONAL, Category.SOUND, Category.LIGHT, Category.CROWD, Category.ACCESS)
-private val layers = categories.map { if (it == Category.PERSONAL) "For you" else it.title }
+// The map's layer tabs. There is no For you tab; the personal verdict lives on the place sheet, and a
+// walking route still colours the map by it.
+private val categories = listOf(Category.SOUND, Category.LIGHT, Category.CROWD, Category.ACCESS)
+private val layers = categories.map { it.title }
 
 @Composable
 internal fun MapScreen(
