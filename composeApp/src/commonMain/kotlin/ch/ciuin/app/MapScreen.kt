@@ -117,6 +117,7 @@ internal fun MapScreen(
     val routes = environment.routes
     val route = routes.active
     val places = data.places
+    val usesSonbase = remember(places) { places.any { it.baselineSource.equals("sonbase", ignoreCase = true) } }
     val byId = remember(places) { places.associateBy { it.placeId } }
     val placeRoute = remember(environment.location.current, selected) {
         environment.location.current?.let { here -> selected?.let { routeToPlace(here, it) } }
@@ -129,10 +130,15 @@ internal fun MapScreen(
     val chosenLayer = if (route == null) category else Category.PERSONAL
     val grid = data.grids[if (chosenLayer == Category.SOUND) period else NoisePeriod.DAY] ?: NoiseGrid()
     val noise = if (chosenLayer == Category.SOUND) period else NoisePeriod.DAY
-    val samples = remember(chosenLayer, places, grid, personalScores, noise) {
-        samplesFor(chosenLayer, places, grid.points, personalScores, noise)
+    val measurementGrid = when (chosenLayer) {
+        Category.LIGHT -> data.readingGrids[ReadingLayer.Light]
+        Category.CROWD -> data.readingGrids[ReadingLayer.Crowd]
+        else -> null
     }
-    val cell = cellLevel(state.zoom, LAUSANNE_LAT, grid.resolutionMeters)
+    val samples = remember(chosenLayer, places, grid, personalScores, noise, measurementGrid) {
+        measurementGrid?.samples ?: samplesFor(chosenLayer, places, grid.points, personalScores, noise)
+    }
+    val cell = cellLevel(state.zoom, LAUSANNE_LAT, measurementGrid?.resolutionMeters ?: grid.resolutionMeters)
     val showUnknownCells = chosenLayer == Category.LIGHT && places.isNotEmpty()
     val placeCells = remember(places, cell, showUnknownCells) {
         if (!showUnknownCells) emptyList()
@@ -214,8 +220,14 @@ internal fun MapScreen(
                 state.pan(Offset(0f, (routeTop + routeBottom - viewport.height) / 2f), tilePx)
             }
         }
-        val insight = remember(places, personalScores, bounds, grid, noise) {
-            areaInsight(places, grid.points, bounds, personalScores, noise)
+        val readingGrids = data.readingGrids
+        val insight = remember(places, personalScores, bounds, grid, noise, readingGrids) {
+            areaInsight(
+                places, grid.points, bounds, personalScores, noise,
+                lightGrid = readingGrids[ReadingLayer.Light]?.samples,
+                crowdGrid = readingGrids[ReadingLayer.Crowd]?.samples,
+                flickerGrid = readingGrids[ReadingLayer.Flicker]?.samples,
+            )
         }
 
         MapView(
@@ -277,7 +289,7 @@ internal fun MapScreen(
 
         val attribution = when {
             route != null && routes.walkingRoute != null -> "© OpenStreetMap · routing: OSRM"
-            (chosenLayer == Category.PERSONAL || chosenLayer == Category.SOUND) && grid.points.isNotEmpty() ->
+            (chosenLayer == Category.PERSONAL || chosenLayer == Category.SOUND) && (usesSonbase || grid.points.isNotEmpty()) ->
                 "© OpenStreetMap · noise: sonBASE © FOEN"
             else -> "© OpenStreetMap contributors"
         }
@@ -354,7 +366,9 @@ internal fun MapScreen(
                                 MapInsights(
                                     category, insight, period, { data.noisePeriod = it },
                                     data.offline, environment.measurement?.pendingUploads ?: 0,
-                                    listening != null, nearest, { onSelectPlace(it) },
+                                    listening != null, nearest, {
+                                        origin?.let { here -> routeToPlace(here, it) }?.let(routes::start)
+                                    },
                                     onMeasure?.let { start -> { start(null) } },
                                     liveFeedback = if (personal.liveScore != null) {
                                         { label -> personal.recordFeedback(null, label) }

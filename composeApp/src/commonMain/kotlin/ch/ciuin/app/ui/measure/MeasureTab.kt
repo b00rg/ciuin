@@ -29,6 +29,7 @@ internal fun MeasureTab(
     places: List<Place>,
     preselected: Place?,
     onBackToMap: () -> Unit,
+    onFindPlace: (() -> Unit)?,
     tabBar: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     onPlaceUpdated: (Place) -> Unit = {},
@@ -103,6 +104,7 @@ internal fun MeasureTab(
                 modifier = modifier,
                 locationNotice = if (origin == null) permission.locationNotice() else null,
                 onAllowLocation = { scope.launch { environment.permissions.request(AppPermission.LOCATION) } },
+                onFindPlace = onFindPlace,
                 nothingNearby = origin != null && choices.none { it.place != null },
                 error = controller.startError ?: when {
                     phase != MeasurementPhase.PermissionDenied -> null

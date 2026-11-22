@@ -46,6 +46,8 @@ import ch.ciuin.app.ui.theme.CiuinTheme
 import ch.ciuin.app.ui.you.YouTab
 import ch.ciuin.shared.model.Place
 
+private enum class PlaceSearchTarget { Map, Measure }
+
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun App(environment: AppEnvironment) {
@@ -57,7 +59,7 @@ internal fun App(environment: AppEnvironment) {
     val mapTiles = rememberMapTileCache()
     var tab by rememberSaveable { mutableStateOf(CiuinTab.Map) }
     var showGlobe by rememberSaveable { mutableStateOf(true) }
-    var searching by rememberSaveable { mutableStateOf(false) }
+    var searchTarget by rememberSaveable { mutableStateOf<PlaceSearchTarget?>(null) }
     var selectedPlaceId by rememberSaveable { mutableStateOf<String?>(null) }
     var measurementPlaceId by rememberSaveable { mutableStateOf<String?>(null) }
     val measurementPhase = environment.measurement?.phase
@@ -70,7 +72,7 @@ internal fun App(environment: AppEnvironment) {
         else -> false
     }
     var mapCategory by rememberSaveable { mutableStateOf(Category.PERSONAL) }
-    val data = rememberMapData(environment.api, showSound = mapCategory == Category.SOUND)
+    val data = rememberMapData(environment.api, mapCategory)
     val places = data.places
     val session = personal.state.session
     val scores = remember(places, session) {
@@ -92,17 +94,20 @@ internal fun App(environment: AppEnvironment) {
     LaunchedEffect(routes.requestCount, keepMeasurementVisible) {
         if (!keepMeasurementVisible && routes.active != null) {
             selectedPlaceId = null
-            searching = false
+            searchTarget = null
             showGlobe = false
             tab = CiuinTab.Map
         }
+    }
+    LaunchedEffect(measurementPhase) {
+        if (measurementPhase is MeasurementPhase.Done && measurementPhase.stored) data.retry()
     }
 
     fun switchTab(next: CiuinTab) {
         if (next == tab) return
         measurementPlaceId = null
         selectedPlaceId = null
-        searching = false
+        searchTarget = null
         tab = next
     }
 
@@ -114,15 +119,21 @@ internal fun App(environment: AppEnvironment) {
     }
     fun dismissMapOverlay() {
         when {
-            searching -> searching = false
+            searchTarget != null -> searchTarget = null
             selectedPlaceId != null -> selectedPlaceId = null
             routes.active != null -> routes.end()
         }
     }
     fun pickFromSearch(place: Place) {
-        map.centerOn(place.lat, place.lon, PLACE_ZOOM)
-        selectedPlaceId = place.placeId
-        searching = false
+        when (searchTarget) {
+            PlaceSearchTarget.Map -> {
+                map.centerOn(place.lat, place.lon, PLACE_ZOOM)
+                selectedPlaceId = place.placeId
+            }
+            PlaceSearchTarget.Measure -> measurementPlaceId = place.placeId
+            null -> return
+        }
+        searchTarget = null
     }
 
     CiuinTheme(reduceMotion = settings.reduceMotion) {
@@ -130,7 +141,6 @@ internal fun App(environment: AppEnvironment) {
             when {
                 settings.loading -> Unit
                 alert != null && !keepMeasurementVisible -> {
-                    BackHandler(onBack = environment.alerts::dismiss)
                     AlertScreen(environment, alert, mapPreview = {
                         val destination = alert.suggestion?.route ?: return@AlertScreen
                         BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -161,9 +171,10 @@ internal fun App(environment: AppEnvironment) {
                 }
                 !settings.onboardingComplete && route == null -> OnboardingFlow(environment, onFinished = { showGlobe = true })
                 showGlobe && route == null -> GlobeOpening(environment, onEnterMap = { showGlobe = false })
-                searching -> {
+                searchTarget != null -> {
                     BackHandler(onBack = ::dismissMapOverlay)
-                    SearchScreen(environment, places, scores, ::pickFromSearch, ::dismissMapOverlay)
+                    val searchPlaces = if (searchTarget == PlaceSearchTarget.Measure && data.usingSamplePlaces) emptyList() else places
+                    SearchScreen(environment, searchPlaces, scores, ::pickFromSearch, ::dismissMapOverlay)
                 }
                 tab == CiuinTab.Measure -> {
                     BackHandler(enabled = measurementPhase !is MeasurementPhase.Uploading) { switchTab(CiuinTab.Map) }
@@ -173,6 +184,9 @@ internal fun App(environment: AppEnvironment) {
                         preselected = places.takeUnless { data.usingSamplePlaces }
                             ?.firstOrNull { it.placeId == measurementPlaceId },
                         onBackToMap = { switchTab(CiuinTab.Map) },
+                        onFindPlace = if (places.isNotEmpty() && !data.usingSamplePlaces) {
+                            { searchTarget = PlaceSearchTarget.Measure }
+                        } else null,
                         tabBar = tabBar,
                         onPlaceUpdated = data::updatePlace,
                     )
@@ -193,7 +207,7 @@ internal fun App(environment: AppEnvironment) {
                         personalScores = scores,
                         selected = places.firstOrNull { it.placeId == selectedPlaceId },
                         onSelectPlace = { selectedPlaceId = it?.placeId },
-                        onSearch = { searching = true },
+                        onSearch = { searchTarget = PlaceSearchTarget.Map },
                         onMeasure = environment.measurement?.let {
                             { place ->
                                 switchTab(CiuinTab.Measure)
@@ -210,7 +224,7 @@ internal fun App(environment: AppEnvironment) {
                 modifier = Modifier.align(Alignment.BottomCenter)
                     .padding(horizontal = 16.dp)
                     .padding(bottom = if (tab == CiuinTab.Map && route == null && alert == null &&
-                        selectedPlaceId == null && !searching) bottomInset + 64.dp else bottomInset),
+                        selectedPlaceId == null && searchTarget == null) bottomInset + 64.dp else bottomInset),
             )
         }
     }

@@ -8,8 +8,10 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
@@ -66,14 +68,17 @@ fun Duck(
     val reduceMotion = LocalReduceMotion.current
     val clock = rememberCharacterClock(running = motion == DuckMotion.Bob && !reduceMotion)
     val waddleEnded by rememberUpdatedState(onWaddleEnd)
+    var arrived by remember { mutableStateOf(false) }
     // Seconds along the waddle, or 0 to 1 of the fade when motion is reduced.
     val entrance = remember { Animatable(if (motion == DuckMotion.WaddleIn) 0f else MotionSpec.WADDLE_LENGTH) }
 
     LaunchedEffect(motion, reduceMotion) {
         if (motion != DuckMotion.WaddleIn) {
+            arrived = false
             entrance.snapTo(MotionSpec.WADDLE_LENGTH)
             return@LaunchedEffect
         }
+        if (arrived) return@LaunchedEffect
         entrance.snapTo(0f)
         if (reduceMotion) {
             entrance.animateTo(1f, CiuinMotion.reducedFade())
@@ -81,10 +86,12 @@ fun Duck(
             val millis = (MotionSpec.WADDLE_LENGTH * 1000).toInt()
             entrance.animateTo(MotionSpec.WADDLE_LENGTH, tween(millis, easing = LinearEasing))
         }
+        arrived = true
         waddleEnded()
     }
 
     fun frame(): DuckFrame = when {
+        motion == DuckMotion.WaddleIn && arrived -> DuckFrame()
         motion == DuckMotion.WaddleIn && reduceMotion -> DuckFrame(alpha = entrance.value.coerceAtMost(1f))
         motion == DuckMotion.WaddleIn -> waddleFrame(entrance.value)
         motion == DuckMotion.Bob && !reduceMotion -> bobFrame(clock.floatValue, phase)

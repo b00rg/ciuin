@@ -86,13 +86,22 @@ fun BarRow(
  * The ring around the reading sheep while a measurement runs: an 8 dp black arc that fills clockwise
  * from the top over a light grey track, 264 across, with a 216 dp wool disc inside for [content].
  *
- * [progress] is 0 to 1. The design fills it at a constant rate over 30 seconds
- * (`CiuinMotion.MEASURE_MILLIS`, linear); drive it from the capture's own clock, not from an
- * animation spec with easing. The sheep in the middle is 156 dp.
+ * [progress] is 0 to 1. During capture the ring uses the same clock as the reading and fills
+ * clockwise at a constant rate over 30 seconds. The sheep in the middle is 156 dp.
  */
 @Composable
 fun MeasureRing(
     progress: Float,
+    modifier: Modifier = Modifier,
+    diameter: Dp = 264.dp,
+    content: @Composable BoxScope.() -> Unit,
+) = MeasureRing(progress, { progress }, modifier, diameter, content)
+
+/** [drawProgress] can advance between changes to the accessible [progress] value. */
+@Composable
+internal fun MeasureRing(
+    progress: Float,
+    drawProgress: () -> Float,
     modifier: Modifier = Modifier,
     diameter: Dp = 264.dp,
     content: @Composable BoxScope.() -> Unit,
@@ -104,15 +113,16 @@ fun MeasureRing(
             .size(diameter)
             .semantics { progressBarRangeInfo = ProgressBarRangeInfo(clamped, 0f..1f) }
             .drawBehind {
+                val drawn = drawProgress().coerceIn(0f, 1f)
                 val stroke = 8.dp.toPx() * scale
                 val inset = stroke / 2 + 4.dp.toPx() * scale
                 val arcSize = Size(size.width - 2 * inset, size.height - 2 * inset)
                 drawArc(CiuinColors.RingTrack, 0f, 360f, false, Offset(inset, inset), arcSize, style = Stroke(stroke))
-                if (clamped > 0f) {
+                if (drawn > 0f) {
                     drawArc(
                         color = CiuinColors.Ink,
                         startAngle = -90f,
-                        sweepAngle = 360f * clamped,
+                        sweepAngle = 360f * drawn,
                         useCenter = false,
                         topLeft = Offset(inset, inset),
                         size = arcSize,

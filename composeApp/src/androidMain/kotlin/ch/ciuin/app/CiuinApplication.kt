@@ -26,11 +26,11 @@ import ch.ciuin.app.personal.PersonalModelController
 import ch.ciuin.app.personal.PersonalModelSession
 import ch.ciuin.app.route.RoutePoint
 import ch.ciuin.app.route.WalkingRouter
-import ch.ciuin.app.route.decodeOfflinePlaces
 import ch.ciuin.app.route.findQuietPlace
 import ch.ciuin.shared.api.FallbackPlacesApi
 import ch.ciuin.shared.api.PlacesApi
 import ch.ciuin.shared.model.Place
+import java.io.FileNotFoundException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -51,11 +51,15 @@ class CiuinApplication : Application() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val alertPreferences by lazy { getSharedPreferences("overwhelm_alerts", MODE_PRIVATE) }
     private val bootCount by lazy { Settings.Global.getInt(contentResolver, Settings.Global.BOOT_COUNT, -1) }
-    private val offlinePlaces by lazy {
-        assets.open("places_lausanne.geojson").bufferedReader().use { decodeOfflinePlaces(it.readText()) }
+    private val bundledPlaces = BundledPlacesApi {
+        try {
+            assets.open(BUNDLED_PLACES_FILE).bufferedReader().use { it.readText() }
+        } catch (_: FileNotFoundException) {
+            null
+        }
     }
 
-    internal val placesApi by lazy { createPlacesApi() }
+    internal val placesApi by lazy { createPlacesApi(bundledPlaces) }
     internal val settings by lazy { SettingsController(AndroidSettingsStorage(this), androidReduceMotion(this), scope) }
     internal val models by lazy {
         ModelCatalog(settings, setOf(ModelVariant.S, ModelVariant.M), runningVariant = { activeAudioVariant })
@@ -153,7 +157,7 @@ class CiuinApplication : Application() {
                     nearbyApi.nearby(lat, lon, radiusM, openOnly, at).also { candidates = it }
             }
             val route = findQuietPlace(collectingApi, origin, model::score) {
-                offlinePlaces.also { candidates = it }
+                bundledPlaces.nearby(origin.lat, origin.lon, openOnly = true).also { candidates = it }
             } ?: return@withContext null
             val place = candidates.firstOrNull { it.placeId == route.destinationId }
             QuietPlaceSuggestion(

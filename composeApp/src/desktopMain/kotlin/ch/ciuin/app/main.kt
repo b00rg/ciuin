@@ -20,12 +20,13 @@ import ch.ciuin.app.route.WalkingRouter
 fun main() = application {
     val scope = rememberCoroutineScope()
     val environment = remember {
+        val api = createPlacesApi(BundledPlacesApi(::readBundledPlaces))
         val personal = PersonalModelController(DesktopPersonalModelStorage(), scope)
         val settings = SettingsController(DesktopSettingsStorage(), scope = scope)
         val router = WalkingRouter()
         val routes = RouteController(scope, router)
         AppEnvironment(
-            createPlacesApi(), personal, router, settings, DesktopPermissions, DesktopLocationSource,
+            api, personal, router, settings, DesktopPermissions, DesktopLocationSource,
             listening = null,
             alerts = AlertCenter(settings, routes, recordOkay = { alert ->
                 personal.recordAlertFeedback(alert.window, label = 0)

@@ -143,10 +143,17 @@ fun AllSetScene(modifier: Modifier = Modifier, onHopEnd: () -> Unit = {}) {
  * @param status the words in the white pill at the top left, such as "Too much · 74 dB".
  */
 @Composable
-fun AlertScene(status: String, modifier: Modifier = Modifier, level: Level = Level.Loud, haptic: Boolean = true) {
-    Scene(210f, modifier, contentDescription = "The sheep's ears are up. $status") {
+fun AlertScene(
+    status: String,
+    modifier: Modifier = Modifier,
+    level: Level = Level.Loud,
+    haptic: Boolean = true,
+    earsRaised: Boolean = true,
+) {
+    val pose = if (earsRaised) SheepPose.Alert else SheepPose.Awake
+    Scene(210f, modifier, contentDescription = "${pose.description}. $status") {
         Ground(top = 150f)
-        Sheep(SheepPose.Alert, Modifier.frame(82f, 32f, 178f), contentDescription = null, haptic = haptic)
+        Sheep(pose, Modifier.frame(82f, 32f, 178f), contentDescription = null, haptic = haptic)
         LevelPill(level, status, Modifier.absoluteOffset(16.dp, 16.dp))
     }
 }
@@ -172,8 +179,8 @@ fun SharedScene(modifier: Modifier = Modifier, ducks: Int = 3, newLabel: String 
 }
 
 /**
- * The sheep and its pond on the You tab: one duck for every measurement you have shared, floating a
- * third of a cycle apart. 342 by 188 with 32 dp corners.
+ * The sheep and its pond on the You tab: one duck for every measurement you have shared, floating at
+ * different points in the same cycle. 342 by 188 with 32 dp corners.
  *
  * Paper leaves this card as an empty panel on the You artboards; the layout here is put together
  * from the pond on the Motion board and the "Shared" scene. It shows up to five ducks.
@@ -189,11 +196,13 @@ fun PondScene(ducks: Int, modifier: Modifier = Modifier, pose: SheepPose = Sheep
         Oval(CiuinColors.Pond, left = 136f, top = 104f, width = 230f, height = 68f)
         val sheepHeight = if (pose == SheepPose.Rest) 112f * SheepRestArt.HEIGHT / SheepRestArt.WIDTH else 112f
         Sheep(pose, Modifier.frame(20f, 150f - sheepHeight, 112f, sheepHeight), contentDescription = null)
-        PondDucks.take(ducks.coerceIn(0, PondDucks.size)).forEachIndexed { index, place ->
+        val shown = PondDucks.take(ducks.coerceIn(0, PondDucks.size))
+        val phaseCount = maxOf(3, shown.size).toFloat()
+        shown.forEachIndexed { index, place ->
             Duck(
                 modifier = Modifier.frame(place.left, place.top, place.size),
                 motion = DuckMotion.Bob,
-                phase = index / 3f,
+                phase = index / phaseCount,
                 contentDescription = null,
             )
         }

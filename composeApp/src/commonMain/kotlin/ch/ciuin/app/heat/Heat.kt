@@ -18,7 +18,7 @@ import kotlin.math.round
 import kotlin.math.sqrt
 
 /** One value at a point, in normalised Web Mercator coords (x, y in [0, 1], same as MapState). */
-data class HeatSample(val x: Double, val y: Double, val value: Double)
+data class HeatSample(val x: Double, val y: Double, val value: Double, val count: Int = 1)
 
 /** Aggregated square cell: top-left [x], [y] and [size] in normalised coords; [mean] of the raw values inside. */
 data class HeatCell(val x: Double, val y: Double, val size: Double, val mean: Double, val count: Int)
@@ -92,8 +92,8 @@ fun aggregate(samples: List<HeatSample>, level: Int, averaging: Averaging = Aver
         val cx = floor(s.x / size).toLong()
         val cy = floor(s.y / size).toLong()
         val acc = sums.getOrPut((cx shl 32) or (cy and 0xFFFFFFFFL)) { DoubleArray(2) }
-        acc[0] += averaging.toLinear(s.value)
-        acc[1] += 1.0
+        acc[0] += averaging.toLinear(s.value) * s.count
+        acc[1] += s.count.toDouble()
     }
     return sums.map { (key, acc) ->
         val cx = key shr 32
@@ -122,8 +122,8 @@ fun aggregateHex(samples: List<HeatSample>, radius: Double, averaging: Averaging
     for (s in samples) {
         val (q, r) = hexAt(s.x, s.y, radius)
         val acc = sums.getOrPut((q.toLong() shl 32) or (r.toLong() and 0xFFFFFFFFL)) { DoubleArray(2) }
-        acc[0] += averaging.toLinear(s.value)
-        acc[1] += 1.0
+        acc[0] += averaging.toLinear(s.value) * s.count
+        acc[1] += s.count.toDouble()
     }
     return sums.map { (key, acc) ->
         val q = (key shr 32).toInt()

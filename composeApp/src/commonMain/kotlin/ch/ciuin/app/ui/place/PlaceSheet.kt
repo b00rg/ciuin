@@ -2,6 +2,8 @@
 
 package ch.ciuin.app.ui.place
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -23,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -48,7 +51,9 @@ import ch.ciuin.app.ui.components.WoolCard
 import ch.ciuin.app.ui.components.WoolCardStyle
 import ch.ciuin.app.ui.icons.CiuinIcons
 import ch.ciuin.app.ui.theme.CiuinColors
+import ch.ciuin.app.ui.theme.CiuinMotion
 import ch.ciuin.app.ui.theme.CiuinType
+import ch.ciuin.app.ui.theme.LocalReduceMotion
 import ch.ciuin.app.ui.toUi
 import ch.ciuin.shared.model.Place
 import androidx.compose.material3.Text
@@ -146,13 +151,22 @@ private fun Verdict(place: Place, environment: AppEnvironment) {
     }
     WoolCard(WoolCardStyle.Verdict) {
         Sheep(pose, Modifier.size(60.dp), contentDescription = null, haptic = false)
-        TitleBlock(
-            title = title,
+        val label = title to line
+        Crossfade(
+            targetState = label,
             modifier = Modifier.weight(1f),
-            subtitle = line,
-            titleStyle = CiuinType.CardTitle,
-            subtitleStyle = CiuinType.Caption,
-        )
+            animationSpec = if (LocalReduceMotion.current) CiuinMotion.reducedFade()
+            else tween(CiuinMotion.SHEEP_STATE_MILLIS, easing = CiuinMotion.Ease),
+            label = "place-verdict",
+        ) { shown ->
+            TitleBlock(
+                title = shown.first,
+                modifier = if (shown == label) Modifier else Modifier.clearAndSetSemantics {},
+                subtitle = shown.second,
+                titleStyle = CiuinType.CardTitle,
+                subtitleStyle = CiuinType.Caption,
+            )
+        }
     }
 }
 

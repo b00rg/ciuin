@@ -60,13 +60,8 @@ class FakePlacesApi : PlacesApi {
 
     override suspend fun stats(): Stats = Stats(placesMapped = all.size, measurementsTaken = 0, sensoryFriendlyTags = 0)
 
-    override suspend fun coverage(resDeg: Double): Coverage = bundledCoverage[resDeg]?.value ?: Coverage(resDeg, emptyList())
+    override suspend fun coverage(resDeg: Double): Coverage = readBundledCoverage(resDeg)
 }
-
-private val bundledCoverage = mapOf(
-    1.0 to lazy { ContractJson.decodeFromString<Coverage>(europeCoverageJson()) },
-    2.0 to lazy { ContractJson.decodeFromString<Coverage>(globalCoverageJson()) },
-)
 
 /** Made-up measured aggregate so every map layer has something to show offline. */
 private fun fakeMeasured(n: Int, db: Double, lux: Double, flicker: Double, people: Int, top: String): MeasuredAggregate {

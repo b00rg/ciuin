@@ -44,22 +44,23 @@ class IdeaOneOpeningSmoke {
         ImageComposeScene(width = 780, height = 1688, density = Density(2f)) {
             CiuinTheme(reduceMotion = true) { OnboardingFlow(environment, { finished++ }, insets) }
         }.use { scene ->
-            scene.shot("01-welcome", 0)
-            scene.tap(195, 774, 20)
-            scene.shot("02-how-it-reads", 150)
-            scene.tap(44, 94, 180)
-            scene.shot("01-returned-via-back", 310)
-            scene.tap(195, 774, 340)
-            scene.tap(195, 774, 480)
-            scene.shot("03-starting-point", 615)
-            scene.tap(195, 774, 645)
-            scene.shot("04-permissions", 785)
-            scene.tap(318, 512, 815)
-            scene.shot("04-permissions-after-tap", 955)
-            scene.tap(195, 774, 985)
-            scene.shot("05-all-set", 1_125)
+            scene.render(0)
+            scene.shot("01-welcome", scene.afterTransition(0))
+            scene.tap(195, 774, 220)
+            scene.shot("02-how-it-reads", scene.afterTransition(290))
+            scene.tap(44, 94, 510)
+            scene.shot("01-returned-via-back", scene.afterTransition(580))
+            scene.tap(195, 774, 800)
+            scene.tap(195, 774, 940)
+            scene.shot("03-starting-point", scene.afterTransition(1_010))
+            scene.tap(195, 774, 1_230)
+            scene.shot("04-permissions", scene.afterTransition(1_300))
+            scene.tap(318, 512, 1_520)
+            scene.shot("04-permissions-after-tap", 1_660)
+            scene.tap(195, 774, 1_690)
+            scene.shot("05-all-set", scene.afterTransition(1_760))
             assertFalse(environment.settings.onboardingComplete)
-            scene.tap(195, 774, 1_155)
+            scene.tap(195, 774, 1_980)
             assertTrue(environment.settings.onboardingComplete)
             assertEquals(1, finished)
         }
@@ -102,6 +103,8 @@ class IdeaOneOpeningSmoke {
             scene.shot("06-globe-dragged", 310)
             assertFalse(File(shots, "06-globe.png").readBytes().contentEquals(File(shots, "06-globe-dragged.png").readBytes()))
             scene.tap(195, 774, 350)
+            assertEquals(0, entered)
+            scene.afterTransition(420)
         }
         assertEquals(1, entered)
     }
@@ -112,6 +115,11 @@ class IdeaOneOpeningSmoke {
         render((at + 12) * 1_000_000)
         sendPointerEvent(PointerEventType.Release, pointer, type = PointerType.Touch, timeMillis = at + 48)
         render((at + 70) * 1_000_000)
+    }
+
+    private fun ImageComposeScene.afterTransition(at: Long): Long {
+        for (frame in at + 16..at + 192 step 16) render(frame * 1_000_000)
+        return at + 200
     }
 
     private fun ImageComposeScene.shot(name: String, at: Long) {

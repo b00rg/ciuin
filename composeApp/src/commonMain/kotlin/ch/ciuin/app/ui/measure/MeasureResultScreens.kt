@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -41,7 +45,9 @@ import ch.ciuin.app.ui.components.WoolCardStyle
 import ch.ciuin.app.ui.icons.CiuinIcons
 import ch.ciuin.app.ui.theme.CiuinColors
 import ch.ciuin.app.ui.theme.CiuinType
+import ch.ciuin.app.ui.theme.LocalReduceMotion
 import ch.ciuin.shared.model.Place
+import kotlin.time.Duration.Companion.seconds
 
 @Composable
 internal fun MeasureCaptureScreen(
@@ -52,6 +58,18 @@ internal fun MeasureCaptureScreen(
 ) {
     val readings = capture?.readings ?: MeasurementReadings()
     val progress = capture?.let { (MEASUREMENT_SECONDS - it.remainingSeconds).toFloat() / MEASUREMENT_SECONDS } ?: 0f
+    val startedAt = capture?.startedAt
+    val reduceMotion = LocalReduceMotion.current
+    val smoothProgress = remember(startedAt) { mutableFloatStateOf(progress) }
+    LaunchedEffect(startedAt, reduceMotion) {
+        if (startedAt == null || reduceMotion) return@LaunchedEffect
+        val duration = MEASUREMENT_SECONDS.seconds
+        while (smoothProgress.floatValue < 1f) {
+            withFrameNanos {
+                smoothProgress.floatValue = (startedAt.elapsedNow() / duration).toFloat().coerceIn(0f, 1f)
+            }
+        }
+    }
     val detail = when {
         capture == null -> "Allow the sensors you want to use."
         capture.permissions.camera -> "Hold steady and point the camera at the room."
@@ -62,7 +80,11 @@ internal fun MeasureCaptureScreen(
             CenteredHeading("Measuring", placeName)
             BoxWithConstraints {
                 val diameter = 264.dp.coerceAtMost(maxWidth)
-                MeasureRing(progress, diameter = diameter) {
+                MeasureRing(
+                    progress,
+                    drawProgress = { if (reduceMotion) progress else smoothProgress.floatValue },
+                    diameter = diameter,
+                ) {
                     Sheep(SheepPose.Reading, Modifier.size(diameter * (156f / 264f)), contentDescription = null)
                 }
             }

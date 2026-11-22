@@ -21,6 +21,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlin.math.round
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 internal sealed interface MeasurementPhase {
     data object Ready : MeasurementPhase
@@ -30,6 +32,7 @@ internal sealed interface MeasurementPhase {
         val remainingSeconds: Int,
         val readings: MeasurementReadings,
         val permissions: CapturePermissions,
+        val startedAt: TimeMark,
     ) : MeasurementPhase
     data class Review(val review: MeasurementReview, val error: String? = null) : MeasurementPhase
     data class Uploading(val review: MeasurementReview) : MeasurementPhase
@@ -114,7 +117,9 @@ internal class MeasurementController(
     }
 
     private suspend fun takeReading(placeId: String, point: RoutePoint, permissions: CapturePermissions) = coroutineScope {
-        phase = MeasurementPhase.Capturing(MEASUREMENT_SECONDS, MeasurementReadings(), permissions)
+        phase = MeasurementPhase.Capturing(
+            MEASUREMENT_SECONDS, MeasurementReadings(), permissions, TimeSource.Monotonic.markNow(),
+        )
         val countdown = launch {
             for (remaining in MEASUREMENT_SECONDS - 1 downTo 0) {
                 delay(1_000)

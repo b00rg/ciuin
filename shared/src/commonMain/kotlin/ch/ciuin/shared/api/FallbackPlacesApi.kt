@@ -13,7 +13,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 
-data class PlaceRead<out T>(val data: T, val fromPrimary: Boolean)
+data class PlaceRead<out T>(val data: T, val fromPrimary: Boolean, val fromSample: Boolean = false)
 
 /**
  * Uses [primary] (the real backend) and falls back to [fallback] (bundled / fake data) when it's unreachable,
@@ -25,8 +25,9 @@ data class PlaceRead<out T>(val data: T, val fromPrimary: Boolean)
  */
 class FallbackPlacesApi(
     val primary: PlacesApi,
-    private val fallback: PlacesApi,
+    private val fallback: suspend () -> PlacesApi,
 ) : PlacesApi {
+    constructor(primary: PlacesApi, fallback: PlacesApi) : this(primary, { fallback })
 
     private val _online = MutableStateFlow(true)
     val online: StateFlow<Boolean> = _online.asStateFlow()
@@ -47,7 +48,8 @@ class FallbackPlacesApi(
             throw e
         } catch (_: Exception) {
             _online.value = false
-            PlaceRead(fallback.call(), fromPrimary = false)
+            val offline = fallback()
+            PlaceRead(offline.call(), fromPrimary = false, fromSample = offline is FakePlacesApi)
         }
 
     private suspend fun <T> withFallback(call: suspend PlacesApi.() -> T): T = readWithFallback(call).data

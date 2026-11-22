@@ -4,6 +4,8 @@ import ch.ciuin.shared.api.FakePlacesApi
 import ch.ciuin.shared.api.FallbackPlacesApi
 import ch.ciuin.shared.api.KtorPlacesApi
 import ch.ciuin.shared.api.PlacesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Backend URL for this platform. Override per platform:
@@ -14,10 +16,14 @@ import ch.ciuin.shared.api.PlacesApi
  */
 expect fun apiUrl(): String
 
-/** Real backend, falling back to fake data when it's unreachable (the map shows an "offline" badge). */
-fun createPlacesApi(url: String = apiUrl()): PlacesApi =
-    if (url.equals("fake", ignoreCase = true)) FakePlacesApi()
-    else FallbackPlacesApi(KtorPlacesApi(url), FakePlacesApi())
+/** Read the bundled places on the first offline request. Explicit fake mode always uses samples. */
+internal fun createPlacesApi(bundled: BundledPlacesApi, url: String = apiUrl()): PlacesApi {
+    if (url.equals("fake", ignoreCase = true)) return FakePlacesApi()
+    val offline by lazy { if (bundled.available) bundled else FakePlacesApi() }
+    return FallbackPlacesApi(KtorPlacesApi(url)) {
+        withContext(Dispatchers.IO) { offline }
+    }
+}
 
 fun describeApi(api: PlacesApi): String = when (api) {
     is KtorPlacesApi -> api.baseUrl

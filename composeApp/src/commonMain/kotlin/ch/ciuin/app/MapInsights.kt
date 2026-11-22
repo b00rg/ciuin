@@ -109,13 +109,13 @@ internal fun MapInsights(
                     },
                     "open now".takeIf { place.openNow == true },
                 ).joinToString(" · ")
-                InfoTile("Nearest quiet spot: ${place.name}", details, onClick = { onPick(place) }) {
+                InfoTile("Walk to ${place.name}", "Nearest quiet spot · $details", onClick = { onPick(place) }) {
                     LevelGlyph(personalLevel(nearest.predictedOverwhelm))
                 }
             }
         }
         Category.SOUND -> SoundPanel(insight.sound, noisePeriod, onNoisePeriod)
-        Category.LIGHT -> MeasuredPanel("Light", insight.light, category, onMeasure)
+        Category.LIGHT -> MeasuredPanel("Light", insight.light, category, onMeasure, insight.meanFlickerIndex)
         Category.CROWD -> MeasuredPanel("Crowd", insight.crowd, category, onMeasure)
         Category.ACCESS -> {
             val access = insight.access
@@ -198,6 +198,7 @@ private fun MeasuredPanel(
     insight: MeasuredInsight,
     category: Category,
     onMeasure: (() -> Unit)?,
+    flickerIndex: Double? = null,
 ) {
     val isLight = category == Category.LIGHT
     if (insight is MeasuredInsight.Data) {
@@ -219,6 +220,9 @@ private fun MeasuredPanel(
                 else "Nearby Bluetooth devices give an estimate of how busy a place is.",
             )
         }
+    }
+    flickerIndex?.let {
+        Text("Measured flicker index ${it.fmt2()}", style = CiuinType.BodySmall, color = CiuinColors.SecondaryText)
     }
     LevelLegend(listOf(
         Level.Calm to if (isLight) "Dim" else "Quiet",

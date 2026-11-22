@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.FloatState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -102,7 +103,6 @@ fun Sheep(
     onHopEnd: () -> Unit = {},
 ) {
     val reduceMotion = LocalReduceMotion.current
-    val clock = rememberCharacterClock(running = !reduceMotion)
     val feedback = LocalHapticFeedback.current
     val hopEnded by rememberUpdatedState(onHopEnd)
 
@@ -112,10 +112,16 @@ fun Sheep(
     val fade = remember { Animatable(1f) }
     val alert = remember { Animatable(0f) }
     val hop = remember { Animatable(HOP_IDLE) }
+    var hopped by remember { mutableStateOf(false) }
+    val earsUp by remember { derivedStateOf { alert.value >= MotionSpec.ALERT_EARS } }
+    val clock = rememberCharacterClock(
+        running = !reduceMotion && (pose != SheepPose.Alert || !earsUp || leaving != null),
+    )
 
     LaunchedEffect(pose, reduceMotion) {
         val previous = shown
         shown = pose
+        if (pose != SheepPose.Hop) hopped = false
         if (pose == SheepPose.Alert && haptic && (previous != pose || alert.value == 0f)) {
             feedback.performHapticFeedback(HapticFeedbackType.VirtualKey)
         }
@@ -142,7 +148,10 @@ fun Sheep(
         if (reduceMotion) {
             alert.snapTo(if (pose == SheepPose.Alert) MotionSpec.ALERT_LENGTH else 0f)
             hop.snapTo(HOP_IDLE)
-            if (pose == SheepPose.Hop && previous != pose) hopEnded()
+            if (pose == SheepPose.Hop && !hopped) {
+                hopped = true
+                hopEnded()
+            }
             return@LaunchedEffect
         }
 
@@ -152,13 +161,14 @@ fun Sheep(
                 alert.animateTo(MotionSpec.ALERT_LENGTH, tween((left * 1000).toInt(), easing = LinearEasing))
             } else if (alert.value > 0f) {
                 // The ears lower when you leave or dismiss.
-                alert.animateTo(0f, tween((MotionSpec.ALERT_LOWER * 1000).toInt(), easing = LinearEasing))
+                alert.animateTo(0f, tween(MotionSpec.ALERT_LOWER_MILLIS, easing = LinearEasing))
             }
         }
-        if (pose == SheepPose.Hop) {
+        if (pose == SheepPose.Hop && !hopped) {
             hop.snapTo(0f)
             hop.animateTo(MotionSpec.HOP_LENGTH, tween((MotionSpec.HOP_LENGTH * 1000).toInt(), easing = LinearEasing))
             hop.snapTo(HOP_IDLE)
+            hopped = true
             hopEnded()
         } else {
             hop.snapTo(HOP_IDLE)

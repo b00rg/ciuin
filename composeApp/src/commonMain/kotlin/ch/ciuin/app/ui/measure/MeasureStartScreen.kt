@@ -24,6 +24,7 @@ import ch.ciuin.app.ui.components.PrimaryButton
 import ch.ciuin.app.ui.components.SecondaryButton
 import ch.ciuin.app.ui.components.SecondaryButtonSize
 import ch.ciuin.app.ui.components.SelectableCard
+import ch.ciuin.app.ui.components.TextLinkButton
 import ch.ciuin.app.ui.components.WoolCard
 import ch.ciuin.app.ui.components.WoolCardStyle
 import ch.ciuin.app.ui.icons.CiuinIcons
@@ -66,6 +67,7 @@ internal fun MeasureStartScreen(
     canMeasure: Boolean = true,
     locationNotice: LocationNotice? = null,
     onAllowLocation: () -> Unit = {},
+    onFindPlace: (() -> Unit)? = null,
     nothingNearby: Boolean = false,
     error: String? = null,
     canStart: Boolean = true,
@@ -98,6 +100,7 @@ internal fun MeasureStartScreen(
                     }
                 }
                 if (locationNotice != null) LocationNoticeRow(locationNotice, onAllowLocation)
+                if (onFindPlace != null) TextLinkButton("Search for a place", onFindPlace, Modifier.fillMaxWidth())
                 WoolCard(WoolCardStyle.HowTo) {
                     Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {

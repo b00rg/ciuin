@@ -1,5 +1,6 @@
 package ch.ciuin.app.ui.globe
 
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -25,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -56,6 +58,7 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: () -> Unit, m
     val enterMap by rememberUpdatedState(onEnterMap)
     var centre by remember { mutableStateOf(GlobePoint(40.0, 14.0)) }
     var flying by remember { mutableStateOf(false) }
+    val leave = remember { Animatable(0f) }
     var totals by remember(api) { mutableStateOf<Stats?>(null) }
     var spikes by remember(api) { mutableStateOf<List<GlobeSpike>>(emptyList()) }
     var fetchingTotals by remember(api) { mutableStateOf(true) }
@@ -73,7 +76,7 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: () -> Unit, m
     }
 
     Column(
-        modifier.fillMaxSize().background(CiuinColors.Ground)
+        modifier.fillMaxSize().graphicsLayer { alpha = 1f - leave.value }.background(CiuinColors.Ground)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 24.dp, vertical = 8.dp),
     ) {
@@ -117,7 +120,9 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: () -> Unit, m
                 if (!flying) {
                     flying = true
                     scope.launch {
-                        if (!reduceMotion) {
+                        if (reduceMotion) {
+                            leave.animateTo(1f, CiuinMotion.reducedFade())
+                        } else {
                             val from = centre
                             val longitudeDelta = wrapLongitude(LAUSANNE_CENTRE.lon - from.lon)
                             animate(0f, 1f, animationSpec = tween(450, easing = CiuinMotion.EaseInOut)) { progress, _ ->

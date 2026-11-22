@@ -13,6 +13,8 @@ targets:
       - path: ../composeApp/src/commonMain/fontRes
         name: Poppins
         buildPhase: resources
+      - path: ../data/processed/places_lausanne.geojson
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ch.ciuin.app

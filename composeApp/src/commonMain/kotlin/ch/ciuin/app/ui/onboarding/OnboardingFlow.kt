@@ -1,5 +1,7 @@
 package ch.ciuin.app.ui.onboarding
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,16 +15,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -36,7 +41,9 @@ import ch.ciuin.app.ui.components.PageDots
 import ch.ciuin.app.ui.components.PrimaryButton
 import ch.ciuin.app.ui.components.TextLinkButton
 import ch.ciuin.app.ui.theme.CiuinColors
+import ch.ciuin.app.ui.theme.CiuinMotion
 import ch.ciuin.app.ui.theme.CiuinType
+import ch.ciuin.app.ui.theme.LocalReduceMotion
 import ch.ciuin.shared.personal.PersonalPreset
 
 private enum class OnboardingPage(val button: String, val gap: Int) {
@@ -57,6 +64,7 @@ internal fun OnboardingFlow(
     var index by rememberSaveable { mutableIntStateOf(0) }
     var choice by rememberSaveable { mutableStateOf<PersonalPreset?>(null) }
     val page = OnboardingPage.entries[index]
+    val reduceMotion = LocalReduceMotion.current
     val personalModel = environment.personalModel
     val saving = page == OnboardingPage.StartingPoint && personalModel.state.busy
     val finish = {
@@ -79,8 +87,19 @@ internal fun OnboardingFlow(
             }),
         )
         key(page) {
+            val appear = remember { Animatable(0f) }
+            LaunchedEffect(reduceMotion) {
+                appear.animateTo(
+                    1f,
+                    if (reduceMotion) CiuinMotion.reducedFade() else tween(220, easing = CiuinMotion.EaseOut),
+                )
+            }
             Column(
                 Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .graphicsLayer {
+                        alpha = appear.value
+                        translationY = if (reduceMotion) 0f else (1f - appear.value) * 8.dp.toPx()
+                    }
                     .padding(top = page.gap.dp, bottom = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(page.gap.dp),
             ) {

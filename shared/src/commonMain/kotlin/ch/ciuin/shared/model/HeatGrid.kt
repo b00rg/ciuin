@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -25,6 +26,7 @@ data class HeatPoint(
     val roadDb: Double?,
     val railDb: Double?,
     val totalDb: Double? = null,
+    val measurementCount: Int = 1,
 ) {
     /** Road + rail combined energetically (10·log10 of summed intensities); null if nothing is known. */
     val combinedDb: Double?
@@ -57,6 +59,7 @@ fun parseHeatGrid(geoJson: JsonObject): List<HeatPoint> {
                 roadDb = num("road_db"),
                 railDb = num("rail_db"),
                 totalDb = num("noise_db") ?: num("value"),
+                measurementCount = (props?.get("n") as? JsonPrimitive)?.intOrNull?.takeIf { it > 0 } ?: 1,
             )
         }.getOrNull()
     }

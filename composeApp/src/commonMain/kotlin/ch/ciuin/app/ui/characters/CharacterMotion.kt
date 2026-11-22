@@ -48,7 +48,7 @@ internal object MotionSpec {
     const val ALERT_MARK_GAP = 0.08f
     const val ALERT_MARKS = 3
     const val ALERT_LENGTH = ALERT_FACE_AT + ALERT_MARKS * ALERT_MARK_GAP
-    const val ALERT_LOWER = 0.24f
+    const val ALERT_LOWER_MILLIS = 240
 
     // Hop: crouch 1.02 x 0.97 from the hooves at 0.55 s, apex 3.5 units up with the shadow at 80% at
     // 0.83 s, land 1.04 x 0.94 at 1.18 s, spring back in 0.42 s. Plays once.

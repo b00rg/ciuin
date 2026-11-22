@@ -14,10 +14,14 @@ val bundleListenerAssets by tasks.registering(Sync::class) {
     from(rootProject.layout.projectDirectory.dir("ml/export")) {
         include("audio-student-s.tflite", "audio-student-m.tflite", "cascade.json")
     }
-    from(rootProject.layout.projectDirectory.file("data/processed/places_lausanne.geojson"))
     into(listenerAssets)
 }
-tasks.named("preBuild") { dependsOn(bundleListenerAssets) }
+val mapAssets = layout.buildDirectory.dir("generated/mapAssets")
+val bundleMapAssets by tasks.registering(Sync::class) {
+    from(rootProject.layout.projectDirectory.file("data/processed/places_lausanne.geojson"))
+    into(mapAssets)
+}
+tasks.named("preBuild") { dependsOn(bundleListenerAssets, bundleMapAssets) }
 
 val modelResultsExport = rootProject.layout.projectDirectory.file("ml/export/results.json")
 val modelCatalogSources = layout.buildDirectory.dir("generated/modelCatalog/kotlin")
@@ -73,6 +77,7 @@ kotlin {
         }
         val desktopMain by getting {
             resources.srcDir(fontResources)
+            resources.srcDir(bundleMapAssets)
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutines.swing)
@@ -83,7 +88,7 @@ kotlin {
 
 android {
     namespace = "ch.ciuin.app"
-    sourceSets.getByName("main").assets.srcDirs(listenerAssets, "src/androidMain/assets")
+    sourceSets.getByName("main").assets.srcDirs(listenerAssets, mapAssets, "src/androidMain/assets")
     sourceSets.getByName("main").res.srcDir(fontResources)
     androidResources.noCompress += "tflite"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
