@@ -23,14 +23,20 @@ import kotlin.time.ExperimentalTime
 internal class PersonalModelController(
     private val storage: PersonalModelStorage,
     private val scope: CoroutineScope,
+    initialSession: PersonalModelSession? = null,
 ) {
     private val operations = Mutex()
 
-    var state by mutableStateOf(PersonalModelUiState())
+    var state by mutableStateOf(PersonalModelUiState(session = initialSession))
         private set
 
     private var latestLiveWindow by mutableStateOf<LiveWindow?>(null)
     val liveScore: Double? get() = latestLiveWindow?.score
+    val canResetLearnedSettings: Boolean
+        get() {
+            val session = state.session ?: return false
+            return !state.busy && (session.exampleCount > 0 || session.preset != PersonalPreset.AUTISM_FRIENDLY)
+        }
 
     init {
         load()
@@ -59,11 +65,23 @@ internal class PersonalModelController(
         return window
     }
 
-    fun recordFeedback(placeFeatures: FeatureVector?, label: Int) {
+    fun recordFeedback(placeFeatures: FeatureVector?, label: Int, onSaved: ((Boolean) -> Unit)? = null) {
         val live = latestLiveWindow
-        val features = live?.features ?: placeFeatures ?: return
+        val features = live?.features ?: placeFeatures
+        if (features == null) {
+            onSaved?.invoke(false)
+            return
+        }
         val example = TrainingExample(features, label, live?.timestamp ?: timestamp())
-        save(FEEDBACK_FAILED, success = FEEDBACK_SAVED) { it.withFeedback(example) }
+        save(FEEDBACK_FAILED, success = FEEDBACK_SAVED, onSaved = onSaved) { it.withFeedback(example) }
+    }
+
+    /** Scores a result using its own readings even when the live listener is running. */
+    fun recordMeasurementFeedback(features: FeatureVector, label: Int) {
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            val example = TrainingExample(features, label, timestamp())
+            saveInOrder(FEEDBACK_FAILED, FEEDBACK_SAVED) { it.withFeedback(example) }
+        }
     }
 
     /** Queues feedback for the alert's own window in the app scope. */
@@ -78,6 +96,11 @@ internal class PersonalModelController(
         save("Couldn't clear your feedback.") { it.reset() }
     }
 
+    fun resetLearnedSettings() {
+        if (!canResetLearnedSettings) return
+        save("Couldn't clear your feedback.") { it.reset().withPreset(PersonalPreset.AUTISM_FRIENDLY) }
+    }
+
     fun dismissNotice(notice: PersonalModelNotice) {
         if (state.notice === notice) state = state.copy(notice = null)
     }
@@ -85,10 +108,17 @@ internal class PersonalModelController(
     private fun save(
         failure: String,
         success: String? = null,
+        onSaved: ((Boolean) -> Unit)? = null,
         change: (PersonalModelSession) -> PersonalModelSession,
     ) {
-        if (state.session == null || state.busy) return
-        scope.launch(start = CoroutineStart.UNDISPATCHED) { saveInOrder(failure, success, change) }
+        if (state.session == null || state.busy) {
+            onSaved?.invoke(false)
+            return
+        }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            val saved = saveInOrder(failure, success, change)
+            onSaved?.invoke(saved)
+        }
     }
 
     private suspend fun saveInOrder(

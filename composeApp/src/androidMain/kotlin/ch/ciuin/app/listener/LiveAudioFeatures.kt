@@ -3,14 +3,20 @@ package ch.ciuin.app.listener
 import android.content.Context
 import android.media.MediaRecorder
 import ch.ciuin.shared.audio.Stage0AudioAnalyzer
+import ch.ciuin.app.core.ModelVariant
 import ch.ciuin.app.measure.AudioSample
 import ch.ciuin.shared.model.SoundClass
 import org.tensorflow.lite.Interpreter
 import java.nio.channels.FileChannel
 import kotlin.math.log10
 
-/** Extracts audio-only feature windows. Use one instance from a single consumer. */
-internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoCloseable {
+/**
+ * Extracts audio-only feature windows. Use one instance from a single consumer.
+ *
+ * Stage 1 runs the [variant] chosen in settings. When that is Student S, windows where S is unsure (top-2 margin
+ * below cascade.json `stage1_to_2`) are re-run on Student M (stage 2). A chosen M runs alone.
+ */
+internal class LiveAudioFeatures(context: Context, audioSource: Int, private val variant: ModelVariant) : AutoCloseable {
     private val analyzer = Stage0AudioAnalyzer(AUDIO_SAMPLE_RATE)
     // Android CDD §7.5.3 microphone sensitivity at 1 kHz. The resulting levels are estimates.
     private val nominalSplOffset = when (audioSource) {
@@ -22,14 +28,14 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
     private val output = arrayOf(FloatArray(SoundClass.COUNT))
     // The emulator's arm64 runtime faults in XNNPACK. The built-in CPU kernels match the export.
     private val interpreter = try {
-        Interpreter(loadModel(context, STAGE1_MODEL_ASSET), Interpreter.Options().setUseXNNPACK(false))
+        Interpreter(loadModel(context, variant), Interpreter.Options().setUseXNNPACK(false))
     } catch (error: LinkageError) {
         throw IllegalStateException("Could not load the on-device audio runtime", error)
     }
-    // Stage 2 (cascade.json `stage1_to_2`): the larger student, run only on windows where S is unsure.
-    // Same input/output as S. Missing asset -> stage 1 only.
-    private val stage2 = try {
-        Interpreter(loadModel(context, STAGE2_MODEL_ASSET), Interpreter.Options().setUseXNNPACK(false))
+    // Stage 2: the larger student, only behind S and only on unsure windows. Same input/output as S.
+    // Missing asset -> stage 1 only.
+    private val stage2 = if (variant != ModelVariant.S) null else try {
+        Interpreter(loadModel(context, ModelVariant.M), Interpreter.Options().setUseXNNPACK(false))
     } catch (error: java.io.IOException) {
         null
     }
@@ -52,7 +58,7 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
         val modelWindow = input[0]
         window.copyInto(modelWindow, startIndex = window.size - modelWindow.size)
         val power = modelWindow.sumOf { it.toDouble() * it } / modelWindow.size
-        var model = STAGE1_NAME
+        var model = "Student ${variant.name}"
         val soundClasses = if (power >= SILENCE_POWER) {
             try {
                 interpreter.run(input, output)
@@ -60,7 +66,7 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
                 if (stage2 != null && escalation.shouldEscalate(output[0])) {
                     stage2.run(input, output) // same window, overwrites S's probabilities
                     escalatedWindows++
-                    model = STAGE2_NAME
+                    model = "Student ${ModelVariant.M.name}"
                 }
                 SoundClass.entries.associate { it.label to output[0][it.index].toDouble() }
             } finally {
@@ -79,10 +85,6 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
     }
 
     private companion object {
-        const val STAGE1_MODEL_ASSET = "audio-student-s.tflite"
-        const val STAGE2_MODEL_ASSET = "audio-student-m.tflite"
-        const val STAGE1_NAME = "Student S"
-        const val STAGE2_NAME = "Student M"
         const val MODEL_WINDOW_SAMPLES = 15_600
         const val PEAK_WINDOW_SAMPLES = AUDIO_SAMPLE_RATE / 8 // 125 ms RMS
         const val SILENCE_POWER = 1e-6 // -60 dBFS
@@ -106,7 +108,9 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
             return 10.0 * log10(peakToMean)
         }
 
-        fun loadModel(context: Context, name: String) = context.assets.openFd(name).use { asset ->
+        fun loadModel(context: Context, variant: ModelVariant) = context.assets.openFd(
+            "audio-student-${variant.name.lowercase()}.tflite",
+        ).use { asset ->
             asset.createInputStream().use { input ->
                 input.channel.map(FileChannel.MapMode.READ_ONLY, asset.startOffset, asset.declaredLength)
             }

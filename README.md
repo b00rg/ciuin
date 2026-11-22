@@ -40,9 +40,9 @@ The first build downloads Gradle and dependencies (a few minutes).
 | Android | `http://10.0.2.2:8000` (the laptop, seen from the emulator) | `./gradlew :composeApp:installDebug -Pciuin.apiUrl=https://….trycloudflare.com` (real phones need the tunnel URL) |
 | iOS Simulator | `http://localhost:8000` | Set `CIUIN_API_URL` in the Xcode scheme’s Run environment or override the build setting |
 
-Use `fake` as the URL to run on the 5 hard-coded places without a backend. When the backend is unreachable, the map falls back to the sample places and shows an offline badge.
+Use `fake` as the URL to run on the 5 sample places without a backend. When the configured backend is unreachable, the map shows bundled Lausanne places and an offline badge. The sample places are a backup if the bundle is missing.
 
-On Android, opening a quiet-place alert sends its start and destination coordinates to [FOSSGIS pedestrian routing](https://routing.openstreetmap.de/about.html), which logs route requests. Use `-Pciuin.walkingRouterUrl=https://your-router.example` to point to your own pedestrian OSRM instance, or `-Pciuin.walkingRouterUrl=` for straight-line routes only.
+On Android and iOS, requesting walking directions sends the start and destination coordinates to [FOSSGIS pedestrian routing](https://routing.openstreetmap.de/about.html), which logs route requests. On Android, use `-Pciuin.walkingRouterUrl=https://your-router.example` to point to your own pedestrian OSRM instance or `-Pciuin.walkingRouterUrl=` for straight-line routes only.
 
 Live end-to-end test (writes a measurement, so use a throwaway DB):
 ```sh

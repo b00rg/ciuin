@@ -12,9 +12,9 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import ch.ciuin.app.CiuinApplication
+import ch.ciuin.app.core.ActiveAlert
 import ch.ciuin.app.personal.LiveWindow
 import ch.ciuin.app.personal.PersonalModelSession
-import ch.ciuin.app.route.QuietPlaceRoute
 import ch.ciuin.shared.model.FeatureVector
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -33,6 +33,8 @@ class LiveListeningService : Service() {
     private var locationPromoted = false
     private var pendingAlert: Job? = null
     private var displayedAlert: DisplayedAlert? = null
+    private var trackedAlertId: String? = null
+    private var aboveLimitMillis = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -52,7 +54,7 @@ class LiveListeningService : Service() {
             return
         }
         val alert = displayedAlert ?: return
-        if (intent?.getStringExtra(EXTRA_ALERT_ID) != alert.id) return
+        if (intent?.getStringExtra(EXTRA_ALERT_ID) != alert.value.id) return
 
         when (intent.action) {
             ACTION_TOO_MUCH -> saveAlertFeedback(alert, label = 1)
@@ -60,9 +62,13 @@ class LiveListeningService : Service() {
             ACTION_SNOOZE -> {
                 pendingAlert?.cancel()
                 displayedAlert = null
-                app.overwhelmAlerts.snooze(SystemClock.elapsedRealtime())
-                app.saveAlertSuppression()
+                if (app.alerts.active?.id == alert.value.id) app.alerts.dismiss()
                 OverwhelmAlertNotification.dismiss(this)
+                scope.launch {
+                    val policy = app.overwhelmAlerts.await()
+                    policy.snooze(SystemClock.elapsedRealtime())
+                    app.saveAlertSuppression(policy)
+                }
             }
         }
     }
@@ -70,14 +76,14 @@ class LiveListeningService : Service() {
     private fun saveAlertFeedback(alert: DisplayedAlert, label: Int) {
         if (alert.feedback != FeedbackState.AwaitingChoice) return
         alert.feedback = FeedbackState.Saving
-        val result = app.personalModel.recordAlertFeedback(alert.window, label)
+        val result = app.personalModel.recordAlertFeedback(alert.value.window, label)
         scope.launch {
             val saved = result.await()
             if (displayedAlert !== alert || activeService !== this@LiveListeningService) return@launch
 
             alert.feedback = if (saved) FeedbackState.Saved else FeedbackState.AwaitingChoice
             try {
-                OverwhelmAlertNotification.updateFeedback(this@LiveListeningService, alert.route, alert.id, saved)
+                OverwhelmAlertNotification.updateFeedback(this@LiveListeningService, alert.value, saved)
             } catch (error: RuntimeException) {
                 Log.w(TAG, "Could not update overwhelm feedback notification", error)
             }
@@ -95,10 +101,10 @@ class LiveListeningService : Service() {
                 return
             }
 
-            app.overwhelmAlerts.resetCrossing()
             activeService = this
             app.listenerMessage = null
             app.isListening = true
+            app.settings.listenInBackground = true
 
             scope.launch {
                 try {
@@ -141,6 +147,8 @@ class LiveListeningService : Service() {
     }
 
     private suspend fun captureWindows() {
+        val policy = app.overwhelmAlerts.await()
+        policy.resetCrossing()
         val wakeLock = acquireWakeLock()
         // One 1 s window is noisy: score the mean of the last few (cascade.json `live_smoothing`).
         val smoother = SoundClassSmoother(app.liveSmoothingWindows)
@@ -148,12 +156,25 @@ class LiveListeningService : Service() {
             app.audioWindows.collect { result ->
                 if (activeService !== this) return@collect
                 val audio = result.getOrThrow()
+                app.liveDb = audio.dbMean
+                // The audio stream consists of one-second windows. Empty classes mean the gate stayed closed.
+                app.listeningStats.record(1_000, ranModel = !audio.soundClasses.isNullOrEmpty())
                 val window = FeatureVector(audio.dbMean, audio.dbPeak, smoother.smooth(audio.soundClasses))
                 val model = app.personalModel
                 val liveWindow = model.onLiveWindow(window) ?: return@collect
                 val score = liveWindow.score ?: return@collect
-                if (app.overwhelmAlerts.onScore(score, SystemClock.elapsedRealtime())) {
-                    postAlert(liveWindow, model.state.session)
+                val shouldAlert = policy.onScore(score, SystemClock.elapsedRealtime(), app.settings.gentleAlerts)
+                val duration = policy.aboveLimitMillis
+                if (duration == null || duration == 0L) {
+                    trackedAlertId = null
+                } else {
+                    trackedAlertId?.let {
+                        aboveLimitMillis = duration
+                        app.alerts.updateDuration(it, duration)
+                    }
+                }
+                if (shouldAlert) {
+                    postAlert(liveWindow, model.state.session, policy)
                 }
             }
         } finally {
@@ -161,19 +182,22 @@ class LiveListeningService : Service() {
         }
     }
 
-    private fun postAlert(window: LiveWindow, model: PersonalModelSession?) {
+    private fun postAlert(window: LiveWindow, model: PersonalModelSession?, policy: OverwhelmAlertPolicy) {
         pendingAlert?.cancel()
+        val id = UUID.randomUUID().toString()
+        trackedAlertId = id
+        aboveLimitMillis = 0L
         pendingAlert = scope.launch {
             try {
-                app.saveAlertSuppression()
+                app.saveAlertSuppression(policy)
             } catch (error: RuntimeException) {
                 Log.w(TAG, "Could not save the alert cooldown", error)
             }
-            val route = if (locationPromoted && model != null) {
+            val suggestion = if (locationPromoted && model != null) {
                 try {
                     withTimeoutOrNull(4_000) {
                         val origin = AlertLocation.currentPoint(this@LiveListeningService) ?: return@withTimeoutOrNull null
-                        app.quietPlaceRoute(origin, model)
+                        app.quietPlaceSuggestion(origin, model)
                     }
                 } catch (cancelled: CancellationException) {
                     throw cancelled
@@ -184,15 +208,16 @@ class LiveListeningService : Service() {
             } else {
                 null
             }
-            if (activeService === this@LiveListeningService) {
-                try {
-                    val alert = DisplayedAlert(UUID.randomUUID().toString(), window, route)
-                    if (OverwhelmAlertNotification.show(this@LiveListeningService, route, alert.id)) {
-                        displayedAlert = alert
-                    }
+            if (activeService === this@LiveListeningService && app.settings.gentleAlerts) {
+                val alert = ActiveAlert(id, window.features.dbMean, aboveLimitMillis, window, suggestion)
+                displayedAlert = DisplayedAlert(alert)
+                val notified = try {
+                    OverwhelmAlertNotification.show(this@LiveListeningService, alert)
                 } catch (error: RuntimeException) {
                     Log.w(TAG, "Could not show overwhelm alert", error)
+                    false
                 }
+                app.alerts.show(alert.copy(hapticOnDisplay = !notified))
             }
         }
     }
@@ -217,16 +242,20 @@ class LiveListeningService : Service() {
         if (activeService === this) {
             activeService = null
             app.personalModel.onLiveWindow(null)
+            app.liveDb = null
             app.isListening = false
+            val alertId = displayedAlert?.value?.id
+            if (alertId != null && app.alerts.active?.id == alertId) app.alerts.dismiss()
             displayedAlert = null
             OverwhelmAlertNotification.dismiss(this)
         }
+        if (activeService == null) app.settings.listenInBackground = false
         scope.cancel()
         if (promoted && activeService == null) stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 
-    private class DisplayedAlert(val id: String, val window: LiveWindow, val route: QuietPlaceRoute?) {
+    private class DisplayedAlert(val value: ActiveAlert) {
         var feedback = FeedbackState.AwaitingChoice
     }
 
@@ -243,6 +272,17 @@ class LiveListeningService : Service() {
 
         // Service callbacks and window publication use the application main thread.
         private var activeService: LiveListeningService? = null
+
+        internal fun cancelPendingAlert() {
+            activeService?.pendingAlert?.cancel()
+        }
+
+        internal fun recordInAppFeedback(alert: ActiveAlert): Boolean {
+            val service = activeService ?: return false
+            val displayed = service.displayedAlert?.takeIf { it.value.id == alert.id } ?: return false
+            service.saveAlertFeedback(displayed, label = 0)
+            return true
+        }
 
         internal fun start(context: Context) {
             context.startForegroundService(Intent(context, LiveListeningService::class.java).setAction(ACTION_START))

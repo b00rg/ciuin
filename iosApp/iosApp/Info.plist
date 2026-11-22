@@ -8,6 +8,8 @@
     <string>Measure brightness and light flicker. Camera frames stay on this device.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Measure sound levels for this place. Microphone audio stays on this device.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Find quiet places nearby and locate measurements you choose to share.</string>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsArbitraryLoads</key>

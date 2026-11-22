@@ -1,7 +1,6 @@
 package ch.ciuin.shared.api
 
 import ch.ciuin.shared.model.Coverage
-import ch.ciuin.shared.model.CoverageCell
 import ch.ciuin.shared.model.FeatureVector
 import ch.ciuin.shared.model.HeatPoint
 import ch.ciuin.shared.model.MeasuredAggregate
@@ -9,7 +8,10 @@ import ch.ciuin.shared.model.Measurement
 import ch.ciuin.shared.model.MeasurementResult
 import ch.ciuin.shared.model.Place
 import ch.ciuin.shared.model.heatGridToGeoJson
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.sqrt
@@ -27,18 +29,6 @@ class FakePlacesApi : PlacesApi {
         Place("fake:5", "Ouchy waterfront", 46.5068, 6.6266, "promenade", wheelchair = "yes", baselineNoiseDb = 55.0, baselineSource = "sonbase"),
     )
 
-    /** Made-up numbers, just enough cells to exercise the globe. */
-    private val fakeCoverage = Coverage(
-        resDeg = 2.0,
-        cells = listOf(
-            CoverageCell(lat = 47.0, lon = 7.0, wheelchair = 18000, sensoryFriendly = 3, noiseSource = "sonbase", measurements = 0),
-            CoverageCell(lat = 53.0, lon = -7.0, wheelchair = 9000, sensoryFriendly = 1, noiseSource = "eea"),
-            CoverageCell(lat = 49.0, lon = 3.0, wheelchair = 40000, noiseSource = "eea"),
-            CoverageCell(lat = 41.0, lon = -73.0, wheelchair = 30000, sensoryFriendly = 2),
-            CoverageCell(lat = 35.0, lon = 139.0, wheelchair = 25000),
-        ),
-    )
-
     override suspend fun places(bbox: BBox, at: String?): List<Place> = all.filter {
         it.lon in bbox.minLon..bbox.maxLon && it.lat in bbox.minLat..bbox.maxLat
     }
@@ -47,16 +37,30 @@ class FakePlacesApi : PlacesApi {
         MeasurementResult(stored = true, place = all.firstOrNull { it.placeId == m.placeId })
 
     /** Synthetic road + rail noise grid (100 m), built once. */
-    private val fakeHeat: JsonObject by lazy { heatGridToGeoJson(fakeNoiseGrid(BBox.LAUSANNE, stepM = 100.0), resM = 100) }
+    private val fakeHeat: JsonObject by lazy {
+        buildJsonObject {
+            heatGridToGeoJson(fakeNoiseGrid(BBox.LAUSANNE, stepM = 100.0), resM = 100).forEach { (key, value) -> put(key, value) }
+            put("dim", "noise")
+            put("period", NoisePeriod.DAY.queryValue)
+        }
+    }
 
-    override suspend fun heatmap(bbox: BBox, dim: String): JsonObject = fakeHeat
+    override suspend fun heatmap(bbox: BBox, dim: String, period: NoisePeriod?): JsonObject =
+        if (dim == "noise" && period != NoisePeriod.NIGHT) fakeHeat
+        else buildJsonObject {
+            put("type", "FeatureCollection")
+            put("dim", dim)
+            period?.let { put("period", it.queryValue) }
+            put("available", false)
+            put("features", JsonArray(emptyList()))
+        }
 
     override suspend fun nearby(lat: Double, lon: Double, radiusM: Int, openOnly: Boolean, at: String?): List<Place> =
         if (openOnly) all.filter { it.openNow != false } else all
 
     override suspend fun stats(): Stats = Stats(placesMapped = all.size, measurementsTaken = 0, sensoryFriendlyTags = 0)
 
-    override suspend fun coverage(resDeg: Double): Coverage = fakeCoverage.copy(resDeg = resDeg)
+    override suspend fun coverage(resDeg: Double): Coverage = readBundledCoverage(resDeg)
 }
 
 /** Made-up measured aggregate so every map layer has something to show offline. */

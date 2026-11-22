@@ -1,6 +1,7 @@
 package ch.ciuin.app
 
 import androidx.compose.ui.graphics.Color
+import ch.ciuin.shared.api.NoisePeriod
 import ch.ciuin.shared.model.Place
 
 /** Three-step rating, like the TCD Sense Map. LOW is always the "easy" end (calm / dim / quiet / accessible). */
@@ -93,6 +94,16 @@ enum class Category(
     abstract fun detail(p: Place): String
 
     fun level(p: Place, personalScore: Double? = null): Level? = raw(p, personalScore)?.let { levelOf(it) }
+
+    internal fun mapValue(place: Place, personalScore: Double?, period: NoisePeriod): Double? {
+        // Measurements do not have a time-of-day split.
+        val value = if (this == SOUND && period == NoisePeriod.NIGHT) {
+            place.baselineNoiseNightDb
+        } else {
+            raw(place, personalScore)
+        }
+        return value?.takeIf { it.isFinite() }
+    }
 
     fun levelOf(v: Double): Level = when {
         v < lowBelow -> Level.LOW

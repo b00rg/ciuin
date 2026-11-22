@@ -114,6 +114,19 @@ class KtorPlacesApiTest {
     }
 
     @Test
+    fun heatmapSendsOptionalPeriodAndKeepsEmptyOnlineGridAvailable() = runTest {
+        val api = api { ok("""{"type":"FeatureCollection","features":[]}""") }
+        for (period in listOf(null, NoisePeriod.DAY, NoisePeriod.NIGHT)) {
+            assertTrue(api.heatmap(BBox.LAUSANNE, "noise", period).heatmapAvailable)
+        }
+        assertEquals(listOf(null, "day", "night"), requests.map { it.url.parameters["period"] })
+        val url = requests.last().url
+        assertEquals("/heatmap", url.encodedPath)
+        assertEquals(BBox.LAUSANNE.toQuery(), url.parameters["bbox"])
+        assertEquals("noise", url.parameters["dim"])
+    }
+
+    @Test
     fun coverageAndStatsDecode() = runTest {
         val cov = api {
             if (it.url.encodedPath == "/coverage") ok("""{"res_deg":0.5,"cells":[{"lat":46.75,"lon":6.75,"wheelchair":592,"sensory_friendly":0,"noise_source":"sonbase","measurements":1}]}""")

@@ -1,38 +1,51 @@
 package ch.ciuin.app.map
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
-import ch.ciuin.app.appFontFamily
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import ch.ciuin.app.route.RoutePoint
+import ch.ciuin.app.ui.components.Level
+import ch.ciuin.app.ui.theme.CiuinColors
+import ch.ciuin.app.ui.theme.CiuinMotion
+import ch.ciuin.app.ui.theme.CiuinType
 import kotlin.math.floor
 import kotlin.math.PI
 import kotlin.math.cos
@@ -40,27 +53,40 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.roundToInt
 
-/** One pin on the map. [color] is decided by the caller (e.g. from the user's p_overwhelm). */
-data class MapMarker(val id: String, val lat: Double, val lon: Double, val label: String, val color: Color)
+internal data class MapMarker(
+    val id: String,
+    val lat: Double,
+    val lon: Double,
+    val label: String,
+    val level: Level,
+    val showLabel: Boolean = false,
+)
 
-/** One heatmap hexagon: centre ([x], [y]) and circumradius [radius] in normalised coords (see [MapState]). */
-data class HeatHex(val x: Double, val y: Double, val radius: Double, val color: Color)
+internal data class HeatHex(
+    val x: Double,
+    val y: Double,
+    val radius: Double,
+    val color: Color,
+    val outline: Boolean = false,
+)
 
-private const val HEAT_ALPHA = 0.7f
+private data class MarkerHit(val marker: MapMarker, val point: Offset, val label: Rect?)
 
-/** Hexagons are drawn slightly smaller than their bin, leaving a thin gap: the crisp honeycomb look. */
-private const val HEX_FILL = 0.88f
-
-/** White wash over the base map so the heatmap stands out from the map's own colours (parks, roads). */
-private const val BASEMAP_VEIL = 0.35f
-
-/** Place names are drawn from this zoom on (and always for the selected place). */
+/** Hexagons fill their whole cell (a seamless honeycomb) and overlap by a hair to hide anti-aliasing seams. */
+private const val HEX_FILL = 1.0f
+private const val HEX_OVERLAP_PX = 0.5f
 private const val LABELS_ZOOM = 18.0
-
 private const val TILE_PX = 256
 private const val MAX_TILE_ZOOM = 19
-private val BACKGROUND = Color(0xFFE8E4DC)
-private val ROUTE_COLOR = Color(0xFF2350A8)
+private val tileColor = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.2f) })
+
+@Composable
+internal fun rememberMapTileCache(tileUrl: String = TileCache.OSM_TILES): TileCache {
+    val scope = rememberCoroutineScope()
+    val cache = remember(tileUrl) { TileCache(scope, tileUrl) }
+    DisposableEffect(cache) { onDispose { cache.close() } }
+    return cache
+}
 
 /**
  * Slippy map drawn on a Canvas: raster tiles + circle markers.
@@ -77,21 +103,26 @@ internal fun MapView(
     heat: List<HeatHex> = emptyList(),
     tileUrl: String = TileCache.OSM_TILES,
     routeOverlay: MapRouteOverlay? = null,
+    userLocation: RoutePoint? = null,
+    layerKey: Any? = null,
+    reduceMotion: Boolean = false,
+    interactive: Boolean = true,
+    tileCache: TileCache? = null,
 ) {
-    val scope = rememberCoroutineScope()
-    val cache = remember(tileUrl) { TileCache(scope, tileUrl) }
-    DisposableEffect(cache) { onDispose { cache.close() } }
+    val cache = tileCache ?: rememberMapTileCache(tileUrl)
 
     val density = LocalDensity.current
     // Draw tiles at 256 dp so they stay readable on high-density phone screens.
     val tilePx = TILE_PX * density.density
-    val hitRadiusPx = with(density) { 22.dp.toPx() }
+    val dotRadiusPx = with(density) { 6.dp.toPx() }
+    val dotHitRadiusPx = with(density) { 22.dp.toPx() }
     val textMeasurer = rememberTextMeasurer()
-    val currentMarkers by rememberUpdatedState(markers)
     val currentOnTap by rememberUpdatedState(onMarkerTap)
+    val visibleMarkers = remember { mutableListOf<MarkerHit>() }
+    val targetLayer by rememberUpdatedState(layerKey)
+    val targetHeat by rememberUpdatedState(heat)
 
-    Canvas(
-        modifier
+    val gestures = if (!interactive) Modifier else Modifier
             .pointerInput(state, tilePx) {
                 detectTransformGestures { centroid, pan, zoom, _ ->
                     state.pan(pan, tilePx)
@@ -102,12 +133,13 @@ internal fun MapView(
                 detectTapGestures(
                     onDoubleTap = { pos -> state.zoomAt(2.0, pos, size.toSize(), tilePx) },
                     onTap = { pos ->
-                        val viewport = size.toSize()
-                        val hit = currentMarkers
-                            .map { it to (state.toScreen(it.lat, it.lon, viewport, tilePx) - pos).getDistance() }
-                            .filter { it.second <= hitRadiusPx }
+                        val nearestDot = visibleMarkers.asSequence()
+                            .map { it to (it.point - pos).getDistance() }
                             .minByOrNull { it.second }
-                        currentOnTap(hit?.first)
+                        val hit = nearestDot?.takeIf { it.second <= dotRadiusPx }?.first
+                            ?: visibleMarkers.firstOrNull { it.label?.contains(pos) == true }
+                            ?: nearestDot?.takeIf { it.second <= dotHitRadiusPx }?.first
+                        currentOnTap(hit?.marker)
                     },
                 )
             }
@@ -124,70 +156,131 @@ internal fun MapView(
                         }
                     }
                 }
-            },
-    ) {
-        drawRect(BACKGROUND)
-        drawTiles(state, cache, tilePx)
-        if (heat.isNotEmpty()) {
-            drawRect(Color.White, alpha = BASEMAP_VEIL)
-            val w = state.worldSize(tilePx)
-            val path = Path()
-            for (h in heat) {
-                val cx = (size.width / 2.0 + (h.x - state.centerX) * w).toFloat()
-                val cy = (size.height / 2.0 + (h.y - state.centerY) * w).toFloat()
-                val r = (h.radius * w).toFloat()
-                if (cx < -r || cy < -r || cx > size.width + r || cy > size.height + r) continue
-                path.reset()
-                val rr = r * HEX_FILL
-                for (i in 0 until 6) {
-                    // Pointy-top: corners at 30°, 90°, 150°, ...
-                    val a = (PI / 180 * (60 * i - 30)).toFloat()
-                    val px = cx + rr * cos(a)
-                    val py = cy + rr * sin(a)
-                    if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+            }
+    Box(modifier.then(gestures)) {
+        Canvas(Modifier.matchParentSize()) {
+            drawRect(CiuinColors.MapGround)
+            drawTiles(state, cache, tilePx)
+            drawRect(CiuinColors.MapGround.copy(alpha = 0.52f))
+        }
+
+        Crossfade(
+            targetState = layerKey,
+            modifier = Modifier.matchParentSize(),
+            animationSpec = if (reduceMotion) CiuinMotion.reducedFade() else CiuinMotion.layerSwitch(),
+            label = "map layer",
+        ) { shownLayer ->
+            val snapshot = remember { mutableStateOf(targetHeat) }
+            if (shownLayer == targetLayer) {
+                val latest = targetHeat
+                SideEffect { snapshot.value = latest }
+            }
+            Canvas(Modifier.fillMaxSize()) { drawHeat(state, tilePx, snapshot.value) }
+        }
+
+        Canvas(Modifier.matchParentSize()) {
+            if (routeOverlay != null) drawQuietPlaceRoute(routeOverlay, state, tilePx)
+            else userLocation?.let { drawHere(state.toScreen(it.lat, it.lon, size, tilePx)) }
+
+            visibleMarkers.clear()
+            val markerLabelStyle = CiuinType.Caption
+            val labelsVisible = state.zoom >= LABELS_ZOOM
+            val drawn = markers.sortedByDescending { it.id == selectedId }
+            for (marker in drawn) {
+                val point = state.toScreen(marker.lat, marker.lon, size, tilePx)
+                if (point.x !in 0f..size.width || point.y !in 0f..size.height) continue
+                val selected = marker.id == selectedId
+                var labelBounds: Rect? = null
+                if (selected || marker.showLabel || labelsVisible) {
+                    val label = textMeasurer.measure(
+                        marker.label,
+                        markerLabelStyle.copy(color = if (selected) CiuinColors.OnInk else CiuinColors.Ink),
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        constraints = androidx.compose.ui.unit.Constraints(maxWidth = 140.dp.roundToPx()),
+                    )
+                    val height = 32.dp.toPx()
+                    val side = 8.dp.toPx()
+                    val width = side * 4 + label.size.width
+                    val offset = Offset(
+                        (point.x - width / 2).coerceIn(0f, (size.width - width).coerceAtLeast(0f)),
+                        point.y - height - 5.dp.toPx(),
+                    )
+                    val box = Rect(offset, Size(width, height))
+                    if (selected || visibleMarkers.none { it.label?.overlaps(box) == true }) {
+                        labelBounds = box
+                        drawRoundRect(
+                            if (selected) CiuinColors.Ink else CiuinColors.Ground,
+                            topLeft = offset, size = box.size, cornerRadius = CornerRadius(height / 2),
+                        )
+                        val glyph = Offset(offset.x + side * 1.5f, offset.y + height / 2)
+                        drawCircle(marker.level.tint, 9.dp.toPx(), glyph)
+                        drawLevel(marker.level, glyph, 5.dp.toPx())
+                        drawText(label, topLeft = Offset(offset.x + side * 3, offset.y + (height - label.size.height) / 2))
+                    }
                 }
-                path.close()
-                drawPath(path, h.color, alpha = HEAT_ALPHA)
+                drawCircle(CiuinColors.Ground, dotRadiusPx, point)
+                drawLevel(marker.level, point, 3.5.dp.toPx())
+                visibleMarkers += MarkerHit(marker, point, labelBounds)
             }
         }
+    }
+}
 
-        // Pass 1: dots.
-        val onScreen = ArrayList<Pair<MapMarker, Offset>>()
-        for (m in markers) {
-            val p = state.toScreen(m.lat, m.lon, size, tilePx)
-            if (p.x < -50 || p.y < -50 || p.x > size.width + 50 || p.y > size.height + 50) continue
-            onScreen += m to p
-            val selected = m.id == selectedId
-            val r = (if (selected) 12.dp else 8.dp).toPx()
-            drawCircle(Color.Black.copy(alpha = 0.25f), r + 2.dp.toPx(), p + Offset(0f, 1.5.dp.toPx()))
-            drawCircle(m.color, r, p)
-            drawCircle(Color.White, r, p, style = Stroke(width = (if (selected) 3.dp else 2.dp).toPx()))
+private fun DrawScope.drawHeat(state: MapState, tilePx: Float, heat: List<HeatHex>) {
+    if (heat.isEmpty()) return
+    val world = state.worldSize(tilePx)
+    val path = Path()
+    val outline = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(1.dp.toPx(), 3.dp.toPx())))
+
+    fun hexPath(hex: HeatHex, grow: Float): Boolean {
+        val dx = shortestWrappedDelta(hex.x - state.centerX)
+        val cx = (size.width / 2.0 + dx * world).toFloat()
+        val cy = (size.height / 2.0 + (hex.y - state.centerY) * world).toFloat()
+        val radius = (hex.radius * world).toFloat()
+        if (cx < -radius || cy < -radius || cx > size.width + radius || cy > size.height + radius) return false
+        path.reset()
+        val r = radius * HEX_FILL + grow
+        for (i in 0 until 6) {
+            val angle = (PI / 180 * (60 * i - 30)).toFloat()
+            val px = cx + r * cos(angle)
+            val py = cy + r * sin(angle)
+            if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
         }
+        path.close()
+        return true
+    }
 
-        // Pass 2: names, skipping any that would overlap one already drawn (selected place goes first).
-        val labelsVisible = state.zoom >= LABELS_ZOOM
-        val placed = ArrayList<Rect>()
-        val pad = 3.dp.toPx()
-        for ((m, p) in onScreen.sortedByDescending { it.first.id == selectedId }) {
-            val selected = m.id == selectedId
-            if (!labelsVisible && !selected) continue
-            val layout = textMeasurer.measure(
-                m.label,
-                TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1B1B1B), fontFamily = appFontFamily),
-            )
-            val r = (if (selected) 12.dp else 8.dp).toPx()
-            val topLeft = Offset(p.x - layout.size.width / 2f, p.y + r + 3.dp.toPx())
-            val box = Rect(
-                topLeft - Offset(pad, 1.dp.toPx()),
-                Size(layout.size.width + 2 * pad, layout.size.height + 2.dp.toPx()),
-            )
-            if (!selected && placed.any { it.overlaps(box) }) continue
-            placed += box
-            drawRect(Color.White.copy(alpha = 0.8f), box.topLeft, box.size)
-            drawText(layout, topLeft = topLeft)
+    // Filled hexagons: each transparency (one per level) goes into its own layer. Inside a layer the hexagons are
+    // drawn opaque and overlap by a hair, so neighbours meet with no gap and no darker seam; the layer then
+    // applies the level's transparency once.
+    val bounds = Rect(Offset.Zero, size)
+    heat.filter { !it.outline }.groupBy { it.color.alpha }.forEach { (alpha, group) ->
+        drawIntoCanvas { canvas ->
+            canvas.saveLayer(bounds, Paint().apply { this.alpha = alpha })
+            for (hex in group) if (hexPath(hex, HEX_OVERLAP_PX)) drawPath(path, hex.color.copy(alpha = 1f))
+            canvas.restore()
         }
+    }
+    for (hex in heat) if (hex.outline && hexPath(hex, 0f)) drawPath(path, hex.color, style = outline)
+}
 
-        if (routeOverlay != null) drawQuietPlaceRoute(routeOverlay, state, tilePx)
+private fun DrawScope.drawHere(point: Offset) {
+    drawCircle(CiuinColors.LocationHalo, 15.dp.toPx(), point)
+    drawCircle(CiuinColors.Ground, 8.dp.toPx(), point)
+    drawCircle(CiuinColors.Ink, 5.5.dp.toPx(), point)
+}
+
+private fun DrawScope.drawLevel(level: Level, center: Offset, radius: Float) {
+    val rect = Rect(center, radius)
+    when (level) {
+        Level.Calm -> drawCircle(level.color, radius, center)
+        Level.Moderate -> rotate(45f, center) {
+            drawRoundRect(level.color, rect.topLeft, rect.size, CornerRadius(1.dp.toPx()))
+        }
+        Level.Loud -> drawRoundRect(level.color, rect.topLeft, rect.size, CornerRadius(1.dp.toPx()))
+        Level.NoData -> drawCircle(level.color, radius, center,
+            style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx()))))
     }
 }
 
@@ -208,23 +301,15 @@ private fun DrawScope.drawQuietPlaceRoute(route: MapRouteOverlay, state: MapStat
             if (index == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
         }
     }
-    drawPath(line, Color.White, style = Stroke(8.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-    drawPath(line, ROUTE_COLOR, style = Stroke(4.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
-
-    drawCircle(Color.White, 8.dp.toPx(), origin)
-    drawCircle(ROUTE_COLOR, 5.dp.toPx(), origin)
+    drawPath(line, CiuinColors.Ground, style = Stroke(5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round))
+    val dash = PathEffect.dashPathEffect(floatArrayOf(1.dp.toPx(), 5.dp.toPx()))
+    drawPath(line, CiuinColors.Ink, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round, pathEffect = dash))
+    drawHere(origin)
 
     val destination = toScreen(route.destination)
-    val markerSize = 11.dp.toPx()
-    val marker = Path().apply {
-        moveTo(destination.x, destination.y - markerSize)
-        lineTo(destination.x + markerSize, destination.y)
-        lineTo(destination.x, destination.y + markerSize)
-        lineTo(destination.x - markerSize, destination.y)
-        close()
-    }
-    drawPath(marker, ROUTE_COLOR)
-    drawPath(marker, Color.White, style = Stroke(2.dp.toPx()))
+    drawCircle(CiuinColors.Ground, 9.dp.toPx(), destination)
+    drawLevel(Level.Calm, destination, 5.dp.toPx())
+
 }
 
 private fun DrawScope.drawTiles(state: MapState, cache: TileCache, tilePx: Float) {
@@ -252,7 +337,7 @@ private fun DrawScope.drawTiles(state: MapState, cache: TileCache, tilePx: Float
 
             val img = cache.get(TileKey(tz, wx, ty))
             if (img != null) {
-                drawImage(img, dstOffset = dstOffset, dstSize = dstSize)
+                drawImage(img, dstOffset = dstOffset, dstSize = dstSize, colorFilter = tileColor)
                 continue
             }
             // While loading, stretch the matching quarter of the parent tile if we have it.
@@ -265,6 +350,7 @@ private fun DrawScope.drawTiles(state: MapState, cache: TileCache, tilePx: Float
                     srcSize = IntSize(half, half),
                     dstOffset = dstOffset,
                     dstSize = dstSize,
+                    colorFilter = tileColor,
                 )
             }
         }

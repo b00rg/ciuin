@@ -16,6 +16,9 @@ internal interface MeasurementCapture {
 
     /** Nearby Bluetooth LE advertisements during the measurement. Platforms without it keep the default. */
     fun bluetooth(): Flow<BleSighting> = emptyFlow()
+
+    /** Live loudness in 0..1 while measuring, for the waveform. Display only; never part of the measurement. */
+    fun audioLevels(): Flow<Float> = emptyFlow()
 }
 
 internal data class CapturePermissions(val camera: Boolean, val microphone: Boolean, val bluetooth: Boolean = false)

@@ -17,11 +17,10 @@ import android.os.Looper
 import android.view.Surface
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import ch.ciuin.app.CiuinApplication
-import kotlinx.coroutines.CompletableDeferred
+import ch.ciuin.app.core.AndroidPermissions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancel
@@ -39,6 +38,7 @@ import kotlinx.coroutines.withContext
 internal class AndroidMeasurementCapture(
     private val activity: ComponentActivity,
     private val app: CiuinApplication,
+    private val permissions: AndroidPermissions,
 ) : MeasurementCapture {
     override val device = "Android ${Build.MODEL}"
 
@@ -50,10 +50,6 @@ internal class AndroidMeasurementCapture(
         get() = activity.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE) &&
             bluetoothAdapter?.isEnabled == true
     private var screenUsers = 0
-    private var permissionResult: CompletableDeferred<CapturePermissions>? = null
-    private val permissions = activity.registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-        permissionResult?.complete(currentPermissions())
-    }
 
     override suspend fun requestPermissions(): CapturePermissions {
         val current = currentPermissions()
@@ -65,19 +61,12 @@ internal class AndroidMeasurementCapture(
                 add(Manifest.permission.RECORD_AUDIO)
             }
             if (!current.bluetooth && activity.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)) {
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) add(Manifest.permission.ACCESS_COARSE_LOCATION)
                 add(BLUETOOTH_SCAN_PERMISSION)
             }
         }
-        if (missing.isEmpty()) return current
-
-        val result = CompletableDeferred<CapturePermissions>()
-        permissionResult = result
-        return try {
-            permissions.launch(missing.toTypedArray())
-            result.await()
-        } finally {
-            if (permissionResult === result) permissionResult = null
-        }
+        permissions.requestSystem(missing, requestTogether = true)
+        return currentPermissions()
     }
 
     override fun camera(): Flow<CameraSample> = whileForeground(
@@ -118,6 +107,8 @@ internal class AndroidMeasurementCapture(
     })
 
     override fun audio(): Flow<AudioSample> = whileForeground(app.audioWindows.map { it.getOrThrow() })
+
+    override fun audioLevels(): Flow<Float> = whileForeground(app.audioLevels)
 
     /**
      * Bluetooth LE scan for the crowd proxy. Reads only the signal strength and an in-memory fingerprint of

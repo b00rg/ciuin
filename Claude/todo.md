@@ -183,7 +183,7 @@ Pitch line: *measurements work anywhere, map data covers the world â†’ Europe â†
 ### After ~19:00: help Christine
 - [ ] Take the app screens Christine hands over (likely Place detail, Privacy, Model screen UI)
 - [x] Ktor client against your own API: `KtorPlacesApi` in `shared/commonMain` (mock-engine tests + a live round-trip test). App picks the URL per platform (`composeApp/.../ApiConfig.kt`); `postMeasurement` now returns `MeasurementResult`
-- [ ] Offline fallback using the bundled GeoJSON (when the backend is unreachable). Android quiet-place lookup uses it. The map still falls back to sample places. [PR #38](https://github.com/b00rg/ciuin/pull/38)
+- [x] Use the bundled Lausanne GeoJSON when the backend is unreachable. Android, iOS and desktop load it on the map, and Android also uses it for quiet-place lookup.
 - [ ] Own `REUSED.md`: collect entries from everyone as they go (data sources, backend + app libraries added 21 Nov; keep adding)
 
 ---
@@ -317,7 +317,7 @@ T3 Code also produced a local iOS map port on `kmp-app-ios` (`50d7f9e`), startin
 
 ### Sync and fallbacks
 - [x] Desktop map polls `/places` every 2 s so a phone measurement appears live
-- [x] Bundle `places_lausanne.geojson` for offline use. The Android app bundles it for quiet-place lookup.
+- [x] Bundle `places_lausanne.geojson` for the offline map on Android, iOS and desktop.
 - [ ] Debug option: replay a recorded measurement / audio clip through the full pipeline
 
 ---

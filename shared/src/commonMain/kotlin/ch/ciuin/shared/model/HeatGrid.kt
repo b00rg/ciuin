@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.doubleOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -16,7 +17,7 @@ import kotlin.math.pow
 
 /**
  * One cell of the baseline noise grid from `GET /heatmap` (todo.md §0, "/heatmap response").
- * dB values are daytime levels from sonBASE (null where that source has no data).
+ * dB values are levels for the requested period from sonBASE (null where that source has no data).
  * [totalDb] is for grids that only carry one combined value (no road/rail split).
  */
 data class HeatPoint(
@@ -25,6 +26,7 @@ data class HeatPoint(
     val roadDb: Double?,
     val railDb: Double?,
     val totalDb: Double? = null,
+    val measurementCount: Int = 1,
 ) {
     /** Road + rail combined energetically (10·log10 of summed intensities); null if nothing is known. */
     val combinedDb: Double?
@@ -57,6 +59,7 @@ fun parseHeatGrid(geoJson: JsonObject): List<HeatPoint> {
                 roadDb = num("road_db"),
                 railDb = num("rail_db"),
                 totalDb = num("noise_db") ?: num("value"),
+                measurementCount = (props?.get("n") as? JsonPrimitive)?.intOrNull?.takeIf { it > 0 } ?: 1,
             )
         }.getOrNull()
     }

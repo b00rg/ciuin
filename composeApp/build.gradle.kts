@@ -14,10 +14,35 @@ val bundleListenerAssets by tasks.registering(Sync::class) {
     from(rootProject.layout.projectDirectory.dir("ml/export")) {
         include("audio-student-s.tflite", "audio-student-m.tflite", "cascade.json")
     }
-    from(rootProject.layout.projectDirectory.file("data/processed/places_lausanne.geojson"))
     into(listenerAssets)
 }
-tasks.named("preBuild") { dependsOn(bundleListenerAssets) }
+val mapAssets = layout.buildDirectory.dir("generated/mapAssets")
+val bundleMapAssets by tasks.registering(Sync::class) {
+    from(rootProject.layout.projectDirectory.file("data/processed/places_lausanne.geojson"))
+    into(mapAssets)
+}
+tasks.named("preBuild") { dependsOn(bundleListenerAssets, bundleMapAssets) }
+
+val modelResultsExport = rootProject.layout.projectDirectory.file("ml/export/results.json")
+val modelCatalogSources = layout.buildDirectory.dir("generated/modelCatalog/kotlin")
+val generateModelCatalog by tasks.registering {
+    inputs.file(modelResultsExport).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(modelCatalogSources)
+    doLast {
+        val source = modelCatalogSources.get().file("ModelResultsExport.kt").asFile
+        source.parentFile.mkdirs()
+        val quotes = "\"\"\""
+        source.writeText(
+            "package ch.ciuin.app.core\n\n" +
+                "internal const val modelResultsJson = $quotes\n" +
+                modelResultsExport.asFile.readText().trim() + "\n$quotes\n",
+        )
+    }
+}
+
+// Poppins is kept once, laid out as an Android resource directory (font/, raw/). Android reads it as
+// R.font.*, the desktop JVM from the classpath, and iOS from the app bundle (see iosApp/project.yml).
+val fontResources = "src/commonMain/fontRes"
 
 kotlin {
     androidTarget {
@@ -32,12 +57,14 @@ kotlin {
     }
 
     sourceSets {
+        commonMain { kotlin.srcDir(generateModelCatalog) }
         commonMain.dependencies {
             implementation(projects.shared)
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)
             implementation(compose.ui)
+            implementation(libs.compose.backhandler)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
@@ -49,6 +76,8 @@ kotlin {
             implementation(libs.litert)
         }
         val desktopMain by getting {
+            resources.srcDir(fontResources)
+            resources.srcDir(bundleMapAssets)
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutines.swing)
@@ -59,7 +88,8 @@ kotlin {
 
 android {
     namespace = "ch.ciuin.app"
-    sourceSets.getByName("main").assets.srcDirs(listenerAssets, "src/androidMain/assets")
+    sourceSets.getByName("main").assets.srcDirs(listenerAssets, mapAssets, "src/androidMain/assets")
+    sourceSets.getByName("main").res.srcDir(fontResources)
     androidResources.noCompress += "tflite"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     defaultConfig {
