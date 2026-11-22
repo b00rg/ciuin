@@ -34,6 +34,16 @@ class QuietSpotTest {
     }
 
     @Test
+    fun nearestCalmSpotChoosesTheClosestCalmPlace() {
+        val nearby = place("nearby", 179.9999, 30.0)
+        val calmer = place("calmer", -179.9999, 10.0)
+        val loud = place("loud", 179.9998, 90.0)
+
+        assertEquals(nearby, nearestCalmSpot(listOf(calmer, loud, nearby), origin, score)?.place)
+        assertNull(nearestCalmSpot(listOf(loud), origin, score))
+    }
+
+    @Test
     fun buildsPreviewForAnyValidSelectedPlace() {
         val selected = place("chosen", -179.9999, 0.0).copy(openNow = false, prior = null)
         val route = assertNotNull(routeToPlace(origin, selected))

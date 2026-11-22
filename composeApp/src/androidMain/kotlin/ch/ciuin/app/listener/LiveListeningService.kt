@@ -101,7 +101,6 @@ class LiveListeningService : Service() {
                 return
             }
 
-            app.selectListenerVariant()
             activeService = this
             app.listenerMessage = null
             app.isListening = true

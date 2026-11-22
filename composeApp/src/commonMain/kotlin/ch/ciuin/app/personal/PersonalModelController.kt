@@ -32,6 +32,11 @@ internal class PersonalModelController(
 
     private var latestLiveWindow by mutableStateOf<LiveWindow?>(null)
     val liveScore: Double? get() = latestLiveWindow?.score
+    val canResetLearnedSettings: Boolean
+        get() {
+            val session = state.session ?: return false
+            return !state.busy && (session.exampleCount > 0 || session.preset != PersonalPreset.AUTISM_FRIENDLY)
+        }
 
     init {
         load()
@@ -85,6 +90,11 @@ internal class PersonalModelController(
     fun reset() {
         if (state.session?.exampleCount == 0) return
         save("Couldn't clear your feedback.") { it.reset() }
+    }
+
+    fun resetLearnedSettings() {
+        if (!canResetLearnedSettings) return
+        save("Couldn't clear your feedback.") { it.reset().withPreset(PersonalPreset.AUTISM_FRIENDLY) }
     }
 
     fun dismissNotice(notice: PersonalModelNotice) {

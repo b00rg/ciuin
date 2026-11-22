@@ -33,15 +33,12 @@ import ch.ciuin.shared.api.PlacesApi
 import ch.ciuin.shared.model.Place
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -60,26 +57,27 @@ class CiuinApplication : Application() {
 
     internal val placesApi by lazy { createPlacesApi() }
     internal val settings by lazy { SettingsController(AndroidSettingsStorage(this), androidReduceMotion(this), scope) }
-    internal val models by lazy { ModelCatalog(settings, setOf(ModelVariant.S, ModelVariant.M)).apply { load(scope) } }
+    internal val models by lazy {
+        ModelCatalog(settings, setOf(ModelVariant.S, ModelVariant.M), runningVariant = { activeAudioVariant })
+            .apply { load(scope) }
+    }
     internal val listeningStats by lazy { AndroidListeningStats(this) }
-    private val audioVariant by lazy { MutableStateFlow(listenerVariant()) }
+    private var activeAudioVariant by mutableStateOf<ModelVariant?>(null)
 
     // Both capture flows subscribe here so a foreground measurement can reuse the listener's microphone.
-    @OptIn(ExperimentalCoroutinesApi::class)
     internal val audioWindows by lazy {
-        audioVariant.flatMapLatest { variant ->
-            callbackFlow<Result<AudioSample>> {
+        callbackFlow<Result<AudioSample>> {
+            settings.awaitLoaded()
+            val variant = settings.modelVariant.takeIf { it == ModelVariant.M } ?: ModelVariant.S
+            activeAudioVariant = variant
+            try {
                 AndroidLiveListener(this@CiuinApplication, variant).listen { send(Result.success(it)) }
-                close()
-            }.catch { emit(Result.failure(it)) }.buffer(0)
-        }.buffer(0).shareIn(scope, SharingStarted.WhileSubscribed())
+            } finally {
+                activeAudioVariant = null
+            }
+            close()
+        }.catch { emit(Result.failure(it)) }.buffer(0).shareIn(scope, SharingStarted.WhileSubscribed())
     }
-
-    internal fun selectListenerVariant() {
-        audioVariant.value = listenerVariant()
-    }
-
-    private fun listenerVariant() = settings.modelVariant.takeIf { it == ModelVariant.M } ?: ModelVariant.S
 
     internal val walkingRouter by lazy {
         val configuredUrl = BuildConfig.WALKING_ROUTER_URL

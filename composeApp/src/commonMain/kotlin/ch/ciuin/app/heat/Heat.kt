@@ -49,13 +49,8 @@ fun samplesFor(
     noisePeriod: NoisePeriod = NoisePeriod.DAY,
 ): List<HeatSample> {
     val fromPlaces = places.mapNotNull { p ->
-        // The measured aggregate has no time-of-day split.
-        val value = if (category == Category.SOUND && noisePeriod == NoisePeriod.NIGHT) {
-            p.baselineNoiseNightDb
-        } else {
-            category.raw(p, personalScores[p.placeId])
-        }
-        value?.takeIf { it.isFinite() }?.let { HeatSample(lonToX(p.lon), latToY(p.lat), it) }
+        category.mapValue(p, personalScores[p.placeId], noisePeriod)
+            ?.let { HeatSample(lonToX(p.lon), latToY(p.lat), it) }
     }
     if (category != Category.SOUND) return fromPlaces
     return grid.mapNotNull { g -> g.combinedDb?.takeIf { it.isFinite() }?.let { HeatSample(lonToX(g.lon), latToY(g.lat), it) } } + fromPlaces

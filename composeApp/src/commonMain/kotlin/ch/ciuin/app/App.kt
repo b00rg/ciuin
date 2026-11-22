@@ -1,160 +1,189 @@
 package ch.ciuin.app
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.backhandler.BackHandler
+import androidx.compose.ui.unit.dp
 import ch.ciuin.app.core.AppEnvironment
-import ch.ciuin.app.measure.MeasurementCapture
-import ch.ciuin.app.measure.MeasurementDialog
-import ch.ciuin.app.personal.PersonalModelController
-import ch.ciuin.app.route.QuietPlaceRoute
-import ch.ciuin.app.route.WalkingRoute
-import ch.ciuin.app.route.WalkingRouter
-import ch.ciuin.shared.api.PlacesApi
+import ch.ciuin.app.map.MapMarker
+import ch.ciuin.app.map.MapState
+import ch.ciuin.app.map.MapView
+import ch.ciuin.app.measure.MeasurementPhase
+import ch.ciuin.app.ui.alert.AlertScreen
+import ch.ciuin.app.ui.components.CiuinTab
+import ch.ciuin.app.ui.components.CiuinTabBar
+import ch.ciuin.app.ui.components.Level
+import ch.ciuin.app.ui.globe.GlobeOpening
+import ch.ciuin.app.ui.measure.MeasureTab
+import ch.ciuin.app.ui.onboarding.OnboardingFlow
+import ch.ciuin.app.ui.search.SearchScreen
+import ch.ciuin.app.ui.theme.CiuinColors
+import ch.ciuin.app.ui.theme.CiuinTheme
+import ch.ciuin.app.ui.you.YouTab
 import ch.ciuin.shared.model.Place
-import kotlinx.coroutines.launch
 
-@Composable
-internal fun App(
-    personalModel: PersonalModelController,
-    api: PlacesApi = remember { createPlacesApi() },
-    liveListening: Boolean = false,
-    onLiveListeningChange: ((Boolean) -> Unit)? = null,
-    liveListenerMessage: String? = null,
-    quietPlaceRoute: QuietPlaceRoute? = null,
-    onClearQuietPlaceRoute: () -> Unit = {},
-    quietPlaceRouteRequest: Int = 0,
-    walkingRouter: WalkingRouter? = null,
-    measurementCapture: MeasurementCapture? = null,
-    measurementForeground: Boolean = true,
-    measurementCancellationCount: Int = 0,
-) {
-    val personalSnackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    var measuring by remember { mutableStateOf<Place?>(null) }
-    val personalState = personalModel.state
-    LaunchedEffect(personalState.notice) {
-        val notice = personalState.notice ?: return@LaunchedEffect
-        personalSnackbar.showSnackbar(notice.message)
-        personalModel.dismissNotice(notice)
-    }
-    var walkingRoute by remember(quietPlaceRoute, quietPlaceRouteRequest, walkingRouter) {
-        mutableStateOf<WalkingRoute?>(null)
-    }
-    var walkingRouteLoading by remember(quietPlaceRoute, quietPlaceRouteRequest, walkingRouter) {
-        mutableStateOf(quietPlaceRoute != null && walkingRouter != null)
-    }
-    LaunchedEffect(quietPlaceRoute, quietPlaceRouteRequest, walkingRouter) {
-        if (quietPlaceRoute != null && walkingRouter != null) {
-            walkingRoute = walkingRouter.findRoute(quietPlaceRoute.origin, quietPlaceRoute.destination)
-            walkingRouteLoading = false
-        }
-    }
-
-    MaterialTheme(typography = appTypography()) {
-        Surface(Modifier.fillMaxSize()) {
-            MapScreen(
-                api = api,
-                personal = personalState.session,
-                personalSnackbar = personalSnackbar,
-                personalBusy = personalState.busy,
-                liveListening = liveListening,
-                liveScore = personalModel.liveScore,
-                onLiveListeningChange = onLiveListeningChange,
-                liveListenerMessage = liveListenerMessage,
-                quietPlaceRoute = quietPlaceRoute,
-                onClearQuietPlaceRoute = onClearQuietPlaceRoute,
-                quietPlaceRouteRequest = quietPlaceRouteRequest,
-                walkingRoute = walkingRoute,
-                walkingRouteLoading = walkingRouteLoading,
-                onSelectPreset = personalModel::selectPreset,
-                onFeedback = personalModel::recordFeedback,
-                onResetPersonal = personalModel::reset,
-                onRetryPersonal = personalModel::load,
-                onMeasure = measurementCapture?.let { { place -> measuring = place } },
-            )
-        }
-        val place = measuring
-        if (place != null && measurementCapture != null) {
-            MeasurementDialog(
-                place,
-                measurementCapture,
-                measurementForeground,
-                measurementCancellationCount,
-                api,
-                onDismiss = { measuring = null },
-                onComplete = { stored ->
-                    measuring = null
-                    scope.launch {
-                        personalSnackbar.showSnackbar(
-                            if (stored) "Measurement uploaded" else "Measurement queued while offline",
-                        )
-                    }
-                },
-            )
-        }
-    }
-}
-
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 internal fun App(environment: AppEnvironment) {
-    val snackbar = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-    var measuring by remember { mutableStateOf<Place?>(null) }
+    val settings = environment.settings
     val personal = environment.personalModel
-    val state = personal.state
-    val listening = environment.listening
     val routes = environment.routes
-    val measurement = environment.measurement
-    LaunchedEffect(state.notice) {
-        val notice = state.notice ?: return@LaunchedEffect
+    val snackbar = remember { SnackbarHostState() }
+    val map = remember { MapState(LAUSANNE_LAT, LAUSANNE_LON, LAUSANNE_ZOOM) }
+    var tab by rememberSaveable { mutableStateOf(CiuinTab.Map) }
+    var showGlobe by rememberSaveable { mutableStateOf(true) }
+    var searching by rememberSaveable { mutableStateOf(false) }
+    var selectedPlaceId by rememberSaveable { mutableStateOf<String?>(null) }
+    var measurementPlaceId by rememberSaveable { mutableStateOf<String?>(null) }
+    val measurementPhase = environment.measurement?.phase
+    val keepMeasurementVisible = tab == CiuinTab.Measure && when (measurementPhase) {
+        MeasurementPhase.Requesting,
+        is MeasurementPhase.Capturing,
+        is MeasurementPhase.Review,
+        is MeasurementPhase.Uploading,
+        is MeasurementPhase.Done -> true
+        else -> false
+    }
+    val data = rememberMapData(environment.api)
+    val places = data.places
+    val session = personal.state.session
+    val scores = remember(places, session) {
+        if (session == null) emptyMap()
+        else places.mapNotNull { place ->
+            place.personalFeatures?.let { place.placeId to session.score(it) }
+        }.toMap()
+    }
+
+    DisposableEffect(environment.location) {
+        environment.location.start()
+        onDispose { environment.location.stop() }
+    }
+    LaunchedEffect(personal.state.notice) {
+        val notice = personal.state.notice ?: return@LaunchedEffect
         snackbar.showSnackbar(notice.message)
         personal.dismissNotice(notice)
     }
-
-    MaterialTheme(typography = appTypography()) {
-        Surface(Modifier.fillMaxSize()) {
-            MapScreen(
-                api = environment.api,
-                personal = state.session,
-                personalSnackbar = snackbar,
-                personalBusy = state.busy,
-                liveListening = listening?.isListening ?: false,
-                liveScore = listening?.liveScore,
-                onLiveListeningChange = listening?.let { it::setListening },
-                liveListenerMessage = listening?.message,
-                quietPlaceRoute = routes.active,
-                onClearQuietPlaceRoute = routes::end,
-                quietPlaceRouteRequest = routes.requestCount,
-                walkingRoute = routes.walkingRoute,
-                walkingRouteLoading = routes.loading,
-                onSelectPreset = personal::selectPreset,
-                onFeedback = personal::recordFeedback,
-                onResetPersonal = personal::reset,
-                onRetryPersonal = personal::load,
-                onMeasure = measurement?.let { { place -> measuring = place } },
-            )
+    LaunchedEffect(routes.requestCount, keepMeasurementVisible) {
+        if (!keepMeasurementVisible && routes.active != null) {
+            selectedPlaceId = null
+            searching = false
+            showGlobe = false
+            tab = CiuinTab.Map
         }
-        val place = measuring
-        if (place != null && measurement != null) {
-            MeasurementDialog(
-                place, measurement.capture, measurement.foreground, measurement.cancellationCount, measurement.legacyApi,
-                onDismiss = { measuring = null },
-                onComplete = { stored ->
-                    measuring = null
-                    scope.launch {
-                        snackbar.showSnackbar(if (stored) "Measurement uploaded" else "Measurement queued while offline")
-                    }
-                },
+    }
+
+    fun switchTab(next: CiuinTab) {
+        if (next == tab) return
+        measurementPlaceId = null
+        selectedPlaceId = null
+        searching = false
+        tab = next
+    }
+
+    val alert = environment.alerts.active
+    val route = routes.active
+    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+    val tabBar: @Composable () -> Unit = {
+        CiuinTabBar(tab, ::switchTab, bottomInset = bottomInset)
+    }
+    fun dismissMapOverlay() {
+        when {
+            searching -> searching = false
+            selectedPlaceId != null -> selectedPlaceId = null
+            routes.active != null -> routes.end()
+        }
+    }
+    fun pickFromSearch(place: Place) {
+        map.centerOn(place.lat, place.lon, PLACE_ZOOM)
+        selectedPlaceId = place.placeId
+        searching = false
+    }
+
+    CiuinTheme(reduceMotion = settings.reduceMotion) {
+        Box(Modifier.fillMaxSize().background(CiuinColors.Ground)) {
+            when {
+                settings.loading -> Unit
+                alert != null && !keepMeasurementVisible -> {
+                    BackHandler(onBack = environment.alerts::dismiss)
+                    AlertScreen(environment, alert, mapPreview = {
+                        val destination = alert.suggestion?.route ?: return@AlertScreen
+                        val preview = remember(destination) {
+                            MapState(destination.destination.lat, destination.destination.lon, 15.0)
+                        }
+                        val markers = remember(destination) {
+                            listOf(MapMarker(destination.destinationId, destination.destination.lat,
+                                destination.destination.lon, destination.destinationName, Level.Calm))
+                        }
+                        MapView(preview, markers, destination.destinationId, {}, Modifier.fillMaxSize(), interactive = false)
+                    })
+                }
+                !settings.onboardingComplete && route == null -> OnboardingFlow(environment, onFinished = { showGlobe = true })
+                showGlobe && route == null -> GlobeOpening(environment, onEnterMap = { showGlobe = false })
+                searching -> {
+                    BackHandler(onBack = ::dismissMapOverlay)
+                    SearchScreen(environment, places, scores, ::pickFromSearch, ::dismissMapOverlay)
+                }
+                tab == CiuinTab.Measure -> {
+                    BackHandler(enabled = measurementPhase !is MeasurementPhase.Uploading) { switchTab(CiuinTab.Map) }
+                    MeasureTab(
+                        environment = environment,
+                        places = places.takeUnless { data.usingSamplePlaces }.orEmpty(),
+                        preselected = places.takeUnless { data.usingSamplePlaces }
+                            ?.firstOrNull { it.placeId == measurementPlaceId },
+                        onBackToMap = { switchTab(CiuinTab.Map) },
+                        tabBar = tabBar,
+                        onPlaceUpdated = data::updatePlace,
+                    )
+                }
+                tab == CiuinTab.You -> {
+                    BackHandler { switchTab(CiuinTab.Map) }
+                    YouTab(environment, tabBar)
+                }
+                else -> {
+                    BackHandler(enabled = selectedPlaceId != null || route != null, onBack = ::dismissMapOverlay)
+                    MapScreen(
+                        environment = environment,
+                        data = data,
+                        state = map,
+                        personalScores = scores,
+                        selected = places.firstOrNull { it.placeId == selectedPlaceId },
+                        onSelectPlace = { selectedPlaceId = it?.placeId },
+                        onSearch = { searching = true },
+                        onMeasure = environment.measurement?.let {
+                            { place ->
+                                switchTab(CiuinTab.Measure)
+                                measurementPlaceId = place?.placeId
+                            }
+                        },
+                        showMessage = { snackbar.showSnackbar(it) },
+                        tabBar = tabBar,
+                    )
+                }
+            }
+            SnackbarHost(
+                hostState = snackbar,
+                modifier = Modifier.align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = if (tab == CiuinTab.Map && route == null && alert == null &&
+                        selectedPlaceId == null && !searching) bottomInset + 64.dp else bottomInset),
             )
         }
     }

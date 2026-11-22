@@ -22,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -84,13 +85,20 @@ fun ListRow(
     }
 }
 
-private fun Modifier.rowClick(onClick: (() -> Unit)?): Modifier =
+private fun Modifier.rowClick(onClick: (() -> Unit)?, enabled: Boolean = true): Modifier =
     if (onClick == null) this else clickable(
         interactionSource = null,
         indication = null,
+        enabled = enabled,
         role = Role.Button,
         onClick = onClick,
     )
+
+/** How much a disabled row is faded, the same as a disabled button. */
+private const val DISABLED_ROW_ALPHA = 0.4f
+
+private fun Modifier.dimmedUnless(enabled: Boolean): Modifier =
+    if (enabled) this else graphicsLayer { alpha = DISABLED_ROW_ALPHA }
 
 /** A row's two lines: the title and, under it, a grey caption. */
 @Composable
@@ -139,7 +147,7 @@ fun SettingsRow(
 
 /**
  * A settings row with a switch: "Listen in the background", "Gentle alerts", "Reduce motion" on You.
- * The whole row toggles. At least 60 high.
+ * The whole row toggles. At least 60 high. Use [subtitle] to say why the switch is disabled.
  */
 @Composable
 fun SettingsSwitchRow(
@@ -149,28 +157,30 @@ fun SettingsSwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     divider: Boolean = true,
+    enabled: Boolean = true,
 ) {
     ListRow(
         modifier = modifier.toggleable(
             value = checked,
             interactionSource = remember { MutableInteractionSource() },
             indication = null,
+            enabled = enabled,
             role = Role.Switch,
             onValueChange = onCheckedChange,
         ),
         minHeight = 60.dp,
         divider = divider,
-        trailing = { CiuinSwitch(checked, onCheckedChange = null) },
+        trailing = { CiuinSwitch(checked, onCheckedChange = null, enabled = enabled) },
     ) { TitleAndCaption(title, subtitle) }
 }
 
 /**
  * The last row of the You list, in the destructive red, with no line under it: "Reset what the
- * sheep learned". At least 56 high.
+ * sheep learned". At least 56 high. Not [enabled] when there is nothing to reset: faded, no taps.
  */
 @Composable
-fun DestructiveRow(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    ListRow(modifier = modifier.rowClick(onClick), minHeight = 56.dp, divider = false) {
+fun DestructiveRow(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    ListRow(modifier = modifier.rowClick(onClick, enabled).dimmedUnless(enabled), minHeight = 56.dp, divider = false) {
         Label(text, CiuinType.RowTitle, color = CiuinColors.Destructive)
     }
 }
@@ -373,7 +383,7 @@ fun RouteStepRow(
 
 /**
  * One choice in a plain list of options: title, grey second line and a [RadioMark]. The model sizes
- * "Small", "Medium" and "Large" on the model screen. 56 high. An [RadioState.Unavailable] row is
+ * "Small", "Medium" and "Large" on the model screen. At least 56 high. An [RadioState.Unavailable] row is
  * not clickable and its title is grey.
  */
 @Composable
@@ -394,7 +404,8 @@ fun RadioRow(
             role = Role.RadioButton,
             onClick = onClick,
         ),
-        height = 56.dp,
+        minHeight = 56.dp,
+        verticalPadding = 4.dp,
         divider = divider,
         trailing = { RadioMark(state) },
     ) {
@@ -408,13 +419,14 @@ fun RadioRow(
 
 /**
  * One line of the privacy lists: a green tick for what is sent ("Average and peak loudness") or a
- * lock for what stays on the phone ("Audio and camera frames"). 40 high, icon in a 24 dp lane.
+ * lock for what stays on the phone ("Audio and camera frames"). At least 40 high, icon in a 24 dp lane.
  */
 @Composable
 fun SharedFactRow(text: String, shared: Boolean, modifier: Modifier = Modifier, divider: Boolean = true) {
     ListRow(
         modifier = modifier,
-        height = 40.dp,
+        minHeight = 40.dp,
+        verticalPadding = 4.dp,
         divider = divider,
         leadingLane = 24.dp,
         leading = {
@@ -438,14 +450,22 @@ fun LinkRow(
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
     actionColor: Color = CiuinColors.Destructive,
+    actionEnabled: Boolean = true,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().height(52.dp).topHairline().padding(top = 1.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = 52.dp).topHairline().padding(top = 1.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Label(text, CiuinType.RowTitle, Modifier.weight(1f))
-        TextLinkButton(actionLabel, onAction, color = actionColor, style = CiuinType.ButtonMedium, textAlign = TextAlign.End)
+        TextLinkButton(
+            actionLabel,
+            onAction,
+            color = actionColor,
+            style = CiuinType.ButtonMedium,
+            textAlign = TextAlign.End,
+            enabled = actionEnabled,
+        )
     }
 }
 

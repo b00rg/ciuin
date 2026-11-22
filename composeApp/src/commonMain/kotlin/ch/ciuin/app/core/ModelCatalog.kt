@@ -31,11 +31,13 @@ internal class ModelCatalog(
     private val settings: SettingsController,
     private val available: Set<ModelVariant>,
     initialVariants: List<ModelInfo> = emptyList(),
+    private val runningVariant: () -> ModelVariant? = { null },
 ) {
     var variants by mutableStateOf(initialVariants)
         private set
 
     val selected: ModelVariant get() = settings.modelVariant
+    val active: ModelVariant? get() = runningVariant()
 
     fun select(variant: ModelVariant) {
         if (variant in available && variant != ModelVariant.L) settings.selectModel(variant)

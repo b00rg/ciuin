@@ -1,5 +1,7 @@
 package ch.ciuin.app.route
 
+import ch.ciuin.app.Category
+import ch.ciuin.app.Level
 import ch.ciuin.app.personalFeatures
 import ch.ciuin.shared.api.ContractJson
 import ch.ciuin.shared.api.PlacesApi
@@ -82,8 +84,24 @@ fun quietSpotNear(
     origin: RoutePoint,
     score: (FeatureVector) -> Double,
     radiusM: Double = QUIET_PLACE_RADIUS_METERS.toDouble(),
-): QuietSpot? {
-    if (!origin.isValid || !radiusM.isFinite() || radiusM < 0) return null
+): QuietSpot? = quietCandidates(places, origin, score, radiusM)
+    .minWithOrNull(compareBy({ it.predictedOverwhelm }, { it.distanceMeters }, { it.place.placeId }))
+
+internal fun nearestCalmSpot(
+    places: List<Place>,
+    origin: RoutePoint,
+    score: (FeatureVector) -> Double,
+): QuietSpot? = quietCandidates(places, origin, score, QUIET_PLACE_RADIUS_METERS.toDouble())
+    .filter { Category.PERSONAL.levelOf(it.predictedOverwhelm) == Level.LOW }
+    .minWithOrNull(compareBy({ it.distanceMeters }, { it.predictedOverwhelm }, { it.place.placeId }))
+
+private fun quietCandidates(
+    places: List<Place>,
+    origin: RoutePoint,
+    score: (FeatureVector) -> Double,
+    radiusM: Double,
+): Sequence<QuietSpot> {
+    if (!origin.isValid || !radiusM.isFinite() || radiusM < 0) return emptySequence()
     return places.asSequence().mapNotNull { place ->
         if (place.openNow == false) return@mapNotNull null
         val features = place.personalFeatures ?: return@mapNotNull null
@@ -93,7 +111,7 @@ fun quietSpotNear(
         if (predictedOverwhelm !in 0.0..1.0) return@mapNotNull null
 
         QuietSpot(place, route.distanceMeters, predictedOverwhelm)
-    }.minWithOrNull(compareBy({ it.predictedOverwhelm }, { it.distanceMeters }, { it.place.placeId }))
+    }
 }
 
 /** A straight-line preview for a selected place while walking directions are fetched. */

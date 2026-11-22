@@ -13,6 +13,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 
+data class PlaceRead<out T>(val data: T, val fromPrimary: Boolean)
+
 /**
  * Uses [primary] (the real backend) and falls back to [fallback] (bundled / fake data) when it's unreachable,
  * so the app keeps working on a bad network. [online] tells the UI which one answered last.
@@ -35,18 +37,20 @@ class FallbackPlacesApi(
     /** Measurements waiting to be uploaded. */
     suspend fun pendingCount(): Int = pendingLock.withLock { pending.size }
 
-    private suspend fun <T> withFallback(call: suspend PlacesApi.() -> T): T =
+    private suspend fun <T> readWithFallback(call: suspend PlacesApi.() -> T): PlaceRead<T> =
         try {
             val result = primary.call()
             _online.value = true
             flushPending()
-            result
+            PlaceRead(result, fromPrimary = true)
         } catch (e: CancellationException) {
             throw e
         } catch (_: Exception) {
             _online.value = false
-            fallback.call()
+            PlaceRead(fallback.call(), fromPrimary = false)
         }
+
+    private suspend fun <T> withFallback(call: suspend PlacesApi.() -> T): T = readWithFallback(call).data
 
     private suspend fun flushPending(alreadyStored: Measurement? = null) = pendingLock.withLock {
         if (alreadyStored?.measurementId != null) pending.remove(alreadyStored)
@@ -64,7 +68,9 @@ class FallbackPlacesApi(
         }
     }
 
-    override suspend fun places(bbox: BBox, at: String?): List<Place> = withFallback { places(bbox, at) }
+    suspend fun readPlaces(bbox: BBox, at: String? = null): PlaceRead<List<Place>> = readWithFallback { places(bbox, at) }
+
+    override suspend fun places(bbox: BBox, at: String?): List<Place> = readPlaces(bbox, at).data
 
     /** Returns `stored = false` when the measurement was queued for later instead of uploaded. */
     override suspend fun postMeasurement(m: Measurement): MeasurementResult =
@@ -86,7 +92,10 @@ class FallbackPlacesApi(
             MeasurementResult(stored = false)
         }
 
-    override suspend fun heatmap(bbox: BBox, dim: String, period: NoisePeriod?): JsonObject = withFallback { heatmap(bbox, dim, period) }
+    suspend fun readHeatmap(bbox: BBox, dim: String, period: NoisePeriod?): PlaceRead<JsonObject> =
+        readWithFallback { heatmap(bbox, dim, period) }
+
+    override suspend fun heatmap(bbox: BBox, dim: String, period: NoisePeriod?): JsonObject = readHeatmap(bbox, dim, period).data
 
     override suspend fun nearby(lat: Double, lon: Double, radiusM: Int, openOnly: Boolean, at: String?): List<Place> =
         withFallback { nearby(lat, lon, radiusM, openOnly, at) }

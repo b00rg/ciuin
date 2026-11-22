@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
@@ -44,6 +45,8 @@ import ch.ciuin.app.ui.theme.CiuinType
  * With a [leadingIcon] it is a preset on "What bothers you most?" (16 dp padding, icon on a 48 dp
  * wool disc, 16/24 title). Without one it is a place on "Pick your place" (14 dp vertical padding,
  * 16/22 title, 13/18 second line). Stack cards 12 and 10 dp apart respectively.
+ *
+ * With `enabled = false` the card dims to 40% and ignores taps (while a choice is being saved).
  */
 @Composable
 fun SelectableCard(
@@ -53,6 +56,7 @@ fun SelectableCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     leadingIcon: ImageVector? = null,
+    enabled: Boolean = true,
 ) {
     val shape = RoundedCornerShape(CiuinRadii.Option)
     val border = if (selected) 2.dp else 1.dp
@@ -64,9 +68,11 @@ fun SelectableCard(
                 selected = selected,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
+                enabled = enabled,
                 role = Role.RadioButton,
                 onClick = onClick,
             )
+            .graphicsLayer { alpha = if (enabled) 1f else 0.4f }
             .background(CiuinColors.Ground, shape)
             .border(border, if (selected) CiuinColors.Ink else CiuinColors.Outline, shape)
             .padding(horizontal = 16.dp + border, vertical = vertical + border),
