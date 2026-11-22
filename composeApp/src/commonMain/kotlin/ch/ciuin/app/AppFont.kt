@@ -6,22 +6,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.text.font.FontFamily
 
 /**
- * Typeface for all app text, or null to use the platform default.
- * Android's default is Roboto and is the reference look; platforms whose default differs supply Roboto here.
+ * Poppins, the typeface for all app text: weights 400, 500, 600 and 700 from the same four files on
+ * every platform (`composeApp/src/commonMain/fontRes/font`), so text measures the same everywhere.
+ *
+ * New screens should not use this directly: `CiuinTheme` and `CiuinType` in `ui/theme` already apply it.
  */
-internal expect val appFontFamily: FontFamily?
+internal expect val appFontFamily: FontFamily
 
 /**
- * Typeface for symbols Roboto lacks (the "⌂" button), or null to let the platform fall back.
+ * Typeface for symbols Poppins lacks (the "⌂" button), or null to let the platform fall back.
  * Android falls back to Noto Sans Symbols; platforms whose fallback differs supply that glyph here.
  */
 internal expect val symbolFontFamily: FontFamily?
 
-/** The Material 3 type scale, in [appFontFamily] where the platform supplies one. */
+/** The Material 3 type scale in [appFontFamily], for the screens that predate `CiuinTheme`. */
 @Composable
 internal fun appTypography(): Typography {
     val base = MaterialTheme.typography
-    val family = appFontFamily ?: return base
+    val family = appFontFamily
     return Typography(
         displayLarge = base.displayLarge.copy(fontFamily = family),
         displayMedium = base.displayMedium.copy(fontFamily = family),

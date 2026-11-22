@@ -12,17 +12,19 @@ import platform.Foundation.dataWithContentsOfFile
 import platform.posix.memcpy
 
 /**
- * Roboto, as Android renders it: static 400 and 500 instances of Android's own variable Roboto,
- * bundled by the Xcode project (iosApp/iosApp/Fonts). Without this Compose falls back to San Francisco.
+ * Poppins from the app bundle. The Xcode project copies the shared `src/commonMain/fontRes` directory
+ * into the bundle (`iosApp/project.yml`); without it Compose would fall back to San Francisco.
  */
-internal actual val appFontFamily: FontFamily? by lazy {
+internal actual val appFontFamily: FontFamily by lazy {
     FontFamily(
-        Font("Roboto-Regular", bundledFont("Roboto-Regular"), FontWeight.Normal),
-        Font("Roboto-Medium", bundledFont("Roboto-Medium"), FontWeight.Medium),
+        Font("Poppins-Regular", bundledFont("poppins_regular"), FontWeight.Normal),
+        Font("Poppins-Medium", bundledFont("poppins_medium"), FontWeight.Medium),
+        Font("Poppins-SemiBold", bundledFont("poppins_semibold"), FontWeight.SemiBold),
+        Font("Poppins-Bold", bundledFont("poppins_bold"), FontWeight.Bold),
     )
 }
 
-/** The one glyph the app uses that Roboto lacks, cut from the Noto Sans Symbols that Android falls back to. */
+/** The one glyph the app uses that Poppins lacks, cut from the Noto Sans Symbols that Android falls back to. */
 internal actual val symbolFontFamily: FontFamily? by lazy {
     FontFamily(Font("NotoSansSymbols-House", bundledFont("NotoSansSymbols-House")))
 }

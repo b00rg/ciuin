@@ -19,6 +19,10 @@ val bundleListenerAssets by tasks.registering(Sync::class) {
 }
 tasks.named("preBuild") { dependsOn(bundleListenerAssets) }
 
+// Poppins is kept once, laid out as an Android resource directory (font/, raw/). Android reads it as
+// R.font.*, the desktop JVM from the classpath, and iOS from the app bundle (see iosApp/project.yml).
+val fontResources = "src/commonMain/fontRes"
+
 kotlin {
     androidTarget {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
@@ -49,6 +53,7 @@ kotlin {
             implementation(libs.litert)
         }
         val desktopMain by getting {
+            resources.srcDir(fontResources)
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation(libs.kotlinx.coroutines.swing)
@@ -60,6 +65,7 @@ kotlin {
 android {
     namespace = "ch.ciuin.app"
     sourceSets.getByName("main").assets.srcDirs(listenerAssets, "src/androidMain/assets")
+    sourceSets.getByName("main").res.srcDir(fontResources)
     androidResources.noCompress += "tflite"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     defaultConfig {
