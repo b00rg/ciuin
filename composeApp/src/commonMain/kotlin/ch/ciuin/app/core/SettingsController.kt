@@ -39,6 +39,10 @@ internal data class MeasurementRecord(
     val flickerHz: Double? = null,
 )
 
+/** Light or dark palette, chosen on the You tab. An unknown saved value reads as [Light]. */
+@Serializable
+internal enum class Appearance { Light, Dark }
+
 @Serializable
 internal data class AppSettings(
     val onboardingComplete: Boolean = false,
@@ -50,6 +54,7 @@ internal data class AppSettings(
     /** Newest first, at most [MEASUREMENT_HISTORY_LIMIT]. */
     val measurementHistory: List<MeasurementRecord> = emptyList(),
     val modelVariant: ModelVariant = ModelVariant.S,
+    val appearance: Appearance = Appearance.Light,
 )
 
 /** A null motion override tracks the native setting, including changes made outside the app. */
@@ -103,6 +108,10 @@ internal class SettingsController(
     var reduceMotion: Boolean
         get() = state.reduceMotion ?: systemMotion
         set(value) = update { copy(reduceMotion = value) }
+
+    var appearance: Appearance
+        get() = state.appearance
+        set(value) = update { copy(appearance = value) }
 
     val recentPlaces: List<RecentPlace> get() = state.recentPlaces
     val sharedMeasurements: Int get() = state.sharedMeasurements

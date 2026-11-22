@@ -9,6 +9,8 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
 
@@ -17,22 +19,26 @@ import androidx.compose.ui.graphics.Color
  *
  * It provides [LocalReduceMotion], makes [CiuinType.Body] in [CiuinColors.Ink] the default text, and
  * sets a matching Material 3 colour scheme, typography and shapes so that any stray Material
- * component (a dialog, a snackbar, a text field) looks like the rest of the app. The design has one
- * appearance: slate ink on a cream ground, in light and dark system settings alike.
+ * component (a dialog, a snackbar, a text field) looks like the rest of the app.
  *
  * @param reduceMotion pass `systemReduceMotion() || the user's own switch` from the You tab.
+ * @param dark the dark palette: cream ink on a slate ground. Defaults to the phone's own setting.
  */
 @Composable
 fun CiuinTheme(
     reduceMotion: Boolean = systemReduceMotion(),
+    dark: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit,
 ) {
-    MaterialTheme(colorScheme = MaterialColors, typography = CiuinType.material, shapes = MaterialShapes) {
+    // Set before anything below reads a colour, so the first frame is already in the right palette.
+    if (CiuinColors.dark != dark) CiuinColors.dark = dark
+    val scheme = remember(dark) { materialColors() }
+    MaterialTheme(colorScheme = scheme, typography = CiuinType.material, shapes = MaterialShapes) {
         CompositionLocalProvider(
             LocalReduceMotion provides reduceMotion,
             LocalContentColor provides CiuinColors.Ink,
             LocalTextStyle provides CiuinType.Body,
-            LocalTextSelectionColors provides SelectionColors,
+            LocalTextSelectionColors provides remember(dark) { selectionColors() },
             content = content,
         )
     }
@@ -42,7 +48,8 @@ fun CiuinTheme(
 @Composable
 expect fun systemReduceMotion(): Boolean
 
-private val MaterialColors = lightColorScheme(
+// Every role is set from the current palette, so the light builder serves for dark as well.
+private fun materialColors() = lightColorScheme(
     primary = CiuinColors.Ink,
     onPrimary = CiuinColors.Ground,
     primaryContainer = CiuinColors.Wool,
@@ -89,7 +96,7 @@ private val MaterialShapes = Shapes(
     extraLarge = RoundedCornerShape(CiuinRadii.Sheet),
 )
 
-private val SelectionColors = TextSelectionColors(
+private fun selectionColors() = TextSelectionColors(
     handleColor = CiuinColors.Ink,
     backgroundColor = CiuinColors.Hoof.copy(alpha = 0.4f),
 )

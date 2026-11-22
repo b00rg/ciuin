@@ -578,7 +578,7 @@ internal fun MeasureReview() = Screen {
 internal fun MeasureShared() = Screen {
     Content(top = 16.dp, gap = 24.dp) {
         SharedScene()
-        Copy("Shared. A duck joined your pond.", "Café du Grütli now has 5 measurements, and your map is up to date.")
+        Copy("Shared. Thanks for adding to the map.", "Café du Grütli now has 5 measurements, and your map is up to date.")
         SummaryTile("57 dB · 82 lux · 3 people")
     }
     Footer(gap = 10.dp) {

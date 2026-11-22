@@ -82,7 +82,28 @@ private const val LABELS_ZOOM = 18.0
 private val SELECTED_SCRIBBLE_RADIUS = 17.dp
 private const val TILE_PX = 256
 private const val MAX_TILE_ZOOM = 19
-private val tileColor = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.2f) })
+private val lightTiles = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.2f) })
+
+/**
+ * The same faded tiles turned over for the dark palette: white land becomes the slate map ground and
+ * dark labels and outlines become a soft cream, so roads read as light lines on dark land.
+ */
+private val darkTiles = ColorFilter.colorMatrix(
+    ColorMatrix().apply {
+        setToSaturation(0.2f)
+        val faded = values.copyOf()
+        // Per channel: out = top - (top - land) * faded(in) / 255, so 255 maps to land and 0 to top.
+        val land = floatArrayOf(35f, 38f, 47f)
+        val top = floatArrayOf(196f, 198f, 184f)
+        for (row in 0..2) {
+            val k = (top[row] - land[row]) / 255f
+            for (col in 0..3) values[row * 5 + col] = -k * faded[row * 5 + col]
+            values[row * 5 + 4] = top[row]
+        }
+    },
+)
+
+private val tileColor: ColorFilter get() = if (CiuinColors.dark) darkTiles else lightTiles
 
 @Composable
 internal fun rememberMapTileCache(tileUrl: String = TileCache.OSM_TILES): TileCache {

@@ -27,7 +27,6 @@ import ch.ciuin.app.measure.MEASUREMENT_SECONDS
 import ch.ciuin.app.measure.MeasurementPhase
 import ch.ciuin.app.measure.MeasurementReadings
 import ch.ciuin.app.measure.MeasurementReview
-import ch.ciuin.app.ui.characters.Duck
 import ch.ciuin.app.ui.characters.SharedScene
 import ch.ciuin.app.ui.characters.Sheep
 import ch.ciuin.app.ui.characters.SheepPose
@@ -43,9 +42,6 @@ import ch.ciuin.app.ui.components.StatTile
 import ch.ciuin.app.ui.components.StatTileStyle
 import ch.ciuin.app.ui.components.SummaryTile
 import ch.ciuin.app.ui.components.TextLinkButton
-import ch.ciuin.app.ui.components.TitleBlock
-import ch.ciuin.app.ui.components.WoolCard
-import ch.ciuin.app.ui.components.WoolCardStyle
 import ch.ciuin.app.ui.icons.CiuinIcons
 import ch.ciuin.app.ui.theme.CiuinColors
 import ch.ciuin.app.ui.theme.CiuinType
@@ -162,16 +158,8 @@ internal fun MeasureReviewScreen(
                 }
             }
             if (review.canUpload) {
-                WoolCard(WoolCardStyle.Reward) {
-                    Duck(Modifier.size(64.dp), contentDescription = null)
-                    TitleBlock(
-                        title = "Share it and a duck joins the pond",
-                        modifier = Modifier.weight(1f),
-                        subtitle = rewardLine(place, review),
-                        titleStyle = CiuinType.Subtitle,
-                        subtitleStyle = CiuinType.Caption,
-                    )
-                }
+                // What sharing sends, said before the button rather than in a reward card.
+                Text(rewardLine(place, review), style = CiuinType.Caption, color = CiuinColors.SecondaryText)
             } else {
                 Text("There are no readings to share.", color = CiuinColors.SecondaryText, style = CiuinType.Body)
             }
@@ -208,12 +196,11 @@ internal fun MeasureSharedScreen(
     stored: Boolean,
     updatedPlace: Place?,
     summary: String?,
-    ducks: Int,
     onBackToMap: () -> Unit,
     onMeasureAgain: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val title = if (stored) "Shared. A duck joined your pond." else "Queued until you're online."
+    val title = if (stored) "Shared. Thanks for adding to the map." else "Queued until you're online."
     val count = updatedPlace?.measured?.n?.takeIf { it > 0 }
     val detail = when {
         !stored -> "Keep Ciúin running so it can send this reading. If the app stops before sending, the reading is lost."
@@ -222,7 +209,7 @@ internal fun MeasureSharedScreen(
     }
     MeasureFrame(modifier) {
         MeasureContent(top = 16.dp, gap = 24.dp) {
-            if (stored) SharedScene(ducks = ducks)
+            if (stored) SharedScene()
             MeasureCopyBlock(title, detail)
             if (summary != null) SummaryTile(summary)
         }

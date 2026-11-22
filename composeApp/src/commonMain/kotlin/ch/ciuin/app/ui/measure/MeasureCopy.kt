@@ -191,7 +191,7 @@ internal fun sharedSummary(review: MeasurementReview): String? {
     return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
 
-/** The duck card's line under "Share it and a duck joins the pond". */
+/** The line above the Share button: what sharing sends, and how many measurements the place will have. */
 internal fun rewardLine(place: Place?, review: MeasurementReview): String {
     val count = place?.let { "This will be measurement ${(it.measured?.n ?: 0) + 1} here. " }.orEmpty()
     val localSound = if (review.dbfs != null) " The dBFS level stays here." else ""

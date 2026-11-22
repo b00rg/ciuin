@@ -76,7 +76,6 @@ import ch.ciuin.app.ui.components.BottomSheetSurface
 import ch.ciuin.app.ui.components.CharacterTile
 import ch.ciuin.app.ui.components.Level as UiLevel
 import ch.ciuin.app.ui.components.LevelGlyph
-import ch.ciuin.app.ui.components.ListeningButton
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
@@ -282,9 +281,6 @@ internal fun MapScreen(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     SearchBar(onSearch, Modifier.weight(1f))
-                    if (listening != null) {
-                        ListeningButton(listening.isListening, { listening.setListening(!listening.isListening) })
-                    }
                 }
                 LayerChipRow(layers, categories.indexOf(category), { onCategory(categories[it]) }, Modifier.padding(top = 12.dp))
                 if (data.offline) {

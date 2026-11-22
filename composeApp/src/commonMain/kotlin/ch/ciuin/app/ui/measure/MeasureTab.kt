@@ -155,7 +155,6 @@ internal fun MeasureTab(
             stored = phase.stored,
             updatedPlace = phase.updatedPlace,
             summary = submittedReview?.let(::sharedSummary),
-            ducks = environment.settings.sharedMeasurements,
             onBackToMap = onBackToMap,
             onMeasureAgain = {
                 onResetPlace()

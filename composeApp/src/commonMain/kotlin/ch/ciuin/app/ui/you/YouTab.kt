@@ -1,5 +1,11 @@
 package ch.ciuin.app.ui.you
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import ch.ciuin.app.ui.components.SegmentedControl
+import ch.ciuin.app.ui.components.Label
+import ch.ciuin.app.ui.components.ListRow
+import ch.ciuin.app.core.Appearance
 import ch.ciuin.shared.model.Place
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
@@ -42,8 +48,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import ch.ciuin.app.core.AppEnvironment
 import ch.ciuin.app.personal.PersonalModelController
-import ch.ciuin.app.ui.characters.PondScene
-import ch.ciuin.app.ui.characters.SheepPose
 import ch.ciuin.app.ui.components.BottomSheetSurface
 import ch.ciuin.app.ui.components.DestructiveButton
 import ch.ciuin.app.ui.components.DestructiveRow
@@ -51,7 +55,6 @@ import ch.ciuin.app.ui.components.IconDisc
 import ch.ciuin.app.ui.components.PrimaryButton
 import ch.ciuin.app.ui.components.Scrim
 import ch.ciuin.app.ui.components.SettingsRow
-import ch.ciuin.app.ui.components.SettingsSwitchRow
 import ch.ciuin.app.ui.components.TextLinkButton
 import ch.ciuin.app.ui.icons.CiuinIcons
 import ch.ciuin.app.ui.onboarding.StartingPointPicker
@@ -115,9 +118,7 @@ private fun YouScreen(
     onReset: () -> Unit,
 ) {
     val settings = environment.settings
-    val listening = environment.listening
     val personal = environment.personalModel.state
-    val listeningOn = listening?.isListening == true
 
     Column(Modifier.fillMaxSize().windowInsetsPadding(insets.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))) {
         Column(
@@ -145,34 +146,11 @@ private fun YouScreen(
                         subtitle = personal.session?.preset?.startingPointTitle,
                         onClick = { onOpen(YouPage.StartingPoint) },
                     )
-                    SettingsSwitchRow(
-                        title = "Listen in the background",
-                        subtitle = if (listening == null) "Unavailable on this phone" else "Wakes only when it gets loud",
-                        checked = listeningOn,
-                        onCheckedChange = { listening?.setListening(it) },
-                        enabled = listening != null,
-                    )
-                    listening?.message?.let { message ->
-                        Text(message, Modifier.padding(top = 4.dp, bottom = 8.dp), style = CiuinType.Caption, color = CiuinColors.SecondaryText)
-                    }
-                    SettingsSwitchRow(
-                        title = "Gentle alerts",
-                        subtitle = if (listening == null) "Unavailable on this phone" else "One vibration, then a calm place",
-                        checked = listening != null && settings.gentleAlerts,
-                        onCheckedChange = { settings.gentleAlerts = it },
-                        enabled = listening != null,
-                    )
-                    SettingsSwitchRow(
-                        title = "Reduce motion",
-                        subtitle = "Sheep and ducks hold still",
-                        checked = settings.reduceMotion,
-                        onCheckedChange = { settings.reduceMotion = it },
-                    )
+                    AppearanceRow(settings.appearance) { settings.appearance = it }
                     SettingsRow("What is shared", "Readings are sent, taps stay here", { onOpen(YouPage.WhatIsShared) })
-                    SettingsRow("On this phone", "Listening model and activity", { onOpen(YouPage.OnThisPhone) })
+                    SettingsRow("On this phone", "Sound model and what it learned", { onOpen(YouPage.OnThisPhone) })
                     DestructiveRow("Reset what the sheep learned", onReset, enabled = environment.personalModel.canResetLearnedSettings)
                 }
-                PondScene(settings.sharedMeasurements, pose = if (listeningOn) SheepPose.Awake else SheepPose.Rest)
             }
         }
         tabBar()
@@ -240,9 +218,9 @@ private fun ResetSheet(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(title, Modifier.semantics { heading() }, style = CiuinType.PlaceTitle)
                         val detail = when (count) {
-                            0 -> "This goes back to A bit of everything. Your ducks stay."
-                            1 -> "Your sheep forgets your one answer and goes back to A bit of everything. Your ducks stay."
-                            else -> "Your sheep forgets your $count answers and goes back to A bit of everything. Your ducks stay."
+                            0 -> "This goes back to A bit of everything. Your measurements stay."
+                            1 -> "Your sheep forgets your one answer and goes back to A bit of everything. Your measurements stay."
+                            else -> "Your sheep forgets your $count answers and goes back to A bit of everything. Your measurements stay."
                         }
                         Text(detail, style = CiuinType.Body, color = CiuinColors.SecondaryText)
                     }
@@ -261,5 +239,19 @@ private fun ResetSheet(
                 }
             }
         }
+    }
+}
+
+/** "Appearance" with Light / Dark under it, in the settings list. */
+@Composable
+private fun AppearanceRow(appearance: Appearance, onChange: (Appearance) -> Unit) {
+    ListRow(verticalPadding = 14.dp) {
+        Label("Appearance", CiuinType.RowTitle)
+        Spacer(Modifier.height(10.dp))
+        SegmentedControl(
+            options = listOf("Light", "Dark"),
+            selectedIndex = appearance.ordinal,
+            onSelect = { onChange(Appearance.entries[it]) },
+        )
     }
 }

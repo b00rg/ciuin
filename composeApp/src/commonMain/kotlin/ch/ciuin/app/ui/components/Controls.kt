@@ -296,7 +296,7 @@ fun SearchField(
             value = value,
             onValueChange = onValueChange,
             modifier = Modifier.weight(1f).focusRequester(focusRequester).semantics { contentDescription = placeholder },
-            textStyle = CiuinType.Body,
+            textStyle = CiuinType.Body.copy(color = CiuinColors.Ink),
             singleLine = true,
             cursorBrush = SolidColor(CiuinColors.Ink),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),

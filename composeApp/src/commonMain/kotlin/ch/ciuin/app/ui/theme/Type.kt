@@ -23,8 +23,8 @@ val Pressworn: FontFamily get() = displayFontFamily
 
 /**
  * The type scale: every text style on the Foundations board and the screen artboards, with Paper's
- * size, line height, weight and tracking. Styles carry [CiuinColors.Ink]; copy the colour for
- * secondary text.
+ * size, line height, weight and tracking. Styles carry no colour, so text takes the theme's
+ * [CiuinColors.Ink] (light or dark); pass a colour for secondary text.
  *
  * Each line is exactly its line height tall with the glyphs centred in it, as in CSS, so a text
  * block measures what Paper shows (a two-line 16/24 paragraph is 48 high on every platform).
@@ -132,7 +132,7 @@ object CiuinType {
     val Attribution = style(11, 16, FontWeight.Normal)
 
     /** Poppins 700 for the sheep's drifting z's; the size is set by the drawing. */
-    val Zzz = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, color = CiuinColors.Muted)
+    val Zzz: TextStyle get() = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, color = CiuinColors.Muted)
 
     /** Every style with its name, in the order above. For the gallery and for tests. */
     val all: List<Pair<String, TextStyle>>
@@ -189,5 +189,4 @@ private fun style(
     lineHeight = lineHeight.sp,
     letterSpacing = tracking,
     lineHeightStyle = CssLineHeight,
-    color = CiuinColors.Ink,
 )

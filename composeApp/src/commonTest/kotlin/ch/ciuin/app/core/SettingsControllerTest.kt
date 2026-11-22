@@ -47,6 +47,17 @@ class SettingsControllerTest {
     }
 
     @Test
+    fun remembersTheAppearanceAndDefaultsToLight() {
+        val storage = MemorySettingsStorage()
+        val settings = SettingsController(storage)
+        assertEquals(Appearance.Light, settings.appearance)
+        settings.appearance = Appearance.Dark
+        assertEquals(Appearance.Dark, SettingsController(storage).appearance)
+        // "System" was saved by an earlier build that had a Match phone option.
+        assertEquals(Appearance.Light, SettingsController(MemorySettingsStorage("""{"appearance":"System"}""")).appearance)
+    }
+
+    @Test
     fun readsSettingsSavedBeforeTheHistoryExisted() {
         val settings = SettingsController(MemorySettingsStorage("""{"sharedMeasurements":3}"""))
         assertEquals(3, settings.sharedMeasurements)

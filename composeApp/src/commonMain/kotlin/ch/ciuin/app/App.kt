@@ -1,5 +1,7 @@
 package ch.ciuin.app
 
+import ch.ciuin.app.ui.theme.systemReduceMotion
+import ch.ciuin.app.core.Appearance
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -162,7 +164,9 @@ internal fun App(environment: AppEnvironment) {
         searchTarget = null
     }
 
-    CiuinTheme(reduceMotion = settings.reduceMotion) {
+    val dark = settings.appearance == Appearance.Dark
+    // Motion follows the phone's own setting; the app no longer has its own switch.
+    CiuinTheme(reduceMotion = systemReduceMotion(), dark = dark) {
         Box(Modifier.fillMaxSize().background(CiuinColors.Ground)) {
             when {
                 settings.loading -> Unit
