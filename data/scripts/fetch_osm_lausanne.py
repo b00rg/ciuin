@@ -21,8 +21,8 @@ USER_AGENT = "ciuin-hackathon/0.1 (sensory map POI download)"
 OVERPASS = "https://overpass-api.de/api/interpreter"
 OUT = Path(__file__).resolve().parents[1] / "raw" / "osm_lausanne.json"
 
-# Same bbox as BBox.LAUSANNE in shared/ and count_tags.py: south, west, north, east
-LAUSANNE_BBOX = (46.50, 6.58, 46.54, 6.67)
+# Lausanne + EPFL/Ecublens (west edge 6.55). Same bbox as BBox.LAUSANNE in shared/ and count_tags.py: south, west, north, east
+LAUSANNE_BBOX = (46.50, 6.55, 46.54, 6.67)
 CATEGORY_KEYS = ("amenity", "shop", "leisure", "tourism")
 
 

@@ -36,7 +36,7 @@ OUT = Path(__file__).resolve().parents[1] / "raw" / "a11ycloud_lausanne.json"
 TOKEN_ENV = "ACCESSIBILITY_CLOUD_TOKEN"
 
 # Same bbox as BBox.LAUSANNE in shared/ and the other scripts: south, west, north, east
-LAUSANNE_BBOX = (46.50, 6.58, 46.54, 6.67)
+LAUSANNE_BBOX = (46.50, 6.55, 46.54, 6.67)
 ZOOM = 14  # ~1.7 km tiles at this latitude -> a handful of tiles for the bbox
 PAGE = 1000  # API maximum
 

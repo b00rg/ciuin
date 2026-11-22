@@ -33,7 +33,7 @@ class BundledPlacesTest {
 
         assertEquals(places.size, places.map { it.placeId }.toSet().size, "duplicate place_id")
         assertTrue(places.all { it.placeId.startsWith("osm:") })
-        assertTrue(places.all { it.lat in 46.49..46.55 && it.lon in 6.57..6.68 }, "place outside Lausanne bbox")
+        assertTrue(places.all { it.lat in 46.49..46.55 && it.lon in 6.54..6.68 }, "place outside Lausanne bbox")
         places.filter { it.baselineNoiseDb != null }.forEach {
             assertEquals("sonbase", it.baselineSource, it.placeId)
             assertTrue(it.baselineNoiseDb!! in 20.0..95.0, "implausible noise at ${it.placeId}: ${it.baselineNoiseDb}")
