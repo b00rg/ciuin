@@ -24,11 +24,19 @@ class FoundationsGalleryTest {
         }
     }
 
-    /** The gallery as it opens on a phone, for comparing with a screenshot from a device. */
+    /**
+     * The gallery as it opens on a phone, for comparing with a screenshot from a device: at the
+     * artboard's size, and at the size and density of the iPhone 17 Pro simulator. A device draws the
+     * same picture below its status bar. (For Android, `adb shell wm size 780x1688` with
+     * `wm density 320` puts an emulator at exactly 390 x 844 dp, density 2.)
+     */
     @Test
     fun rendersAsAScreen() {
-        val file = DesignShots.screen("gallery/00-screen") { FoundationsGallery() }
-        assertTrue(file.length() > 2_000)
+        val artboard = DesignShots.screen("gallery/00-screen") { FoundationsGallery() }
+        val iphone = DesignShots.screen("gallery/00-screen-402x874@3x", width = 402, height = 874, density = 3f) {
+            FoundationsGallery()
+        }
+        assertTrue(artboard.length() > 2_000 && iphone.length() > 2_000)
     }
 
     @Test
