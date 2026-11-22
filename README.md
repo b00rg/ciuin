@@ -36,6 +36,16 @@ Maps tell you opening hours, not that a café has a coffee grinder, flickering l
   - Light and dark themes.
   - Every colour also comes with a shape and a word.
 
+## Architecture
+
+<p align="center">
+  <img src="assets/architecture_diagram.jpeg" width="100%" alt="Ciúin architecture: a build-time data pipeline and audio ML training; a FastAPI backend on Railway and open map services in the cloud; and one Kotlin Multiplatform app on the phone with the map, 30-second measurements, a shared Kotlin core and the on-device sound cascade" />
+</p>
+
+1. **Build time:** OpenStreetMap places, sonBASE noise maps and access info become 3,167 profiled places in Lausanne. Five audio datasets train a YAMNet teacher, which is distilled into a 68k-parameter phone model.
+2. **Cloud:** a FastAPI backend on Railway (SQLite with an R-Tree index) serves places and takes measurements. OpenStreetMap tiles and OSRM walking routes come from open services.
+3. **On the phone:** one Kotlin Multiplatform codebase for Android, iOS and desktop. It holds the map, 30-second measurements (mic, camera, Bluetooth) sent as numbers only, and the on-device sound cascade with the personal model.
+
 ## How it works
 
 | | |
