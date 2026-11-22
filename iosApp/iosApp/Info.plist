@@ -7,7 +7,7 @@
     <key>NSCameraUsageDescription</key>
     <string>Measure brightness and light flicker. Camera frames stay on this device.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Measure sound levels for this place. Microphone audio stays on this device.</string>
+    <string>Identify sounds during measurements and when you turn on background listening. Microphone audio stays on this device.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
     <string>Find quiet places nearby and locate measurements you choose to share.</string>
     <key>NSAppTransportSecurity</key>
@@ -21,6 +21,10 @@
     <string>$(CIUIN_API_URL)</string>
     <key>UILaunchScreen</key>
     <dict/>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+    </array>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>

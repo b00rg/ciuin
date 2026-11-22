@@ -8,9 +8,10 @@ final class MicrophoneMeasurement: NSObject, IosMeasurementOperation {
 
     private let engine = AVAudioEngine()
     private let sink: IosMicrophoneSink
+    private var stopped = false
     private var hasTap = false
     private var sessionActive = false
-    private var interruption: NSObjectProtocol?
+    private var observers: [NSObjectProtocol] = []
 
     init(sink: IosMicrophoneSink) {
         self.sink = sink
@@ -25,9 +26,11 @@ final class MicrophoneMeasurement: NSObject, IosMeasurementOperation {
     }
 
     private func startOnControlQueue() {
+        guard !hasTap, !stopped else { return }
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement)
+            try session.setCategory(.playAndRecord, mode: .measurement, options: [.mixWithOthers, .defaultToSpeaker])
+            try? session.setAllowHapticsAndSystemSoundsDuringRecording(true)
             try session.setActive(true)
             sessionActive = true
 
@@ -43,13 +46,27 @@ final class MicrophoneMeasurement: NSObject, IosMeasurementOperation {
                 windows.accept(buffer)
             }
             hasTap = true
-            interruption = NotificationCenter.default.addObserver(
+            let notifications = NotificationCenter.default
+            observers.append(notifications.addObserver(
                 forName: AVAudioSession.interruptionNotification, object: session, queue: nil
             ) { [weak self] notification in
                 if notification.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt == AVAudioSession.InterruptionType.began.rawValue {
                     self?.stop()
                 }
-            }
+            })
+            observers.append(notifications.addObserver(
+                forName: .AVAudioEngineConfigurationChange, object: engine, queue: nil
+            ) { [weak self] _ in
+                Self.control.async { [weak self] in
+                    guard let self, !self.engine.isRunning else { return }
+                    self.stopOnControlQueue()
+                }
+            })
+            observers.append(notifications.addObserver(
+                forName: AVAudioSession.mediaServicesWereResetNotification, object: session, queue: nil
+            ) { [weak self] _ in
+                self?.stop()
+            })
             try engine.start()
         } catch {
             Self.log.error("Microphone input could not start")
@@ -58,17 +75,17 @@ final class MicrophoneMeasurement: NSObject, IosMeasurementOperation {
     }
 
     private func stopOnControlQueue() {
-        if let interruption {
-            NotificationCenter.default.removeObserver(interruption)
-            self.interruption = nil
-        }
+        guard !stopped else { return }
+        stopped = true
+        observers.forEach { NotificationCenter.default.removeObserver($0) }
+        observers.removeAll()
         if hasTap {
             engine.inputNode.removeTap(onBus: 0)
             hasTap = false
         }
         engine.stop()
         if sessionActive {
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            try? AVAudioSession.sharedInstance().setActive(false)
             sessionActive = false
         }
         sink.ended()
@@ -81,12 +98,16 @@ private final class AudioWindows {
 
     private let sink: IosMicrophoneSink
     private let sampleRate: Int
+    private let levelSamples: Int
     private var window: AudioWindow
     private var offset = 0
+    private var levelOffset = 0
+    private var levelPower = 0.0
 
     init(sink: IosMicrophoneSink, sampleRate: Int) {
         self.sink = sink
         self.sampleRate = sampleRate
+        levelSamples = sampleRate / 10
         window = AudioWindow(sampleRate: sampleRate)
     }
 
@@ -100,8 +121,19 @@ private final class AudioWindows {
             for channel in 0..<count {
                 sum += channels[channel][frame * stride]
             }
-            let sample = sum / Float(count)
-            window.samples[offset] = sample.isFinite ? min(1, max(-1, sample)) : 0
+            let average = sum / Float(count)
+            let sample = average.isFinite ? min(1, max(-1, average)) : 0
+            window.samples[offset] = sample
+            levelPower += Double(sample) * Double(sample)
+            levelOffset += 1
+            if levelOffset == levelSamples {
+                let meanPower = levelPower / Double(levelSamples)
+                let db = 10 * log10(max(1e-12, meanPower))
+                let level = Float(min(1, max(0, (db + 70) / 60)))
+                DispatchQueue.main.async { [weak self] in self?.sink.level(value: level) }
+                levelPower = 0
+                levelOffset = 0
+            }
             offset += 1
             if offset == sampleRate {
                 emit()

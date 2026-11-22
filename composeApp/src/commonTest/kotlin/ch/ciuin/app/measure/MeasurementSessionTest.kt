@@ -1,5 +1,6 @@
 package ch.ciuin.app.measure
 
+import ch.ciuin.app.ui.measure.soundLine
 import ch.ciuin.shared.model.Place
 import ch.ciuin.shared.model.SoundClass
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -84,6 +85,30 @@ class MeasurementSessionTest {
         assertNull(review.measurement.features.soundClasses)
         assertNull(review.measurement.features.luxMean)
         assertNull(review.measurement.features.nearbyDevices) // no Bluetooth permission: unavailable, not zero
+    }
+
+    @Test
+    fun sharesSoundClassesWhileKeepingUncalibratedLevelOnThePhone() = runTest {
+        val permissions = CapturePermissions(camera = false, microphone = true)
+        val classes = SoundClass.entries.associate { it.label to if (it == SoundClass.TRAFFIC) 1.0 else 0.0 }
+        val capture = object : MeasurementCapture {
+            override val device = "test"
+            override val canMeasureLux = false
+            override suspend fun requestPermissions() = permissions
+            override fun camera() = emptyFlow<CameraSample>()
+            override fun lux() = emptyFlow<Double>()
+            override fun audio() = flowOf(AudioSample(-40.0, -37.0, classes, "Student S", dbfs = true))
+        }
+
+        val review = measurePlace(place, capture, permissions)
+
+        assertTrue(review.canUpload)
+        assertEquals("Student S", review.measurement.modelVariant)
+        assertEquals(classes, review.measurement.features.soundClasses)
+        assertNull(review.measurement.features.dbMean)
+        assertNull(review.measurement.features.dbPeak)
+        assertEquals(AudioLevels(-40.0, -37.0), review.dbfs)
+        assertEquals("Mostly traffic · Student S · Uncalibrated level stays here", soundLine(review).subtitle)
     }
 
     @Test

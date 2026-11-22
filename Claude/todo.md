@@ -242,7 +242,7 @@ Handoff 2 has S and M fp32 exports and updated metrics. L and the full metrics t
 ## B2. Paramveer: on-device ML, quantisation and device fitting
 
 ### Before Handoff 1
-- [x] Agree format with Christine and Emma by 15:00: TFLite/LiteRT on Android, ONNX on Desktop only if needed
+- [x] Agree format with Christine and Emma by 15:00: TFLite/LiteRT on Android and iOS, ONNX on Desktop only if needed
 - [ ] **Fallback demo:** stock YAMNet running in the app via MediaPipe's audio classifier, outputs grouped into our classes
 - [x] A-weighted dB and spectral flux in Kotlin in `commonMain`: radix-2 FFT, A-weighting coefficients for the mic's actual sample rate, report dBFS(A) (mic is uncalibrated). Unit tests against numpy values. Runnable on WAV files from the JVM target so Emma can tune thresholds. [PR #37](https://github.com/b00rg/ciuin/pull/37)
 - [ ] Expose a single `AudioClassifier` interface in `commonMain` with platform implementations, so Christine just calls `classify(window)`. The shared interface and test adapters exist. The Android listener still calls LiteRT directly.
@@ -298,7 +298,7 @@ T3 Code also produced a local iOS map port on `kmp-app-ios` (`50d7f9e`), startin
 - [x] Place detail: features, accessibility tags, measurement count, "Measure here". The button opens the capture flow below on mobile.
 - [ ] 3D globe (opening screen, after MVP): static rotating dotted globe early; then spikes from `/coverage`, live measurement pulses, fly-to Lausanne → flat map. Bundle Natural Earth land points + `coverage.json` for offline
 - [x] Android and iOS share a 30-second foreground capture and review flow from **Measure here**. Cancel discards the capture. Confirm submits aggregates with an ID for safe retries. [PR #44](https://github.com/b00rg/ciuin/pull/44)
-  - Android shares the microphone stream with live listening and reuses Stage 0 and Student S. iOS uses Stage 0 for local dBFS(A) review. It has no calibrated SPL or sound classifier in this build.
+  - Both mobile apps share one microphone stream between foreground measurement and live listening. They skip quiet windows and rerun uncertain Student S windows on Student M. iOS keeps uncalibrated dBFS(A) local and can share sound classifications.
   - Deploy the updated backend and app clients together. Existing databases migrate on startup. Legacy app binaries expect numeric fields in place responses.
   - **Android 15 arm64 emulator.** Camera and mic denial yielded a lux-only review. A full capture reported the injected 321 lux, 29.1 fps and a 2.0–13.1 Hz detectable range. The person detector ran 29 times at 81 ms mean and 406 ms peak, including startup. Confirm stored one 30-second aggregate row with all nine quiet sound scores and an observed zero people count. Cancel returned to the place, released the camera and added no row.
   - **iPhone 17 Pro simulator (iOS 27).** Verified microphone denial, explicit unavailable readings with no upload action, and cancellation. With microphone access enabled, native review showed −50 dBFS(A) average and −44 dBFS(A) peak for local review. Camera capture was unavailable. A separate synthetic camera fixture exercised review and confirm at 60.0 fps and uploaded exactly one aggregate row. It reported 8.0 Hz, index 0.120, a 2.0–27.0 Hz range and 3 people. The backend kept unavailable sound and lux fields null.
