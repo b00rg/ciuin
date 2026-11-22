@@ -1,5 +1,12 @@
 package ch.ciuin.app
 
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import ch.ciuin.app.ui.theme.LocalReduceMotion
+import ch.ciuin.app.ui.theme.CiuinMotion
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animate
 import ch.ciuin.app.ui.theme.systemReduceMotion
 import ch.ciuin.app.core.Appearance
 import androidx.compose.foundation.background
@@ -56,6 +63,13 @@ import ch.ciuin.shared.model.Place
 
 private enum class PlaceSearchTarget { Map, Measure }
 
+/** A place counts as quiet on the home screen below this daytime noise baseline (the map's Quiet level). */
+private const val QUIET_BELOW_DB = 50.0
+
+/** The map part of the globe fly-in: the zoom it opens at and how long it takes to reach street level. */
+private const val MAP_FLY_START_ZOOM = 11.0
+private const val MAP_FLY_MS = 1_600
+
 /** How long the map waits at launch for a first position fix before keeping the default view. */
 private const val START_LOCATION_TIMEOUT_MS = 5_000L
 
@@ -67,6 +81,12 @@ internal fun App(environment: AppEnvironment) {
     val routes = environment.routes
     val snackbar = remember { SnackbarHostState() }
     val map = remember { MapState(LAUSANNE_LAT, LAUSANNE_LON, LAUSANNE_ZOOM) }
+    val reduceMotion = LocalReduceMotion.current
+    val flyScope = rememberCoroutineScope()
+    var flyIn by remember { mutableStateOf<Job?>(null) }
+    var lastFlyLat by remember { mutableStateOf(Double.NaN) }
+    var lastFlyLon by remember { mutableStateOf(Double.NaN) }
+    var lastFlyZoom by remember { mutableStateOf(Double.NaN) }
     val mapTiles = rememberMapTileCache()
     var tab by rememberSaveable { mutableStateOf(CiuinTab.Map) }
     var showGlobe by rememberSaveable { mutableStateOf(true) }
@@ -86,6 +106,10 @@ internal fun App(environment: AppEnvironment) {
     var mapCategory by rememberSaveable { mutableStateOf(Category.SOUND) }
     val data = rememberMapData(environment.api, mapCategory)
     val places = data.places
+    // Home screen count: places whose daytime noise baseline is under 50 dB, the map's "Quiet" level.
+    val quietPlaceCount = remember(places, data.loaded) {
+        if (!data.loaded) null else places.count { (it.baselineNoiseDb ?: Double.MAX_VALUE) < QUIET_BELOW_DB }
+    }
     val session = personal.state.session
     val scores = remember(places, session) {
         if (session == null) emptyMap()
@@ -108,7 +132,7 @@ internal fun App(environment: AppEnvironment) {
         val here = withTimeoutOrNull(START_LOCATION_TIMEOUT_MS) {
             snapshotFlow { environment.location.current }.filterNotNull().first()
         } ?: return@LaunchedEffect
-        if (map.centerX == startX && map.centerY == startY) map.centerOn(here.lat, here.lon, LAUSANNE_ZOOM)
+        if (flyIn == null && map.centerX == startX && map.centerY == startY) map.centerOn(here.lat, here.lon, LAUSANNE_ZOOM)
     }
     LaunchedEffect(personal.state.notice) {
         val notice = personal.state.notice ?: return@LaunchedEffect
@@ -200,9 +224,30 @@ internal fun App(environment: AppEnvironment) {
                     })
                 }
                 !settings.onboardingComplete && route == null -> OnboardingFlow(environment, onFinished = { showGlobe = true })
-                showGlobe && route == null -> GlobeOpening(environment, onEnterMap = { here ->
+                showGlobe && route == null -> GlobeOpening(environment, quietPlaces = quietPlaceCount, onEnterMap = { here ->
                     showGlobe = false
-                    if (here != null) map.centerOn(here.lat, here.lon, LAUSANNE_ZOOM)
+                    val lat = here?.lat ?: LAUSANNE_LAT
+                    val lon = here?.lon ?: LAUSANNE_LON
+                    if (reduceMotion) {
+                        map.centerOn(lat, lon, LAUSANNE_ZOOM)
+                    } else {
+                        // Second half of the fly-in: open zoomed out over the spot the globe dived into and keep
+                        // zooming to street level. Touching the map (any pan or pinch) hands control to the user.
+                        map.centerOn(lat, lon, MAP_FLY_START_ZOOM)
+                        flyIn?.cancel()
+                        flyIn = flyScope.launch {
+                            animate(
+                                MAP_FLY_START_ZOOM.toFloat(), LAUSANNE_ZOOM.toFloat(),
+                                animationSpec = tween(MAP_FLY_MS, easing = CiuinMotion.EaseOut),
+                            ) { z, _ ->
+                                if (map.centerLat != lastFlyLat || map.centerLon != lastFlyLon || map.zoom != lastFlyZoom) {
+                                    if (!lastFlyZoom.isNaN()) flyIn?.cancel()
+                                }
+                                map.centerOn(lat, lon, z.toDouble())
+                                lastFlyLat = map.centerLat; lastFlyLon = map.centerLon; lastFlyZoom = map.zoom
+                            }
+                        }.also { lastFlyZoom = Double.NaN }
+                    }
                 })
                 searchTarget != null -> {
                     BackHandler(onBack = ::dismissMapOverlay)

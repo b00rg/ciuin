@@ -1,5 +1,8 @@
 package ch.ciuin.app.ui.globe
 
+import androidx.compose.ui.zIndex
+import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.tween
@@ -62,7 +65,12 @@ import kotlinx.coroutines.launch
  * [onEnterMap] gets where the user is when "Explore near you" found them, or null (no permission, no fix in
  * time), in which case the map keeps its default view of the mapped area.
  */
-internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: (RoutePoint?) -> Unit, modifier: Modifier = Modifier) {
+internal fun GlobeOpening(
+    environment: AppEnvironment,
+    onEnterMap: (RoutePoint?) -> Unit,
+    modifier: Modifier = Modifier,
+    quietPlaces: Int? = null,
+) {
     val api = environment.api
     val scope = rememberCoroutineScope()
     val reduceMotion = LocalReduceMotion.current
@@ -70,6 +78,9 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: (RoutePoint?)
     var centre by remember { mutableStateOf(GlobePoint(40.0, 14.0)) }
     var flying by remember { mutableStateOf(false) }
     val leave = remember { Animatable(0f) }
+    // Fly-in: the globe grows (we dive into it) while the text and buttons fade, then the map takes over.
+    var globeScale by remember { mutableStateOf(1f) }
+    var chromeAlpha by remember { mutableStateOf(1f) }
     var totals by remember(api) { mutableStateOf<Stats?>(null) }
     var spikes by remember(api) { mutableStateOf<List<GlobeSpike>>(emptyList()) }
     var fetchingTotals by remember(api) { mutableStateOf(true) }
@@ -91,7 +102,7 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: (RoutePoint?)
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .padding(horizontal = 24.dp, vertical = 8.dp),
     ) {
-        CiuinTopBar(wordmark = true, trailing = {
+        CiuinTopBar(wordmark = true, wordmarkMeaning = true, trailing = {
             when {
                 !online -> TagChip("Offline")
                 fetchingTotals || fetchingCoverage -> TagChip("Loading")
@@ -104,8 +115,10 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: (RoutePoint?)
                 .verticalScroll(rememberScrollState()).padding(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            DottedGlobe(centre, spikes, onRotate = { centre = it }, rotationEnabled = !flying)
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(Modifier.zIndex(1f).graphicsLayer { scaleX = globeScale; scaleY = globeScale }) {
+                DottedGlobe(centre, spikes, onRotate = { centre = it }, rotationEnabled = !flying)
+            }
+            Column(Modifier.graphicsLayer { alpha = chromeAlpha }, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     "Every spike is a place someone measured.",
                     Modifier.semantics { heading() },
@@ -117,15 +130,15 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: (RoutePoint?)
                     color = CiuinColors.SecondaryText,
                 )
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.graphicsLayer { alpha = chromeAlpha }, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 StatTile(formattedCount(totals?.placesMapped), "places", Modifier.weight(1f))
                 StatTile(formattedCount(totals?.measurementsTaken), "readings", Modifier.weight(1f))
-                StatTile(formattedCount(totals?.sensoryFriendlyTags), "tags", Modifier.weight(1f))
+                StatTile(formattedCount(quietPlaces), "quiet spots", Modifier.weight(1f))
             }
         }
         PrimaryButton(
             "Explore near you",
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().graphicsLayer { alpha = chromeAlpha },
             enabled = !flying,
             onClick = {
                 if (!flying) {
@@ -141,13 +154,20 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: (RoutePoint?)
                         if (reduceMotion) {
                             leave.animateTo(1f, CiuinMotion.reducedFade())
                         } else {
+                            // Like a camera diving in: turn to the target while zooming into the globe, faster
+                            // and faster; the text goes first, the globe fades in the last third, and the map
+                            // (opening zoomed out over the same spot) carries the zoom on to street level.
                             val from = centre
                             val longitudeDelta = wrapLongitude(target.lon - from.lon)
-                            animate(0f, 1f, animationSpec = tween(450, easing = CiuinMotion.EaseInOut)) { progress, _ ->
+                            animate(0f, 1f, animationSpec = tween(GLOBE_DIVE_MS, easing = LinearEasing)) { t, _ ->
+                                val turn = CiuinMotion.EaseInOut.transform((t / 0.7f).coerceAtMost(1f))
                                 centre = GlobePoint(
-                                    from.lat + (target.lat - from.lat) * progress,
-                                    wrapLongitude(from.lon + longitudeDelta * progress),
+                                    from.lat + (target.lat - from.lat) * turn,
+                                    wrapLongitude(from.lon + longitudeDelta * turn),
                                 )
+                                globeScale = 1f + (GLOBE_DIVE_SCALE - 1f) * t * t * t
+                                chromeAlpha = (1f - t / 0.35f).coerceIn(0f, 1f)
+                                launch { leave.snapTo(((t - 0.65f) / 0.35f).coerceIn(0f, 1f)) }
                             }
                         }
                         enterMap(here)
@@ -157,6 +177,10 @@ internal fun GlobeOpening(environment: AppEnvironment, onEnterMap: (RoutePoint?)
         )
     }
 }
+
+/** The globe part of the fly-in: how long, and how far the globe grows by the end. */
+private const val GLOBE_DIVE_MS = 1_400
+private const val GLOBE_DIVE_SCALE = 4.5f
 
 /** How long "Explore near you" waits for a first position fix before flying to the mapped area instead. */
 private const val LOCATION_WAIT_MS = 4_000L

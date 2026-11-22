@@ -304,6 +304,7 @@ fun CiuinTopBar(
     onBack: (() -> Unit)? = null,
     backDescription: String = "Back",
     wordmark: Boolean = false,
+    wordmarkMeaning: Boolean = false,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     Row(modifier = modifier.fillMaxWidth().height(48.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -311,6 +312,9 @@ fun CiuinTopBar(
             RoundIconButton(CiuinIcons.ArrowLeft01, backDescription, onBack, style = RoundIconButtonStyle.Plain)
         }
         if (wordmark) Wordmark()
+        if (wordmark && wordmarkMeaning) {
+            Label("Irish for quiet", CiuinType.Caption, Modifier.padding(start = 10.dp), color = CiuinColors.SecondaryText)
+        }
         if (title != null) {
             Label(title, CiuinType.Title, Modifier.weight(1f).semantics { heading() }, maxLines = 1)
         } else {

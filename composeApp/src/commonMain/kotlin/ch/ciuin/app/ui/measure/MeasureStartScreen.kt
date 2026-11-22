@@ -106,7 +106,6 @@ internal fun MeasureStartScreen(
                     Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null, microphone = true)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         ChecklistItem("Hold the phone steady")
-                        ChecklistItem("Aim the camera at the room")
                         ChecklistItem("Audio and video stay here")
                     }
                 }
