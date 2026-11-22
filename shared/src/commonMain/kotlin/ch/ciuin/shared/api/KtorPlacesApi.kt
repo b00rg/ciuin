@@ -58,10 +58,11 @@ class KtorPlacesApi(
             setBody(m)
         }.body()
 
-    override suspend fun heatmap(bbox: BBox, dim: String): JsonObject =
+    override suspend fun heatmap(bbox: BBox, dim: String, period: NoisePeriod?): JsonObject =
         http.get("$baseUrl/heatmap") {
             parameter("bbox", bbox.toQuery())
             parameter("dim", dim)
+            period?.let { parameter("period", it.queryValue) }
         }.body()
 
     override suspend fun nearby(lat: Double, lon: Double, radiusM: Int, openOnly: Boolean, at: String?): List<Place> =

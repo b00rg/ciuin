@@ -18,15 +18,15 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-internal const val QUIET_PLACE_RADIUS_METERS = 300
+const val QUIET_PLACE_RADIUS_METERS = 300
 private const val NEARBY_TIMEOUT_MILLIS = 1_500L
 private const val EARTH_RADIUS_METERS = 6_371_000.0
 
-internal data class RoutePoint(val lat: Double, val lon: Double) {
+data class RoutePoint(val lat: Double, val lon: Double) {
     val isValid: Boolean get() = lat in -90.0..90.0 && lon in -180.0..180.0
 }
 
-internal data class QuietPlaceRoute(
+data class QuietPlaceRoute(
     val origin: RoutePoint,
     val destination: RoutePoint,
     val destinationId: String,
@@ -38,9 +38,17 @@ internal fun distanceMeters(origin: RoutePoint, destination: RoutePoint): Double
     val startLat = origin.lat * PI / 180.0
     val endLat = destination.lat * PI / 180.0
     val halfLatDifference = sin((endLat - startLat) / 2.0)
-    val halfLonDifference = sin((destination.lon - origin.lon) * PI / 360.0)
-    val haversine = halfLatDifference * halfLatDifference +
-        cos(startLat) * cos(endLat) * halfLonDifference * halfLonDifference
+    val deltaLon = destination.lon - origin.lon
+    val shortDeltaLon = when {
+        deltaLon > 180 -> deltaLon - 360
+        deltaLon < -180 -> deltaLon + 360
+        else -> deltaLon
+    }
+    val halfLonDifference = sin(shortDeltaLon * PI / 360.0)
+    val longitudeWeight = if (kotlin.math.abs(origin.lat) == 90.0 || kotlin.math.abs(destination.lat) == 90.0) {
+        0.0
+    } else cos(startLat) * cos(endLat)
+    val haversine = halfLatDifference * halfLatDifference + longitudeWeight * halfLonDifference * halfLonDifference
     return 2.0 * EARTH_RADIUS_METERS * asin(sqrt(haversine.coerceIn(0.0, 1.0)))
 }
 
@@ -62,29 +70,38 @@ internal suspend fun findQuietPlace(
         null
     }
 
-    val candidates = nearby ?: offlinePlaces()
-    val best = candidates.asSequence().mapNotNull { place ->
-        if (place.openNow == false || place.placeId.isBlank() || place.name.isBlank()) return@mapNotNull null
+    val best = quietSpotNear(nearby ?: offlinePlaces(), origin, score) ?: return null
+    return routeToPlace(origin, best.place)
+}
+
+data class QuietSpot(val place: Place, val distanceMeters: Double, val predictedOverwhelm: Double)
+
+/** Rank cached places exactly like an online quiet-place lookup, including places with unknown hours. */
+fun quietSpotNear(
+    places: List<Place>,
+    origin: RoutePoint,
+    score: (FeatureVector) -> Double,
+    radiusM: Double = QUIET_PLACE_RADIUS_METERS.toDouble(),
+): QuietSpot? {
+    if (!origin.isValid || !radiusM.isFinite() || radiusM < 0) return null
+    return places.asSequence().mapNotNull { place ->
+        if (place.openNow == false) return@mapNotNull null
         val features = place.personalFeatures ?: return@mapNotNull null
-        val destination = RoutePoint(place.lat, place.lon)
-        if (!destination.isValid) return@mapNotNull null
-        val distance = distanceMeters(origin, destination)
-        if (distance > QUIET_PLACE_RADIUS_METERS) return@mapNotNull null
+        val route = routeToPlace(origin, place) ?: return@mapNotNull null
+        if (route.distanceMeters > radiusM) return@mapNotNull null
         val predictedOverwhelm = score(features)
         if (predictedOverwhelm !in 0.0..1.0) return@mapNotNull null
 
-        ScoredPlace(place, destination, distance, predictedOverwhelm)
-    }.minWithOrNull(compareBy({ it.predictedOverwhelm }, { it.distance }, { it.place.placeId })) ?: return null
-
-    return QuietPlaceRoute(origin, best.destination, best.place.placeId, best.place.name, best.distance)
+        QuietSpot(place, route.distanceMeters, predictedOverwhelm)
+    }.minWithOrNull(compareBy({ it.predictedOverwhelm }, { it.distanceMeters }, { it.place.placeId }))
 }
 
-private data class ScoredPlace(
-    val place: Place,
-    val destination: RoutePoint,
-    val distance: Double,
-    val predictedOverwhelm: Double,
-)
+/** A straight-line preview for a selected place while walking directions are fetched. */
+fun routeToPlace(origin: RoutePoint, place: Place): QuietPlaceRoute? {
+    val destination = RoutePoint(place.lat, place.lon)
+    if (!origin.isValid || !destination.isValid || place.placeId.isBlank() || place.name.isBlank()) return null
+    return QuietPlaceRoute(origin, destination, place.placeId, place.name, distanceMeters(origin, destination))
+}
 
 internal fun decodeOfflinePlaces(geoJson: String): List<Place> {
     val features = ContractJson.parseToJsonElement(geoJson).jsonObject["features"] as? JsonArray ?: return emptyList()

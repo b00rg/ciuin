@@ -35,6 +35,7 @@ Everything not written during the event (pretrained models, datasets, libraries,
 | MUSAN | Dataset | https://www.openslr.org/17/, CC BY 4.0 | Downloaded for speech/music data and augmentation noise; not yet in the trained models (it arrived after the Handoff 2 training started) |
 | FSD50K (alarm, siren, crowd subset) | Dataset | https://zenodo.org/record/4060432, CC BY 4.0 (clips CC0 / CC BY / CC BY-NC / CC Sampling+, per clip in its metadata) | Extra `alarm_beep`, `siren` and `speech_crowd` training/eval data (teacher and the Handoff 2 students) |
 | DEMAND (PCAFETER, PRESTO, PSTATION, SPSQUARE) | Dataset | https://zenodo.org/record/1227121, CC BY 4.0 | Real crowd ambience for `speech_crowd`; augmentation noise; ambience for tuning and replaying the cascade |
+| Natural Earth 1:110m land and kotlinx-datetime | Dataset and library | [Natural Earth](https://www.naturalearthdata.com/downloads/110m-physical-vectors/110m-land/), public domain. [JetBrains](https://github.com/Kotlin/kotlinx-datetime), Apache 2.0 | Globe land mask and Europe/Zurich opening hours |
 
 ## Built during the event
 

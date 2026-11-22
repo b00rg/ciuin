@@ -26,6 +26,34 @@ val generatePersonalPresets by tasks.registering {
     }
 }
 
+val coverageFiles = mapOf(
+    "globalCoverageJson" to rootProject.layout.projectDirectory.file("data/processed/coverage_2deg.json"),
+    "europeCoverageJson" to rootProject.layout.projectDirectory.file("data/processed/coverage_1deg.json"),
+)
+val coverageSources = layout.buildDirectory.dir("generated/coverage/kotlin")
+val generateCoverage by tasks.registering {
+    inputs.files(coverageFiles.values).withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(coverageSources)
+
+    doLast {
+        val source = coverageSources.get().file("BundledCoverage.kt").asFile
+        source.parentFile.mkdirs()
+        source.writeText(buildString {
+            appendLine("package ch.ciuin.shared.api")
+            for ((name, file) in coverageFiles) {
+                appendLine("internal fun $name(): String = buildString {")
+                // Separate appends keep each constant below the JVM class-file string limit.
+                for (chunk in file.asFile.readText().chunked(8_000)) {
+                    val escaped = chunk.replace("\\", "\\\\").replace("\"", "\\\"")
+                        .replace("$", "\\$").replace("\r", "\\r").replace("\n", "\\n")
+                    appendLine("    append(\"$escaped\")")
+                }
+                appendLine("}")
+            }
+        })
+    }
+}
+
 kotlin {
     androidTarget {
         compilerOptions { jvmTarget.set(JvmTarget.JVM_17) }
@@ -37,9 +65,11 @@ kotlin {
     sourceSets {
         commonMain {
             kotlin.srcDir(generatePersonalPresets)
+            kotlin.srcDir(generateCoverage)
         }
         commonMain.dependencies {
             api(libs.kotlinx.coroutines.core)
+            api("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
             api(libs.kotlinx.serialization.json)
             api(libs.ktor.client.core)
             implementation(libs.ktor.client.content.negotiation)

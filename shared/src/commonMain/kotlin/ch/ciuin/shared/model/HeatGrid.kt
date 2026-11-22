@@ -16,7 +16,7 @@ import kotlin.math.pow
 
 /**
  * One cell of the baseline noise grid from `GET /heatmap` (todo.md §0, "/heatmap response").
- * dB values are daytime levels from sonBASE (null where that source has no data).
+ * dB values are levels for the requested period from sonBASE (null where that source has no data).
  * [totalDb] is for grids that only carry one combined value (no road/rail split).
  */
 data class HeatPoint(

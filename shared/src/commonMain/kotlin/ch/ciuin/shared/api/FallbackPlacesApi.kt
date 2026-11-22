@@ -86,7 +86,7 @@ class FallbackPlacesApi(
             MeasurementResult(stored = false)
         }
 
-    override suspend fun heatmap(bbox: BBox, dim: String): JsonObject = withFallback { heatmap(bbox, dim) }
+    override suspend fun heatmap(bbox: BBox, dim: String, period: NoisePeriod?): JsonObject = withFallback { heatmap(bbox, dim, period) }
 
     override suspend fun nearby(lat: Double, lon: Double, radiusM: Int, openOnly: Boolean, at: String?): List<Place> =
         withFallback { nearby(lat, lon, radiusM, openOnly, at) }
