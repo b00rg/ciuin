@@ -21,10 +21,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlin.math.round
-
-internal const val UNLISTED_MEASUREMENT_PLACE_ID = "unlisted"
 import kotlin.time.TimeMark
 import kotlin.time.TimeSource
+
+internal const val UNLISTED_MEASUREMENT_PLACE_ID = "unlisted"
 
 internal sealed interface MeasurementPhase {
     data object Ready : MeasurementPhase
