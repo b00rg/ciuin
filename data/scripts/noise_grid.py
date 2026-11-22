@@ -21,15 +21,25 @@ SONBASE = Path(__file__).resolve().parents[1] / "raw" / "sonbase"
 PERIODS = ("day", "night")
 
 
+def _layer(name: str) -> str:
+    """The local copy from fetch_sonbase.py if there is one, else the cloud-optimised GeoTIFF read in place.
+
+    Reading in place fetches only the window a bbox needs (seconds, not the 1.5 GB download).
+    """
+    local = SONBASE / f"{name}_2056.tif"
+    if local.is_file():
+        return str(local)
+    from fetch_sonbase import LAYERS
+
+    return "/vsicurl/" + LAYERS[name]
+
+
 class NoiseGrid:
     def __init__(self, bbox: tuple[float, float, float, float], period: str = "day", margin_m: float = 200.0):
         """bbox = (south, west, north, east) in WGS84. period = "day" (06-22) or "night" (22-06)."""
         if period not in PERIODS:
             raise ValueError(f"period must be one of {PERIODS}")
-        road_path, rail_path = SONBASE / f"road_{period}_2056.tif", SONBASE / f"rail_{period}_2056.tif"
-        for p in (road_path, rail_path):
-            if not p.is_file():
-                raise SystemExit(f"missing {p}; run data/scripts/fetch_sonbase.py")
+        road_path, rail_path = (_layer(f"road_{period}"), _layer(f"rail_{period}"))
         s, w, n, e = bbox
         with rasterio.open(road_path) as road, rasterio.open(rail_path) as rail:
             if road.res != rail.res:
