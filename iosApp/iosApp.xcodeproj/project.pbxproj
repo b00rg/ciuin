@@ -12,16 +12,26 @@
 		307C2654CD5972A25FB7FD87 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 668CECA83ACC03A83C85A623 /* iOSApp.swift */; };
 		56B0305B5D3847FC6B326502 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE8509E5A49E4A5CAAEB3ADB /* ContentView.swift */; };
 		5FD86738425C27AB25A149BE /* NotoSansSymbols-House.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3DB959E0211656DD27DF9BF0 /* NotoSansSymbols-House.ttf */; };
+		7F450C9055A19CB49E1ACDB1 /* poppins_bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 86225EE6412A70FB24896534 /* poppins_bold.ttf */; };
+		840407BC7EDEE48154493013 /* poppins_regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 34A55D6F3803A86C3CE4CD10 /* poppins_regular.ttf */; };
 		94B0840311FFF8CA9583A1DC /* CameraMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFED63D135F7554D104A4FA7 /* CameraMeasurement.swift */; };
 		9648BAB56AAD31C350EDF878 /* MicrophoneMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5A6C2E7D9462A72A90D930 /* MicrophoneMeasurement.swift */; };
 		C961365EC8F3D18DD6ED77CE /* Roboto-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 4CE6DC3F6176A791CC0A0DE0 /* Roboto-Medium.ttf */; };
+		DC686E5342C57EC0874BCA12 /* poppins_semibold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 925FA4DC830A95D20055961F /* poppins_semibold.ttf */; };
+		EB3F69C019012980D2EEF2DF /* poppins_ofl.txt in Resources */ = {isa = PBXBuildFile; fileRef = 6DE5B3AE6B32EDD8BCF80776 /* poppins_ofl.txt */; };
+		FB3FD13ADCCA2AC5EE126408 /* poppins_medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 97C6118DD9E20C3AB4F17F9C /* poppins_medium.ttf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		34A55D6F3803A86C3CE4CD10 /* poppins_regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = poppins_regular.ttf; sourceTree = "<group>"; };
 		3DB959E0211656DD27DF9BF0 /* NotoSansSymbols-House.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "NotoSansSymbols-House.ttf"; sourceTree = "<group>"; };
 		4CE6DC3F6176A791CC0A0DE0 /* Roboto-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Roboto-Medium.ttf"; sourceTree = "<group>"; };
 		668CECA83ACC03A83C85A623 /* iOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = iOSApp.swift; sourceTree = "<group>"; };
+		6DE5B3AE6B32EDD8BCF80776 /* poppins_ofl.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = poppins_ofl.txt; sourceTree = "<group>"; };
 		86038AE1032E284E79B32AD6 /* iosApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = iosApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		86225EE6412A70FB24896534 /* poppins_bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = poppins_bold.ttf; sourceTree = "<group>"; };
+		925FA4DC830A95D20055961F /* poppins_semibold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = poppins_semibold.ttf; sourceTree = "<group>"; };
+		97C6118DD9E20C3AB4F17F9C /* poppins_medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = poppins_medium.ttf; sourceTree = "<group>"; };
 		CA7E45B4FF9D12A3A6B8F5C3 /* Roboto-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Roboto-Regular.ttf"; sourceTree = "<group>"; };
 		CE8509E5A49E4A5CAAEB3ADB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		EB5A6C2E7D9462A72A90D930 /* MicrophoneMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneMeasurement.swift; sourceTree = "<group>"; };
@@ -30,6 +40,17 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		074D3FB078EA53C80CD81546 /* font */ = {
+			isa = PBXGroup;
+			children = (
+				86225EE6412A70FB24896534 /* poppins_bold.ttf */,
+				97C6118DD9E20C3AB4F17F9C /* poppins_medium.ttf */,
+				34A55D6F3803A86C3CE4CD10 /* poppins_regular.ttf */,
+				925FA4DC830A95D20055961F /* poppins_semibold.ttf */,
+			);
+			path = font;
+			sourceTree = "<group>";
+		};
 		1DB4B685CAEE8BEFEBBAEF94 /* iosApp */ = {
 			isa = PBXGroup;
 			children = (
@@ -47,8 +68,17 @@
 			isa = PBXGroup;
 			children = (
 				1DB4B685CAEE8BEFEBBAEF94 /* iosApp */,
+				C3B1A8B668D5E4F3945481FE /* Poppins */,
 				94C98B8B3A2BFC1966447269 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		653243D97E1E601C4589D813 /* raw */ = {
+			isa = PBXGroup;
+			children = (
+				6DE5B3AE6B32EDD8BCF80776 /* poppins_ofl.txt */,
+			);
+			path = raw;
 			sourceTree = "<group>";
 		};
 		94C98B8B3A2BFC1966447269 /* Products */ = {
@@ -67,6 +97,16 @@
 				CA7E45B4FF9D12A3A6B8F5C3 /* Roboto-Regular.ttf */,
 			);
 			path = Fonts;
+			sourceTree = "<group>";
+		};
+		C3B1A8B668D5E4F3945481FE /* Poppins */ = {
+			isa = PBXGroup;
+			children = (
+				074D3FB078EA53C80CD81546 /* font */,
+				653243D97E1E601C4589D813 /* raw */,
+			);
+			name = Poppins;
+			path = ../composeApp/src/commonMain/fontRes;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -129,6 +169,11 @@
 				5FD86738425C27AB25A149BE /* NotoSansSymbols-House.ttf in Resources */,
 				C961365EC8F3D18DD6ED77CE /* Roboto-Medium.ttf in Resources */,
 				2114EB24ABFDED3DA0A759C9 /* Roboto-Regular.ttf in Resources */,
+				7F450C9055A19CB49E1ACDB1 /* poppins_bold.ttf in Resources */,
+				FB3FD13ADCCA2AC5EE126408 /* poppins_medium.ttf in Resources */,
+				EB3F69C019012980D2EEF2DF /* poppins_ofl.txt in Resources */,
+				840407BC7EDEE48154493013 /* poppins_regular.ttf in Resources */,
+				DC686E5342C57EC0874BCA12 /* poppins_semibold.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

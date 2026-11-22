@@ -9,6 +9,10 @@ targets:
     sources:
       - path: iosApp
         excludes: [Info.plist]
+      # Poppins (four weights and its licence), shared with Android and desktop.
+      - path: ../composeApp/src/commonMain/fontRes
+        name: Poppins
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: ch.ciuin.app
