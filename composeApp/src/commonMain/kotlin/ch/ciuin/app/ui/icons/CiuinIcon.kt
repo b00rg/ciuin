@@ -23,6 +23,9 @@ object CiuinIconStroke {
     /** Ticks in checklists and the privacy list (16 to 20 dp). */
     const val Check = 2.2f
 
+    /** The arrow that hides and shows a map sheet's details (32 dp): about 4 dp, as thick as the handle bar it replaced. */
+    const val SheetToggle = 3f
+
     /** The tick inside a filled radio mark and in the "Allowed" pill (16 dp). */
     const val CheckBold = 2.5f
 }

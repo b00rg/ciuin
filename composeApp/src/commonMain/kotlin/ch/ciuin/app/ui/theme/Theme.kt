@@ -18,7 +18,7 @@ import androidx.compose.ui.graphics.Color
  * It provides [LocalReduceMotion], makes [CiuinType.Body] in [CiuinColors.Ink] the default text, and
  * sets a matching Material 3 colour scheme, typography and shapes so that any stray Material
  * component (a dialog, a snackbar, a text field) looks like the rest of the app. The design has one
- * appearance: white ground and black ink, in light and dark system settings alike.
+ * appearance: slate ink on a cream ground, in light and dark system settings alike.
  *
  * @param reduceMotion pass `systemReduceMotion() || the user's own switch` from the You tab.
  */

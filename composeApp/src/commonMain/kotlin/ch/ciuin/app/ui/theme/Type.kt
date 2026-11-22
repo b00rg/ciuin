@@ -9,9 +9,17 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import ch.ciuin.app.appFontFamily
+import ch.ciuin.app.displayFontFamily
 
 /** Poppins in the four weights the design uses (400, 500, 600, 700), identical on every platform. */
 val Poppins: FontFamily get() = appFontFamily
+
+/**
+ * Pressworn, the worn-letterpress face from the moodboard, in its one weight. Only for the display
+ * styles below, and only for fixed English text: it has no accented letters, so a place name, the
+ * "ciúin" wordmark or anything from the data must stay in [Poppins].
+ */
+val Pressworn: FontFamily get() = displayFontFamily
 
 /**
  * The type scale: every text style on the Foundations board and the screen artboards, with Paper's
@@ -22,24 +30,29 @@ val Poppins: FontFamily get() = appFontFamily
  * block measures what Paper shows (a two-line 16/24 paragraph is 48 high on every platform).
  *
  * No style may set a line height below 1.1 times its size: that is the height of the bundled
- * Poppins, and Android 15 will not draw a line shorter than its font (see `appFontFamily`).
+ * Poppins and Pressworn, and Android 15 will not draw a line shorter than its font (see `appFontFamily`).
+ *
+ * [Hero], [Display], [ScreenTitle] and [HeadlineTight] are set in [Pressworn]: give them fixed English
+ * headings and numbers only, never a place name or other text with accents.
  */
 object CiuinType {
-    // Headlines, weight 600.
-    /** 40/44, -0.025em. Onboarding heroes: "Find your quiet.", "You're all set." */
-    val Hero = style(40, 44, FontWeight.SemiBold, (-0.025).em)
+    // Display headlines in Pressworn (fixed English text only).
+    /** 40/44. Onboarding heroes: "Find your quiet.", "You're all set." */
+    val Hero = display(40, 44)
 
-    /** 40/44, -0.02em. The board's "40 / 600"; the measure countdown "18 seconds left". */
-    val Display = style(40, 44, FontWeight.SemiBold, (-0.02).em)
+    /** 40/44. The board's "40"; the measure countdown "18 seconds left". */
+    val Display = display(40, 44)
 
-    /** 32/38, -0.02em. Screen titles ("Measure", "You", "It's getting loud here.") and the big reading "60 dB". */
-    val ScreenTitle = style(32, 38, FontWeight.SemiBold, (-0.02).em)
+    /** 32/38. Screen titles ("Measure", "You", "It's getting loud here.") and the big reading "60 dB". */
+    val ScreenTitle = display(32, 38)
+
+    // Headlines in Poppins, weight 600.
 
     /** 28/34, -0.01em. The board's "28 / 600". */
     val Headline = style(28, 34, FontWeight.SemiBold, (-0.01).em)
 
-    /** 28/34, -0.02em. "Only numbers leave this phone." on the privacy screen. */
-    val HeadlineTight = style(28, 34, FontWeight.SemiBold, (-0.02).em)
+    /** 28/34, Pressworn. "Only numbers leave this phone." on the privacy screen. */
+    val HeadlineTight = display(28, 34)
 
     /** 24/30, -0.01em. Place name on the place sheet; title of a confirmation sheet. */
     val PlaceTitle = style(24, 30, FontWeight.SemiBold, (-0.01).em)
@@ -160,6 +173,9 @@ internal val CssLineHeight = LineHeightStyle(
     alignment = LineHeightStyle.Alignment.Center,
     trim = LineHeightStyle.Trim.None,
 )
+
+private fun display(size: Int, lineHeight: Int) =
+    style(size, lineHeight, FontWeight.Normal).copy(fontFamily = Pressworn)
 
 private fun style(
     size: Int,

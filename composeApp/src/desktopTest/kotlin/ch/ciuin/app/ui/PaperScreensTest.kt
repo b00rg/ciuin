@@ -21,6 +21,8 @@ class PaperScreensTest {
         shot("08-map-sound-layer") { MapSound() }
         shot("09-map-light-layer-no-data") { MapLightNoData() }
         shot("10-map-access-layer") { MapAccess() }
+        shot("10b-map-crowd-layer") { MapCrowd() }
+        shot("10c-map-light-layer") { MapLight() }
         shot("11-map-offline") { MapOffline() }
         shot("12-search") { Search() }
         shot("13-place-detail-sheet") { PlaceSheet() }

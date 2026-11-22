@@ -12,4 +12,7 @@ internal actual val appFontFamily: FontFamily = FontFamily(
     Font(resource = "font/poppins_bold.ttf", weight = FontWeight.Bold),
 )
 
+internal actual val displayFontFamily: FontFamily =
+    FontFamily(Font(resource = "font/pressworn_regular.ttf", weight = FontWeight.Normal))
+
 internal actual val symbolFontFamily: FontFamily? = null

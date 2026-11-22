@@ -91,6 +91,8 @@ enum class SheepPose(val description: String) {
  * @param contentDescription what a screen reader says; null when the text beside the sheep already
  * says how the place feels.
  * @param haptic whether [SheepPose.Alert] gives its one soft haptic when the ears go up.
+ * @param headphones whether the standing sheep wears headphones (the Sound layer). Drawn with the head, so they move with it.
+ * @param microphone whether the reading sheep holds a microphone instead of its book (the Measure tab).
  * @param onHopEnd called when a [SheepPose.Hop] has landed and settled.
  */
 @Composable
@@ -100,6 +102,8 @@ fun Sheep(
     contentDescription: String? = pose.description,
     zzz: Boolean = true,
     haptic: Boolean = true,
+    headphones: Boolean = false,
+    microphone: Boolean = false,
     onHopEnd: () -> Unit = {},
 ) {
     val reduceMotion = LocalReduceMotion.current
@@ -187,8 +191,8 @@ fun Sheep(
     Canvas(modifier.defaultMinSize(88.dp, 88.dp).then(semantics)) {
         val time = clock.floatValue
         val old = leaving
-        if (old != null) fading(1f - fade.value) { drawPose(old, time, reduceMotion, alert.value, hop.value, z) }
-        fading(if (old != null) fade.value else 1f) { drawPose(shown, time, reduceMotion, alert.value, hop.value, z) }
+        if (old != null) fading(1f - fade.value) { drawPose(old, time, reduceMotion, alert.value, hop.value, z, headphones, microphone) }
+        fading(if (old != null) fade.value else 1f) { drawPose(shown, time, reduceMotion, alert.value, hop.value, z, headphones, microphone) }
     }
 }
 
@@ -209,6 +213,8 @@ private fun DrawScope.drawPose(
     alert: Float,
     hop: Float,
     z: TextLayoutResult?,
+    headphones: Boolean,
+    microphone: Boolean,
 ) {
     when (pose) {
         SheepPose.Rest -> inViewBox(SheepRestArt.WIDTH, SheepRestArt.HEIGHT) {
@@ -220,10 +226,10 @@ private fun DrawScope.drawPose(
                 pose == SheepPose.Alert -> AlertStill
                 else -> AwakeStill
             }
-            drawSheepStand(frame)
+            drawSheepStand(frame, headphones)
         }
         SheepPose.Reading -> inViewBox(SheepReadArt.WIDTH, SheepReadArt.HEIGHT) {
-            drawSheepRead(readFrame(time, still))
+            drawSheepRead(readFrame(time, still), microphone)
         }
     }
 }

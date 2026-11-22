@@ -102,7 +102,7 @@ internal fun MeasureStartScreen(
                 if (locationNotice != null) LocationNoticeRow(locationNotice, onAllowLocation)
                 if (onFindPlace != null) TextLinkButton("Search for a place", onFindPlace, Modifier.fillMaxWidth())
                 WoolCard(WoolCardStyle.HowTo) {
-                    Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null)
+                    Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null, microphone = true)
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         ChecklistItem("Hold the phone steady")
                         ChecklistItem("Aim the camera at the room")
@@ -111,7 +111,7 @@ internal fun MeasureStartScreen(
                 }
             } else {
                 WoolCard(WoolCardStyle.HowTo) {
-                    Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null)
+                    Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null, microphone = true)
                     Label(
                         "Measuring needs a microphone, a camera or nearby-device scanning, and this device has none of them. " +
                             "The map still shows what others measured.",

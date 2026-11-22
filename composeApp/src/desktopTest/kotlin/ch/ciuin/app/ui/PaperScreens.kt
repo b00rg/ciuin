@@ -22,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import ch.ciuin.app.ui.characters.AlertScene
 import ch.ciuin.app.ui.characters.AllSetScene
 import ch.ciuin.app.ui.characters.Duck
+import ch.ciuin.app.ui.characters.LayerCharacter
+import ch.ciuin.app.ui.characters.LayerSheep
 import ch.ciuin.app.ui.characters.SharedScene
 import ch.ciuin.app.ui.characters.Sheep
 import ch.ciuin.app.ui.characters.SheepPose
@@ -301,13 +303,8 @@ internal fun MapSound() = MapScreen(
     top = { MapTop(selectedLayer = 1) },
     bottom = {
         MapBottom(NoiseCredit) {
-            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("This area · Sound", style = CiuinType.Eyebrow, color = CiuinColors.SecondaryText)
-                    BigReading("60 dB", "Moderate")
-                }
-                SegmentedControl(listOf("Day", "Night"), 0, {})
-            }
+            LayerHeaderReplica(LayerCharacter.Sound, "This area · Sound") { BigReading("60 dB", "Moderate") }
+            SegmentedControl(listOf("Day", "Night"), 0, {})
             LevelLegend(listOf(Level.Calm to "Quiet, under 50", Level.Moderate to "Moderate", Level.Loud to "Loud, over 65"))
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Where it comes from", style = CiuinType.Label)
@@ -323,13 +320,12 @@ internal fun MapLightNoData() = MapScreen(
     top = { MapTop(selectedLayer = 2) },
     bottom = {
         MapBottom("© OpenStreetMap contributors") {
-            Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                CharacterTile(size = 84.dp, cornerRadius = 28.dp) { Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null) }
-                TitleBlock(
-                    title = "No light readings yet",
-                    modifier = Modifier.weight(1f),
-                    eyebrow = "This area · Light",
-                    subtitle = "Light and flicker come from phones. One 30 second measure fills this in.",
+            LayerHeaderReplica(LayerCharacter.Light, "This area · Light") {
+                Text("No light readings yet", style = CiuinType.SheetTitle)
+                Text(
+                    "Light and flicker come from phones. One 30 second measure fills this in.",
+                    style = CiuinType.BodySmall,
+                    color = CiuinColors.SecondaryText,
                 )
             }
             LevelLegend(listOf(Level.Calm to "Dim", Level.Moderate to "Moderate", Level.Loud to "Bright", Level.NoData to "No data"))
@@ -343,9 +339,9 @@ internal fun MapAccess() = MapScreen(
     top = { MapTop(selectedLayer = 4) },
     bottom = {
         MapBottom("© OpenStreetMap contributors") {
-            Row(Modifier.height(98.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconDisc(CiuinIcons.Wheelchair)
-                TitleBlock("63% wheelchair accessible", Modifier.weight(1f), subtitle = "From 521 tagged places")
+            LayerHeaderReplica("This area · Access", { IconDisc(CiuinIcons.Wheelchair) }) {
+                Text("63% wheelchair accessible", style = CiuinType.SheetTitle)
+                Text("From 521 tagged places", style = CiuinType.BodySmall, color = CiuinColors.SecondaryText)
             }
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 BarRow("Accessible", 0.63f, "63%") { LevelGlyph(Level.Calm, size = LevelGlyphSize.Small, lane = 16.dp) }
@@ -360,6 +356,48 @@ internal fun MapAccess() = MapScreen(
         }
     },
 )
+
+/** Not a Paper artboard: the Crowd layer with a reading, to check the three-sheep tile. */
+@Composable
+internal fun MapCrowd() = MapScreen(
+    top = { MapTop(selectedLayer = 3) },
+    bottom = {
+        MapBottom("© OpenStreetMap contributors") {
+            LayerHeaderReplica(LayerCharacter.Crowd, "This area · Crowd") { BigReading("12 devices", "Busy") }
+            LevelLegend(listOf(Level.Calm to "Quiet", Level.Moderate to "Busy", Level.Loud to "Crowded", Level.NoData to "No data"))
+        }
+    },
+)
+
+/** Not a Paper artboard: the Light layer with a reading, to check the streetlight tile. */
+@Composable
+internal fun MapLight() = MapScreen(
+    top = { MapTop(selectedLayer = 2) },
+    bottom = {
+        MapBottom("© OpenStreetMap contributors") {
+            LayerHeaderReplica(LayerCharacter.Light, "This area · Light") { BigReading("82 lux", "Moderate") }
+            LevelLegend(listOf(Level.Calm to "Dim", Level.Moderate to "Moderate", Level.Loud to "Bright", Level.NoData to "No data"))
+        }
+    },
+)
+
+/** The layer sheet header from `MapInsights.kt`: the layer's sheep, then the eyebrow over [content]. */
+@Composable
+private fun LayerHeaderReplica(character: LayerCharacter, eyebrow: String, content: @Composable ColumnScope.() -> Unit) =
+    LayerHeaderReplica(eyebrow, { CharacterTile { LayerSheep(character) } }, content)
+
+@Composable
+private fun LayerHeaderReplica(eyebrow: String, picture: @Composable () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    // The picture is pinned to the top and the text starts a little lower, so the picture's top sits
+    // just above the eyebrow however many lines the text runs to (as on the Sound sheet).
+    Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.Top) {
+        picture()
+        Column(Modifier.weight(1f).padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(eyebrow, style = CiuinType.Eyebrow, color = CiuinColors.SecondaryText)
+            content()
+        }
+    }
+}
 
 @Composable
 internal fun MapOffline() = MapScreen(
@@ -459,7 +497,7 @@ internal fun MeasureStart() = Screen {
             SelectableCard("Somewhere else", "Measure this spot without a place", false, {})
         }
         WoolCard(WoolCardStyle.HowTo) {
-            Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null)
+            Sheep(SheepPose.Reading, Modifier.size(72.dp), contentDescription = null, microphone = true)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 ChecklistItem("Hold the phone steady")
                 ChecklistItem("Aim the camera at the room")
@@ -481,7 +519,7 @@ internal fun MeasureCapturing() = Screen {
         verticalArrangement = Arrangement.spacedBy(24.dp),
     ) {
         CenteredHeading("Measuring", "Café du Grütli")
-        MeasureRing(0.4f) { Sheep(SheepPose.Reading, Modifier.size(156.dp), contentDescription = null) }
+        MeasureRing(0.4f) { Sheep(SheepPose.Reading, Modifier.size(156.dp), contentDescription = null, microphone = true) }
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("18 seconds left", style = CiuinType.Display)
             Text(

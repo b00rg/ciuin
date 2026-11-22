@@ -155,11 +155,11 @@ internal object SheepStandArt {
         fill = 0xFFF6F5F3,
     )
 
-    /** The three red alert marks, nearest the head first. One SVG path on the board, split so they can appear in turn. */
+    /** The three alert marks, in the loud terracotta, nearest the head first. One SVG path on the board, split so they can appear in turn. */
     val marks = listOf(
-        ArtPath("m60 12.5 2.6-5.2", stroke = 0xFFD93A2B, strokeWidth = 2.2f),
-        ArtPath("M66.2 17.4l5.4-3.2", stroke = 0xFFD93A2B, strokeWidth = 2.2f),
-        ArtPath("M68.6 24.6l6-0.6", stroke = 0xFFD93A2B, strokeWidth = 2.2f),
+        ArtPath("m60 12.5 2.6-5.2", stroke = 0xFFA04A34, strokeWidth = 2.2f),
+        ArtPath("M66.2 17.4l5.4-3.2", stroke = 0xFFA04A34, strokeWidth = 2.2f),
+        ArtPath("M68.6 24.6l6-0.6", stroke = 0xFFA04A34, strokeWidth = 2.2f),
     )
 }
 
@@ -182,11 +182,11 @@ internal object SheepReadArt {
 
     val bookCover = ArtPath(
         "m47.48 44.07c-6 0.63-12.51 2.24-16.57 4.05-1.03 0.57-2.01 0.52-2.92-0.02-4.24-2.32-9.74-4.36-13.58-5.4-0.25-0.09-0.34 0.16-0.26 0.47l4.35 14.92c0.05 0.18 0.17 0.29 0.35 0.33 3.97 1.05 8.08 2.54 10.98 4.22 0.69 0.42 1.6 0.42 2.3 0.07 4.12-1.77 9.53-2.78 13.34-3.03 0.24-0.01 0.39-0.17 0.42-0.41l1.95-14.71c0.05-0.35-0.08-0.52-0.36-0.49z",
-        fill = 0xFF0A0A0A,
+        fill = 0xFF505569, // slate, as the ink
     )
     val bookSpine = ArtPath(
         "m30.95 48.15c-1.05 0.6-2.28 0.5-3.31-0.02l1.96 14.39c0.78 0.61 2.02 0.56 2.81 0.03l-1.46-14.4z",
-        fill = 0xFF3A3A3A,
+        fill = 0xFF6B7083,
     )
     val bookPages = ArtPath(
         "m46.68 43.11c-0.41 0-0.85 0.02-1.21 0.05l-0.4-0.92c-6.77 0.13-12.99 2.45-15.68 5.78-2.56-4.69-8.33-6.32-12.9-7.12l-0.29 0.89c-0.37-0.01-0.73 0-0.99 0.04l-0.52 0.78c4.53 1.52 9.93 3.64 13.43 5.68 0.75 0.41 1.65 0.43 2.43 0.1 4.96-2.21 12.29-3.74 16.71-4.3l-0.58-0.98z",
@@ -259,4 +259,26 @@ internal object DuckArt {
     val beakLine = ArtPath("M6.200 33.300C9.200 33.900 12.800 33.700 15.800 32.900", stroke = 0xFFB9520B, strokeWidth = 0.7f)
     val eye = ArtOval(23f, 27.3f, 2.1f, 2.6f, 0xFF272727)
     val eyeLight = ArtOval(23.5f, 26.3f, 0.75f, 0.75f, 0xFFFFFFFF)
+}
+
+/**
+ * Headphones for the standing sheep, in its 88 x 88 view box: a slate band over the forelock and a
+ * cup over each ear, all in one colour. Drawn after the forelock so the band sits on top of the wool.
+ */
+internal object HeadphonesArt {
+    val band = ArtPath("M11.6 31.5C9.4 6.2 52.6 3.8 51.2 33.2", stroke = 0xFF505569, strokeWidth = 2.6f)
+    val cups = listOf(
+        ArtOval(11.4f, 34.6f, 4.2f, 6.2f, 0xFF505569, rotation = 10f),
+        ArtOval(51f, 36.4f, 4.2f, 6.2f, 0xFF505569, rotation = -8f),
+    )
+}
+
+/**
+ * A little handheld microphone for the reading sheep, in its 80 x 80 view box, in place of the book:
+ * the handle runs up from the right front hoof and the round head sits just below the chin. One slate
+ * colour, like the headphones.
+ */
+internal object MicrophoneArt {
+    val handle = ArtPath("M45.6 55.2L41.4 47.2", stroke = 0xFF505569, strokeWidth = 2.8f)
+    val head = ArtOval(40.2f, 44.4f, 3.7f, 3.7f, 0xFF505569)
 }

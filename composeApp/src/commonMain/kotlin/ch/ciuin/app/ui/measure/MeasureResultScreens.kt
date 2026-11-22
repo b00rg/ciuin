@@ -95,7 +95,7 @@ internal fun MeasureCaptureScreen(
                     drawProgress = { if (reduceMotion) progress else smoothProgress.floatValue },
                     diameter = diameter,
                 ) {
-                    Sheep(SheepPose.Reading, Modifier.size(diameter * (156f / 264f)), contentDescription = null)
+                    Sheep(SheepPose.Reading, Modifier.size(diameter * (156f / 264f)), contentDescription = null, microphone = true)
                 }
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -264,7 +264,7 @@ private fun SoundWaveform(levels: Flow<Float>, modifier: Modifier = Modifier) {
             val h = minHeight + (size.height - minHeight) * level
             val x = i * slot + (slot - barWidth) / 2
             drawRoundRect(
-                color = if (level > 0f) CiuinColors.Ink else CiuinColors.RingTrack,
+                color = if (level > 0f) CiuinColors.Accent else CiuinColors.RingTrack,
                 topLeft = Offset(x, mid - h / 2),
                 size = Size(barWidth, h),
                 cornerRadius = CornerRadius(barWidth / 2),

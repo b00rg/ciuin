@@ -1,5 +1,14 @@
 package ch.ciuin.app
 
+import ch.ciuin.app.ui.components.SheetTopSpace
+import ch.ciuin.app.ui.components.SheetToggle
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.layout.Layout
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.snap
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.unit.Dp
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
@@ -179,6 +188,9 @@ internal fun MapScreen(
         val density = LocalDensity.current
         val viewport = with(density) { Size(maxWidth.toPx(), maxHeight.toPx()) }
         val maxInsightsHeight = maxHeight * 0.38f
+        // Collapsed, a layer sheet shows only its arrow and header row, so the map has the room. Every
+        // layer opens in full: switching layers starts this over, so collapsing is only for the moment.
+        var sheetCollapsed by rememberSaveable(category) { mutableStateOf(false) }
         val tilePx = with(density) { 256.dp.toPx() }
         val insets = WindowInsets.safeDrawing.asPaddingValues()
         val bottomInset = insets.calculateBottomPadding()
@@ -366,11 +378,26 @@ internal fun MapScreen(
                             )
                         }
                     }
-                    BottomSheetSurface(gap = if (data.offline) 14.dp else 16.dp) {
-                        Column(
-                            Modifier.fillMaxWidth().heightIn(max = maxInsightsHeight)
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(16.dp),
+                    val insightsScroll = rememberScrollState()
+                    
+                    // For you is short and stays open; the other layers open and close with the arrow.
+                    val collapsible = category != Category.PERSONAL
+                    val collapsed = sheetCollapsed && collapsible
+                    LaunchedEffect(collapsed) { if (collapsed) insightsScroll.scrollTo(0) }
+                    BottomSheetSurface(
+                        gap = if (data.offline) 14.dp else 16.dp,
+                        handle = {
+                            if (collapsible) SheetToggle(!collapsed, { sheetCollapsed = !sheetCollapsed })
+                            else SheetTopSpace()
+                        },
+                    ) {
+                        PeekColumn(
+                            collapsed = collapsed,
+                            gap = 16.dp,
+                            modifier = Modifier.fillMaxWidth()
+                                .animateContentSize(if (reduceMotion) snap() else CiuinMotion.sheetSpring())
+                                .heightIn(max = maxInsightsHeight)
+                                .verticalScroll(insightsScroll, enabled = !collapsed),
                         ) {
                             if (!data.loaded) {
                                 TitleBlock("Loading Lausanne", eyebrow = "Around you")
@@ -475,4 +502,27 @@ private fun UiLevel.hexAlpha(offline: Boolean): Float = when (this) {
     UiLevel.Moderate -> if (offline) CiuinColors.HexAlphaModerateSaved else CiuinColors.HexAlphaModerate
     UiLevel.Loud -> if (offline) CiuinColors.HexAlphaLoudSaved else CiuinColors.HexAlphaLoud
     UiLevel.NoData -> 0f
+}
+
+/**
+ * A column with [gap] between its children that, when [collapsed], shows only its first child (the
+ * layer's header row, whatever its height) and leaves the rest out, so screen readers skip them too.
+ */
+@Composable
+private fun PeekColumn(collapsed: Boolean, gap: Dp, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Layout(content, modifier) { measurables, constraints ->
+        // Children take their own width (the Day/Night switch stays snug), up to the sheet's.
+        val childConstraints = constraints.copy(minWidth = 0, minHeight = 0, maxHeight = Constraints.Infinity)
+        val shown = if (collapsed) measurables.take(1) else measurables
+        val placeables = shown.map { it.measure(childConstraints) }
+        val gapPx = gap.roundToPx()
+        val height = placeables.sumOf { it.height } + gapPx * (placeables.size - 1).coerceAtLeast(0)
+        layout(constraints.maxWidth, height.coerceIn(constraints.minHeight, constraints.maxHeight)) {
+            var y = 0
+            placeables.forEach { placeable ->
+                placeable.place(0, y)
+                y += placeable.height + gapPx
+            }
+        }
+    }
 }

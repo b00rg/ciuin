@@ -55,6 +55,9 @@ object CiuinMotion {
     /** An alert shows at most once in this long. */
     const val ALERT_MIN_INTERVAL_MILLIS = 120_000
 
+    /** A segmented control's pill slides to the chosen option, and a bar eases to its new length: 260 ms ease-in-out. */
+    const val SWITCH_MILLIS = 260
+
     /** With Reduce motion on, every transition is a fade this long. */
     const val REDUCED_FADE_MILLIS = 150
 
