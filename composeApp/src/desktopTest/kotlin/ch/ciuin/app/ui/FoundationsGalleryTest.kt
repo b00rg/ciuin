@@ -1,5 +1,6 @@
 package ch.ciuin.app.ui
 
+import ch.ciuin.app.ui.gallery.FoundationsGallery
 import ch.ciuin.app.ui.gallery.GallerySection
 import ch.ciuin.app.ui.gallery.GallerySections
 import kotlin.test.Test
@@ -21,6 +22,13 @@ class FoundationsGalleryTest {
             val file = DesignShots.fitted(name) { GallerySection(section.title) { section.content() } }
             assertTrue(file.length() > 2_000, "${file.name} is empty")
         }
+    }
+
+    /** The gallery as it opens on a phone, for comparing with a screenshot from a device. */
+    @Test
+    fun rendersAsAScreen() {
+        val file = DesignShots.screen("gallery/00-screen") { FoundationsGallery() }
+        assertTrue(file.length() > 2_000)
     }
 
     @Test

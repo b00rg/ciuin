@@ -9,6 +9,14 @@ import androidx.compose.ui.text.font.FontFamily
  * Poppins, the typeface for all app text: weights 400, 500, 600 and 700 from the same four files on
  * every platform (`composeApp/src/commonMain/fontRes/font`), so text measures the same everywhere.
  *
+ * The files are the ones from google/fonts with one change: their vertical metrics are trimmed.
+ * Poppins ships with an ascender of 1050 and a descender of -350 (1.4 em), and from Android 15 a line
+ * can no longer be shorter than its font's own metrics, so the design's tight headlines (40/44, 32/38)
+ * came out up to 12 dp per line taller on Android than on iOS. In `hhea` and in the `OS/2` typo fields
+ * the ascender is now 900, the descender -200 and the line gap 0 (1.1 em, the tightest ratio in the
+ * type scale). The middle of the line stays where it was, so glyphs sit exactly as before; the outlines,
+ * advances and kerning are untouched. The `DSIG` table is dropped because the signature no longer holds.
+ *
  * New screens should not use this directly: `CiuinTheme` and `CiuinType` in `ui/theme` already apply it.
  */
 internal expect val appFontFamily: FontFamily

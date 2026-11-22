@@ -20,6 +20,9 @@ val Poppins: FontFamily get() = appFontFamily
  *
  * Each line is exactly its line height tall with the glyphs centred in it, as in CSS, so a text
  * block measures what Paper shows (a two-line 16/24 paragraph is 48 high on every platform).
+ *
+ * No style may set a line height below 1.1 times its size: that is the height of the bundled
+ * Poppins, and Android 15 will not draw a line shorter than its font (see `appFontFamily`).
  */
 object CiuinType {
     // Headlines, weight 600.
@@ -117,6 +120,19 @@ object CiuinType {
 
     /** Poppins 700 for the sheep's drifting z's; the size is set by the drawing. */
     val Zzz = TextStyle(fontFamily = Poppins, fontWeight = FontWeight.Bold, color = CiuinColors.Muted)
+
+    /** Every style with its name, in the order above. For the gallery and for tests. */
+    val all: List<Pair<String, TextStyle>>
+        get() = listOf(
+            "Hero" to Hero, "Display" to Display, "ScreenTitle" to ScreenTitle, "Headline" to Headline,
+            "HeadlineTight" to HeadlineTight, "PlaceTitle" to PlaceTitle, "SheetTitle" to SheetTitle,
+            "Title" to Title, "Wordmark" to Wordmark, "StatValue" to StatValue, "CardTitle" to CardTitle,
+            "OptionTitle" to OptionTitle, "Subtitle" to Subtitle, "Button" to Button, "RowTitle" to RowTitle,
+            "TileTitle" to TileTitle, "ButtonMedium" to ButtonMedium, "Label" to Label, "Chip" to Chip,
+            "Eyebrow" to Eyebrow, "Pill" to Pill, "TabSelected" to TabSelected, "Tab" to Tab,
+            "StepNumber" to StepNumber, "Body" to Body, "BodyCompact" to BodyCompact, "BodyMedium" to BodyMedium,
+            "BodySmall" to BodySmall, "Caption" to Caption, "Attribution" to Attribution,
+        )
 
     /** The Material 3 type scale mapped onto the styles above, so a stray Material component looks right. */
     internal val material: Typography
