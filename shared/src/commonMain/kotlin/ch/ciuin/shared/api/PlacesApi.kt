@@ -7,6 +7,7 @@ import ch.ciuin.shared.model.Place
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * Backend API (todo.md §0). Implementations: [KtorPlacesApi] (real backend) and [FakePlacesApi]
@@ -22,8 +23,8 @@ interface PlacesApi {
     /** POST /measurements -> the place with updated aggregates (null if place_id is unknown) */
     suspend fun postMeasurement(m: Measurement): MeasurementResult
 
-    /** GET /heatmap?bbox=...&dim=noise -> GeoJSON grid */
-    suspend fun heatmap(bbox: BBox, dim: String): JsonObject
+    /** GET /heatmap?bbox=...&dim=noise[&period=...] -> GeoJSON grid. Check [heatmapAvailable] before drawing. */
+    suspend fun heatmap(bbox: BBox, dim: String, period: NoisePeriod? = null): JsonObject
 
     /**
      * GET /places/nearby?lat=..&lon=..&radius=300 -> places sorted by distance, with mean features.
@@ -38,6 +39,12 @@ interface PlacesApi {
     /** GET /coverage?res_deg= -> coarse grid for the 3D globe: 2.0 = global tier, 1.0 = Europe tier */
     suspend fun coverage(resDeg: Double = 2.0): Coverage
 }
+
+enum class NoisePeriod(internal val queryValue: String) { DAY("day"), NIGHT("night") }
+
+/** Distinguishes a grid the offline provider cannot supply from a valid, empty grid. */
+val JsonObject.heatmapAvailable: Boolean
+    get() = this["available"] != JsonPrimitive(false)
 
 data class BBox(val minLon: Double, val minLat: Double, val maxLon: Double, val maxLat: Double) {
     fun toQuery(): String = "$minLon,$minLat,$maxLon,$maxLat"

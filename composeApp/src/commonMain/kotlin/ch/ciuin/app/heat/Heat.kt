@@ -3,6 +3,7 @@ package ch.ciuin.app.heat
 import ch.ciuin.app.Category
 import ch.ciuin.app.map.latToY
 import ch.ciuin.app.map.lonToX
+import ch.ciuin.shared.api.NoisePeriod
 import ch.ciuin.shared.model.HeatPoint
 import ch.ciuin.shared.model.Place
 import ch.ciuin.shared.model.SoundClass
@@ -24,7 +25,16 @@ data class HeatCell(val x: Double, val y: Double, val size: Double, val mean: Do
 
 /** Normalised-coordinate rectangle currently on screen. */
 data class ViewBounds(val x0: Double, val y0: Double, val x1: Double, val y1: Double) {
-    operator fun contains(s: HeatSample) = s.x in x0..x1 && s.y in y0..y1
+    operator fun contains(s: HeatSample) = containsPoint(s.x, s.y)
+
+    internal fun containsLocation(lat: Double, lon: Double) = containsPoint(lonToX(lon), latToY(lat))
+
+    private fun containsPoint(x: Double, y: Double): Boolean {
+        if (y !in y0..y1 || !x.isFinite()) return false
+        // Bounds can wrap at the date line or use the coordinates of an adjacent copy of the map.
+        val right = if (x1 < x0) x1 + 1.0 else x1
+        return x + kotlin.math.ceil(x0 - x) <= right
+    }
 }
 
 /**
@@ -36,12 +46,19 @@ fun samplesFor(
     places: List<Place>,
     grid: List<HeatPoint>,
     personalScores: Map<String, Double> = emptyMap(),
+    noisePeriod: NoisePeriod = NoisePeriod.DAY,
 ): List<HeatSample> {
     val fromPlaces = places.mapNotNull { p ->
-        category.raw(p, personalScores[p.placeId])?.let { HeatSample(lonToX(p.lon), latToY(p.lat), it) }
+        // The measured aggregate has no time-of-day split.
+        val value = if (category == Category.SOUND && noisePeriod == NoisePeriod.NIGHT) {
+            p.baselineNoiseNightDb
+        } else {
+            category.raw(p, personalScores[p.placeId])
+        }
+        value?.takeIf { it.isFinite() }?.let { HeatSample(lonToX(p.lon), latToY(p.lat), it) }
     }
     if (category != Category.SOUND) return fromPlaces
-    return grid.mapNotNull { g -> g.combinedDb?.let { HeatSample(lonToX(g.lon), latToY(g.lat), it) } } + fromPlaces
+    return grid.mapNotNull { g -> g.combinedDb?.takeIf { it.isFinite() }?.let { HeatSample(lonToX(g.lon), latToY(g.lat), it) } } + fromPlaces
 }
 
 /**
@@ -153,7 +170,12 @@ data class AreaSummary(
     val mean: Double?,
     val sampleCount: Int,
     val sections: List<BreakdownSection>,
+    val roadMeanDb: Double? = null,
+    val railMeanDb: Double? = null,
+    val accessShares: AccessShares? = null,
 )
+
+data class AccessShares(val accessible: Double, val limited: Double, val notAccessible: Double)
 
 /** Sound classes grouped into labels people recognise. */
 private val SOUND_GROUPS: List<Pair<String, List<SoundClass>>> = listOf(
@@ -177,26 +199,40 @@ fun summarise(
     grid: List<HeatPoint>,
     bounds: ViewBounds?,
     personalScores: Map<String, Double> = emptyMap(),
+    noisePeriod: NoisePeriod = NoisePeriod.DAY,
 ): AreaSummary {
-    fun inView(lat: Double, lon: Double) = bounds == null || HeatSample(lonToX(lon), latToY(lat), 0.0) in bounds
-    val placesIn = places.filter { inView(it.lat, it.lon) }
-    val gridIn = if (category == Category.SOUND) grid.filter { inView(it.lat, it.lon) } else emptyList()
-    val samples = samplesFor(category, placesIn, gridIn, personalScores)
+    val placesIn = bounds?.let { view -> places.filter { view.containsLocation(it.lat, it.lon) } } ?: places
+    val gridIn = when {
+        category != Category.SOUND -> emptyList()
+        bounds == null -> grid
+        else -> grid.filter { bounds.containsLocation(it.lat, it.lon) }
+    }
+    val samples = samplesFor(category, placesIn, gridIn, personalScores, noisePeriod)
     val mean = Averaging.of(category).mean(samples.map { it.value })
+    val road = gridIn.mapNotNull { it.roadDb?.takeIf(Double::isFinite) }
+    val rail = gridIn.mapNotNull { it.railDb?.takeIf(Double::isFinite) }
+    val access = if (category == Category.ACCESS && samples.isNotEmpty()) {
+        val n = samples.size.toDouble()
+        AccessShares(
+            accessible = samples.count { it.value == 0.0 } / n,
+            limited = samples.count { it.value == 1.0 } / n,
+            notAccessible = samples.count { it.value == 2.0 } / n,
+        )
+    } else null
 
     val sections = buildList {
         when (category) {
             Category.SOUND -> {
                 // Shares of acoustic energy (not of dB), so a 70 dB railway outweighs a 60 dB road properly.
-                val road = gridIn.sumOf { g -> g.roadDb?.let { 10.0.pow(it / 10) } ?: 0.0 }
-                val rail = gridIn.sumOf { g -> g.railDb?.let { 10.0.pow(it / 10) } ?: 0.0 }
-                if (road + rail > 0) {
+                val roadEnergy = road.sumOf(Averaging.DECIBELS.toLinear)
+                val railEnergy = rail.sumOf(Averaging.DECIBELS.toLinear)
+                if (roadEnergy + railEnergy > 0) {
                     add(BreakdownSection("Baseline noise sources", listOf(
-                        Share("Road traffic", road / (road + rail)),
-                        Share("Rail", rail / (road + rail)),
+                        Share("Road traffic", roadEnergy / (roadEnergy + railEnergy)),
+                        Share("Rail", railEnergy / (roadEnergy + railEnergy)),
                     ).sortedByDescending { it.fraction }))
                 }
-                val measured = placesIn.mapNotNull { it.measured }
+                val measured = if (noisePeriod == NoisePeriod.DAY) placesIn.mapNotNull { it.measured } else emptyList()
                 if (measured.isNotEmpty()) {
                     val totalN = measured.sumOf { it.n }.toDouble()
                     val shares = SOUND_GROUPS.map { (label, classes) ->
@@ -206,18 +242,21 @@ fun summarise(
                 }
             }
             Category.ACCESS -> {
-                val tagged = placesIn.mapNotNull { Category.ACCESS.raw(it) }
-                if (tagged.isNotEmpty()) {
-                    val n = tagged.size.toDouble()
-                    add(BreakdownSection("Wheelchair access (${tagged.size} tagged places)", listOf(
-                        Share("Accessible", tagged.count { it == 0.0 } / n),
-                        Share("Limited", tagged.count { it == 1.0 } / n),
-                        Share("Not accessible", tagged.count { it == 2.0 } / n),
+                if (access != null) {
+                    add(BreakdownSection("Wheelchair access (${samples.size} tagged places)", listOf(
+                        Share("Accessible", access.accessible),
+                        Share("Limited", access.limited),
+                        Share("Not accessible", access.notAccessible),
                     )))
                 }
             }
             Category.LIGHT, Category.CROWD, Category.PERSONAL -> Unit
         }
     }
-    return AreaSummary(mean, samples.size, sections)
+    return AreaSummary(
+        mean, samples.size, sections,
+        roadMeanDb = Averaging.DECIBELS.mean(road),
+        railMeanDb = Averaging.DECIBELS.mean(rail),
+        accessShares = access,
+    )
 }

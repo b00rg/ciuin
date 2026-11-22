@@ -131,6 +131,29 @@ class FallbackPlacesApiTest {
     }
 
     @Test
+    fun fakeAndFallbackDistinguishUnavailableNightFromAvailableDay() = runTest {
+        val fake = FakePlacesApi()
+        val requests = mutableListOf<NoisePeriod?>()
+        val offline = object : PlacesApi by fake {
+            override suspend fun heatmap(bbox: BBox, dim: String, period: NoisePeriod?): JsonObject {
+                requests += period
+                error("Offline")
+            }
+        }
+        val api = FallbackPlacesApi(offline, fake)
+        for (provider in listOf(fake, api)) {
+            val night = provider.heatmap(BBox.LAUSANNE, "noise", NoisePeriod.NIGHT)
+            assertFalse(night.heatmapAvailable)
+            assertTrue(parseHeatGrid(night).isEmpty())
+            val day = provider.heatmap(BBox.LAUSANNE, "noise", NoisePeriod.DAY)
+            assertTrue(day.heatmapAvailable)
+            assertTrue(parseHeatGrid(day).isNotEmpty())
+        }
+        assertEquals(listOf<NoisePeriod?>(NoisePeriod.NIGHT, NoisePeriod.DAY), requests)
+        assertFalse(api.online.value)
+    }
+
+    @Test
     fun fakeHeatmapHasRoadAndRail() = runTest {
         val grid = parseHeatGrid(FakePlacesApi().heatmap(BBox.LAUSANNE, "noise"))
         assertTrue(grid.size > 500)
