@@ -1,5 +1,5 @@
-"""SQLite storage (stdlib sqlite3, no ORM). Tables are created on startup; to change the schema,
-delete the .db file and re-seed. Never commit *.db.
+"""SQLite storage (stdlib sqlite3, no ORM). Tables are created and migrated on startup.
+Never commit *.db.
 
 Also a CLI:
   python db.py --reseed   refresh places from the GeoJSON after rebuilding it; measurements are kept
@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS measurements (
     flicker_hz    REAL,
     model_variant TEXT NOT NULL,
     device        TEXT NOT NULL,
+    measurement_id TEXT,            -- optional request ID for safe upload retries
     received_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
 );
 CREATE INDEX IF NOT EXISTS measurements_place ON measurements(place_id);
@@ -64,8 +65,8 @@ def db_path() -> Path:
     return Path(os.environ.get("CIUIN_DB", DEFAULT_DB))
 
 
-def connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path(), timeout=10)
+def connect(*, check_same_thread: bool = True) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path(), timeout=10, check_same_thread=check_same_thread)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")  # readers don't block the writer
     conn.execute("PRAGMA foreign_keys=ON")
@@ -82,6 +83,7 @@ MIGRATIONS = [
     ("places", "baseline_noise_night_db", "REAL"),
     ("places", "osm_tags", "TEXT"),
     ("places", "prior", "TEXT"),
+    ("measurements", "measurement_id", "TEXT"),
 ]
 
 
@@ -91,6 +93,7 @@ def init(conn: sqlite3.Connection) -> None:
         cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
         if column not in cols:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {sqltype}")
+    conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS measurements_request ON measurements(measurement_id)")
     try:
         conn.execute(RTREE)
     except sqlite3.OperationalError:

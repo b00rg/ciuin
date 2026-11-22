@@ -35,7 +35,19 @@ import ch.ciuin.shared.personal.PersonalPreset
 import kotlin.math.roundToInt
 
 internal val Place.personalFeatures: FeatureVector?
-    get() = measured?.features ?: prior
+    get() {
+        val readings = measured?.features ?: return prior
+        val estimates = prior ?: return readings
+        return FeatureVector(
+            dbMean = readings.dbMean ?: estimates.dbMean,
+            dbPeak = readings.dbPeak ?: estimates.dbPeak,
+            soundClasses = readings.soundClasses ?: estimates.soundClasses,
+            luxMean = readings.luxMean ?: estimates.luxMean,
+            flickerIndex = readings.flickerIndex ?: estimates.flickerIndex,
+            peopleCount = readings.peopleCount ?: estimates.peopleCount,
+            nearbyDevices = readings.nearbyDevices ?: estimates.nearbyDevices,
+        )
+    }
 
 @Composable
 internal fun PersonalPlaceFeedback(

@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
@@ -31,17 +32,30 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
+import ch.ciuin.app.appFontFamily
 import kotlin.math.floor
+import kotlin.math.PI
+import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.sin
 import kotlin.math.roundToInt
 
 /** One pin on the map. [color] is decided by the caller (e.g. from the user's p_overwhelm). */
 data class MapMarker(val id: String, val lat: Double, val lon: Double, val label: String, val color: Color)
 
-/** Heatmap square in normalised Web Mercator coords (see [MapState]): top-left [x], [y], side [size]. */
-data class HeatRect(val x: Double, val y: Double, val size: Double, val color: Color)
+/** One heatmap hexagon: centre ([x], [y]) and circumradius [radius] in normalised coords (see [MapState]). */
+data class HeatHex(val x: Double, val y: Double, val radius: Double, val color: Color)
 
-private const val HEAT_ALPHA = 0.5f
+private const val HEAT_ALPHA = 0.7f
+
+/** Hexagons are drawn slightly smaller than their bin, leaving a thin gap: the crisp honeycomb look. */
+private const val HEX_FILL = 0.88f
+
+/** White wash over the base map so the heatmap stands out from the map's own colours (parks, roads). */
+private const val BASEMAP_VEIL = 0.35f
+
+/** Place names are drawn from this zoom on (and always for the selected place). */
+private const val LABELS_ZOOM = 18.0
 
 private const val TILE_PX = 256
 private const val MAX_TILE_ZOOM = 19
@@ -60,7 +74,7 @@ internal fun MapView(
     selectedId: String?,
     onMarkerTap: (MapMarker?) -> Unit,
     modifier: Modifier = Modifier,
-    heat: List<HeatRect> = emptyList(),
+    heat: List<HeatHex> = emptyList(),
     tileUrl: String = TileCache.OSM_TILES,
     routeOverlay: MapRouteOverlay? = null,
 ) {
@@ -115,38 +129,62 @@ internal fun MapView(
         drawRect(BACKGROUND)
         drawTiles(state, cache, tilePx)
         if (heat.isNotEmpty()) {
+            drawRect(Color.White, alpha = BASEMAP_VEIL)
             val w = state.worldSize(tilePx)
+            val path = Path()
             for (h in heat) {
-                val left = (size.width / 2.0 + (h.x - state.centerX) * w).toFloat()
-                val top = (size.height / 2.0 + (h.y - state.centerY) * w).toFloat()
-                val side = (h.size * w).toFloat()
-                if (left > size.width || top > size.height || left + side < 0 || top + side < 0) continue
-                drawRect(h.color, Offset(left, top), Size(side, side), alpha = HEAT_ALPHA)
+                val cx = (size.width / 2.0 + (h.x - state.centerX) * w).toFloat()
+                val cy = (size.height / 2.0 + (h.y - state.centerY) * w).toFloat()
+                val r = (h.radius * w).toFloat()
+                if (cx < -r || cy < -r || cx > size.width + r || cy > size.height + r) continue
+                path.reset()
+                val rr = r * HEX_FILL
+                for (i in 0 until 6) {
+                    // Pointy-top: corners at 30°, 90°, 150°, ...
+                    val a = (PI / 180 * (60 * i - 30)).toFloat()
+                    val px = cx + rr * cos(a)
+                    val py = cy + rr * sin(a)
+                    if (i == 0) path.moveTo(px, py) else path.lineTo(px, py)
+                }
+                path.close()
+                drawPath(path, h.color, alpha = HEAT_ALPHA)
             }
         }
 
-        val labelsVisible = state.zoom >= 15.0
+        // Pass 1: dots.
+        val onScreen = ArrayList<Pair<MapMarker, Offset>>()
         for (m in markers) {
             val p = state.toScreen(m.lat, m.lon, size, tilePx)
             if (p.x < -50 || p.y < -50 || p.x > size.width + 50 || p.y > size.height + 50) continue
+            onScreen += m to p
             val selected = m.id == selectedId
             val r = (if (selected) 12.dp else 8.dp).toPx()
             drawCircle(Color.Black.copy(alpha = 0.25f), r + 2.dp.toPx(), p + Offset(0f, 1.5.dp.toPx()))
             drawCircle(m.color, r, p)
             drawCircle(Color.White, r, p, style = Stroke(width = (if (selected) 3.dp else 2.dp).toPx()))
-            if (labelsVisible || selected) {
-                val layout = textMeasurer.measure(
-                    m.label,
-                    TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1B1B1B)),
-                )
-                val topLeft = Offset(p.x - layout.size.width / 2f, p.y + r + 3.dp.toPx())
-                drawRect(
-                    Color.White.copy(alpha = 0.8f),
-                    topLeft - Offset(3.dp.toPx(), 1.dp.toPx()),
-                    Size(layout.size.width + 6.dp.toPx(), layout.size.height + 2.dp.toPx()),
-                )
-                drawText(layout, topLeft = topLeft)
-            }
+        }
+
+        // Pass 2: names, skipping any that would overlap one already drawn (selected place goes first).
+        val labelsVisible = state.zoom >= LABELS_ZOOM
+        val placed = ArrayList<Rect>()
+        val pad = 3.dp.toPx()
+        for ((m, p) in onScreen.sortedByDescending { it.first.id == selectedId }) {
+            val selected = m.id == selectedId
+            if (!labelsVisible && !selected) continue
+            val layout = textMeasurer.measure(
+                m.label,
+                TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1B1B1B), fontFamily = appFontFamily),
+            )
+            val r = (if (selected) 12.dp else 8.dp).toPx()
+            val topLeft = Offset(p.x - layout.size.width / 2f, p.y + r + 3.dp.toPx())
+            val box = Rect(
+                topLeft - Offset(pad, 1.dp.toPx()),
+                Size(layout.size.width + 2 * pad, layout.size.height + 2.dp.toPx()),
+            )
+            if (!selected && placed.any { it.overlaps(box) }) continue
+            placed += box
+            drawRect(Color.White.copy(alpha = 0.8f), box.topLeft, box.size)
+            drawText(layout, topLeft = topLeft)
         }
 
         if (routeOverlay != null) drawQuietPlaceRoute(routeOverlay, state, tilePx)

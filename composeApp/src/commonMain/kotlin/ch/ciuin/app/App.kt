@@ -9,13 +9,18 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import ch.ciuin.app.measure.MeasurementCapture
+import ch.ciuin.app.measure.MeasurementDialog
 import ch.ciuin.app.personal.PersonalModelController
 import ch.ciuin.app.route.QuietPlaceRoute
 import ch.ciuin.app.route.WalkingRoute
 import ch.ciuin.app.route.WalkingRouter
 import ch.ciuin.shared.api.PlacesApi
+import ch.ciuin.shared.model.Place
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun App(
@@ -28,8 +33,13 @@ internal fun App(
     onClearQuietPlaceRoute: () -> Unit = {},
     quietPlaceRouteRequest: Int = 0,
     walkingRouter: WalkingRouter? = null,
+    measurementCapture: MeasurementCapture? = null,
+    measurementForeground: Boolean = true,
+    measurementCancellationCount: Int = 0,
 ) {
     val personalSnackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var measuring by remember { mutableStateOf<Place?>(null) }
     val personalState = personalModel.state
     LaunchedEffect(personalState.notice) {
         val notice = personalState.notice ?: return@LaunchedEffect
@@ -49,7 +59,7 @@ internal fun App(
         }
     }
 
-    MaterialTheme {
+    MaterialTheme(typography = appTypography()) {
         Surface(Modifier.fillMaxSize()) {
             MapScreen(
                 api = api,
@@ -69,6 +79,26 @@ internal fun App(
                 onFeedback = personalModel::recordFeedback,
                 onResetPersonal = personalModel::reset,
                 onRetryPersonal = personalModel::load,
+                onMeasure = measurementCapture?.let { { place -> measuring = place } },
+            )
+        }
+        val place = measuring
+        if (place != null && measurementCapture != null) {
+            MeasurementDialog(
+                place,
+                measurementCapture,
+                measurementForeground,
+                measurementCancellationCount,
+                api,
+                onDismiss = { measuring = null },
+                onComplete = { stored ->
+                    measuring = null
+                    scope.launch {
+                        personalSnackbar.showSnackbar(
+                            if (stored) "Measurement uploaded" else "Measurement queued while offline",
+                        )
+                    }
+                },
             )
         }
     }

@@ -8,7 +8,7 @@ import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
-import ch.ciuin.shared.model.FeatureVector
+import ch.ciuin.app.measure.AudioSample
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
@@ -21,16 +21,22 @@ import kotlinx.coroutines.withContext
 internal const val AUDIO_SAMPLE_RATE = 16_000
 
 internal class AndroidLiveListener(private val context: Context) {
-    suspend fun listen(onWindow: (FeatureVector) -> Unit) = withContext(Dispatchers.IO) {
+    suspend fun listen(onWindow: suspend (AudioSample) -> Unit) = withContext(Dispatchers.IO) {
         coroutineScope {
             val source = audioSource()
             // Capture keeps running during inference. Keep just the newest unread window.
-            val windows = Channel<FloatArray>(Channel.CONFLATED)
-            val capture = launch { captureWindows(source) { windows.trySend(it) } }
+            val windows = Channel<FloatArray>(Channel.CONFLATED, onUndeliveredElement = { it.fill(0f) })
+            val capture = launch {
+                captureWindows(source) { if (windows.trySend(it).isFailure) it.fill(0f) }
+            }
             try {
                 LiveAudioFeatures(context, source).use { extractor ->
                     for (window in windows) {
-                        val features = extractor.extract(window)
+                        val features = try {
+                            extractor.extract(window)
+                        } finally {
+                            window.fill(0f)
+                        }
                         withContext(Dispatchers.Main.immediate) { onWindow(features) }
                     }
                 }
@@ -65,11 +71,11 @@ internal class AndroidLiveListener(private val context: Context) {
             encoding,
             maxOf(bufferBytes, AUDIO_SAMPLE_RATE * Short.SIZE_BYTES),
         )
+        val samples = ShortArray(AUDIO_SAMPLE_RATE)
         try {
             check(recorder.state == AudioRecord.STATE_INITIALIZED) { "Could not initialize microphone" }
             recorder.startRecording()
             check(recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "Could not start microphone" }
-            val samples = ShortArray(AUDIO_SAMPLE_RATE)
             var offset = 0
             while (currentCoroutineContext().isActive) {
                 val count = recorder.read(samples, offset, samples.size - offset, AudioRecord.READ_NON_BLOCKING)
@@ -83,11 +89,14 @@ internal class AndroidLiveListener(private val context: Context) {
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         check(recorder.activeRecordingConfiguration?.isClientSilenced != true) { "Android has silenced the microphone" }
                     }
-                    onSamples(FloatArray(samples.size) { samples[it] / 32_768f })
+                    val window = FloatArray(samples.size) { samples[it] / 32_768f }
+                    samples.fill(0)
+                    onSamples(window)
                     offset = 0
                 }
             }
         } finally {
+            samples.fill(0)
             try {
                 if (recorder.recordingState == AudioRecord.RECORDSTATE_RECORDING) recorder.stop()
             } finally {

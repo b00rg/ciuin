@@ -1,5 +1,7 @@
 package ch.ciuin.shared.model
 
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -19,4 +21,8 @@ data class Measurement(
     @SerialName("flicker_hz") val flickerHz: Double? = null,
     @SerialName("model_variant") val modelVariant: String,
     val device: String,
+    /** Random ID for this capture, reused when retrying an upload. */
+    @OptIn(ExperimentalSerializationApi::class)
+    @EncodeDefault(EncodeDefault.Mode.NEVER)
+    @SerialName("measurement_id") val measurementId: String? = null,
 )

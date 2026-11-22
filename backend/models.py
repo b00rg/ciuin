@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, FiniteFloat, field_validator, model_validator
 
 # Same order as SoundClass in shared/commonMain (= model output index). Never reorder.
 SOUND_CLASSES = (
@@ -31,21 +31,24 @@ class Strict(BaseModel):
 
 
 class FeatureVector(Strict):
-    db_mean: float
-    db_peak: float
-    sound_classes: dict[str, float]
-    lux_mean: float
-    flicker_index: float
-    people_count: int = Field(ge=0)
+    db_mean: FiniteFloat | None = None
+    db_peak: FiniteFloat | None = None
+    sound_classes: dict[str, float] | None = None
+    lux_mean: FiniteFloat | None = None
+    flicker_index: FiniteFloat | None = None
+    people_count: int | None = Field(default=None, ge=0)  # legacy / estimates; phones send null
+    nearby_devices: int | None = Field(default=None, ge=0)  # crowd proxy: nearby Bluetooth LE devices
 
     @field_validator("sound_classes")
     @classmethod
-    def exactly_the_nine_classes(cls, v: dict[str, float]) -> dict[str, float]:
+    def exactly_the_nine_classes(cls, v: dict[str, float] | None) -> dict[str, float] | None:
+        if v is None:
+            return None
         if set(v) != set(SOUND_CLASSES):
             missing = sorted(set(SOUND_CLASSES) - set(v))
             extra = sorted(set(v) - set(SOUND_CLASSES))
             raise ValueError(f"sound_classes must have exactly the 9 classes; missing {missing}, unexpected {extra}")
-        if any(p < 0 or p > 1 for p in v.values()):
+        if any(not 0 <= p <= 1 for p in v.values()):
             raise ValueError("sound_classes values must be probabilities in [0, 1]")
         return v
 
@@ -59,7 +62,8 @@ EXAMPLE_FEATURES = {
     },
     "lux_mean": 340,
     "flicker_index": 0.04,
-    "people_count": 7,
+    "people_count": None,
+    "nearby_devices": 12,
 }
 
 
@@ -92,9 +96,16 @@ class Measurement(Strict):
     timestamp: str  # ISO-8601 UTC, e.g. "2026-11-21T14:05:00Z"
     duration_s: int = Field(gt=0)
     features: FeatureVector
-    flicker_hz: float | None = None
+    flicker_hz: FiniteFloat | None = Field(default=None, ge=0)
     model_variant: str
     device: str
+    measurement_id: str | None = Field(default=None, min_length=1, max_length=80)
+
+    @model_validator(mode="after")
+    def has_readings(self) -> Measurement:
+        if all(reading is None for reading in self.features.model_dump().values()):
+            raise ValueError("a measurement must include at least one feature reading")
+        return self
 
 
 class MeasuredAggregate(BaseModel):
@@ -106,10 +117,10 @@ class PlaceScore(BaseModel):
     """Generic per-dimension scores in [0, 1] for users without a personal model.
     1 = calmest / most accessible, 0 = worst. Heuristics live in aggregate.py."""
 
-    noise: float
-    light: float
-    flicker: float
-    crowd: float
+    noise: float | None
+    light: float | None
+    flicker: float | None
+    crowd: float | None
     access: float
 
 

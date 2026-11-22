@@ -1,15 +1,15 @@
 package ch.ciuin.app
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import ch.ciuin.shared.model.Place
 
 /** Three-step rating, like the TCD Sense Map. LOW is always the "easy" end (calm / dim / quiet / accessible). */
 enum class Level { LOW, MEDIUM, HIGH }
 
-val LEVEL_LOW = Color(0xFF2E7D32)
+// Calm is a dark green: OSM draws parks in a pale green, so a light green band would vanish into the base map.
+val LEVEL_LOW = Color(0xFF1B5E20)
 val LEVEL_MEDIUM = Color(0xFFF9A825)
-val LEVEL_HIGH = Color(0xFFC62828)
+val LEVEL_HIGH = Color(0xFFD32F2F)
 val LEVEL_UNKNOWN = Color(0xFF9E9E9E)
 
 fun Level?.color(): Color = when (this) {
@@ -19,11 +19,11 @@ fun Level?.color(): Color = when (this) {
     null -> LEVEL_UNKNOWN
 }
 
-/** Continuous green → amber → red for the heatmap; [t] in [0, 1]. */
-fun heatColor(t: Double): Color {
-    val c = t.coerceIn(0.0, 1.0)
-    return if (c < 0.5) lerp(LEVEL_LOW, LEVEL_MEDIUM, (c / 0.5).toFloat())
-    else lerp(LEVEL_MEDIUM, LEVEL_HIGH, ((c - 0.5) / 0.5).toFloat())
+/** Heatmap band for a heat value from [Category.heat]: the Low/High thresholds sit at 0.25 / 0.75. */
+fun heatBand(t: Double): Level = when {
+    t < 0.25 -> Level.LOW
+    t > 0.75 -> Level.HIGH
+    else -> Level.MEDIUM
 }
 
 /**
@@ -42,6 +42,7 @@ enum class Category(
         override fun raw(p: Place, personalScore: Double?): Double? = personalScore
 
         override fun detail(p: Place): String = when {
+            p.measured?.let { it.features != p.personalFeatures } == true -> "From measured and estimated place conditions"
             p.measured != null -> "From measured place conditions"
             p.prior != null -> "From estimated place conditions"
             else -> "No place conditions available"
@@ -52,21 +53,26 @@ enum class Category(
         override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.dbMean ?: p.baselineNoiseDb
 
         override fun detail(p: Place): String =
-            p.measured?.let { "${it.features.dbMean.fmt1()} dB measured" }
+            p.measured?.features?.dbMean?.let { "${it.fmt1()} dB measured" }
                 ?: p.baselineNoiseDb?.let { "${it.fmt1()} dB baseline (${p.baselineSource ?: "?"})" }
                 ?: "No data"
     },
     LIGHT("Light", "lux", Triple("Dim", "Moderate", "Bright"), 100.0, 500.0) {
         override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.luxMean
 
-        override fun detail(p: Place): String =
-            p.measured?.features?.let { "${it.luxMean.toInt()} lux · flicker ${it.flickerIndex.fmt2()}" } ?: "Not measured yet"
+        override fun detail(p: Place): String {
+            val readings = p.measured?.features ?: return "Not measured yet"
+            val lux = readings.luxMean?.let { "${it.toInt()} lux" } ?: "Lux unavailable"
+            val flicker = readings.flickerIndex?.let { "flicker ${it.fmt2()}" } ?: "flicker unavailable"
+            return "$lux · $flicker"
+        }
     },
-    CROWD("Crowd", "people", Triple("Quiet", "Busy", "Crowded"), 3.5, 10.5) {
-        override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.peopleCount?.toDouble()
+    // Crowd = nearby Bluetooth devices (a busyness proxy, not a head count): shown as levels.
+    CROWD("Crowd", "devices", Triple("Quiet", "Busy", "Crowded"), CROWD_QUIET_DEVICES - 0.5, CROWD_BUSY_DEVICES - 0.5) {
+        override fun raw(p: Place, personalScore: Double?): Double? = p.measured?.features?.nearbyDevices?.toDouble()
 
         override fun detail(p: Place): String =
-            p.measured?.features?.let { "~${it.peopleCount} people" } ?: "Not measured yet"
+            p.measured?.features?.nearbyDevices?.let { "$it nearby devices" } ?: "Not measured yet"
     },
     ACCESS("Access", "", Triple("Accessible", "Limited", "Not accessible"), 0.5, 1.5) {
         // OSM wheelchair=* tag as 0 (yes) / 1 (limited) / 2 (no), so an area average stays meaningful.
@@ -107,3 +113,7 @@ enum class Category(
 
 internal fun Double.fmt1(): String = ((this * 10).toInt() / 10.0).toString()
 internal fun Double.fmt2(): String = ((this * 100).toInt() / 100.0).toString()
+
+/** Crowd bands in nearby Bluetooth devices (~2 per person): Quiet < 7, Busy < 21, else Crowded. Tune in the field. */
+internal const val CROWD_QUIET_DEVICES = 7
+internal const val CROWD_BUSY_DEVICES = 21

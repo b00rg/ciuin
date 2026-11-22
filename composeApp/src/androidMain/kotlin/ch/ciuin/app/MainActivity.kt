@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
 import ch.ciuin.app.listener.ListeningNotification
 import ch.ciuin.app.listener.LiveListeningService
+import ch.ciuin.app.measure.AndroidMeasurementCapture
 import ch.ciuin.app.route.QuietPlaceRoute
 import ch.ciuin.app.route.quietPlaceRoute
 import ch.ciuin.app.route.saveQuietPlaceRoute
@@ -24,6 +25,8 @@ class MainActivity : ComponentActivity() {
     private val ciuin: CiuinApplication get() = application as CiuinApplication
     private var quietRoute by mutableStateOf<QuietPlaceRoute?>(null)
     private var quietPlaceRouteRequest by mutableIntStateOf(0)
+    private var measurementForeground by mutableStateOf(false)
+    private var measurementCancellationCount by mutableIntStateOf(0)
     private var permissionRequestInFlight = false
     private val requestPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         permissionRequestInFlight = false
@@ -45,6 +48,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val app = ciuin
+        val measurementCapture = AndroidMeasurementCapture(this, app)
         quietRoute = if (savedInstanceState == null) intent.quietPlaceRoute() else savedInstanceState.quietPlaceRoute()
         setContent {
             App(
@@ -57,8 +61,22 @@ class MainActivity : ComponentActivity() {
                 onClearQuietPlaceRoute = { quietRoute = null },
                 quietPlaceRouteRequest = quietPlaceRouteRequest,
                 walkingRouter = if (quietRoute != null) app.walkingRouter else null,
+                measurementCapture = measurementCapture,
+                measurementForeground = measurementForeground,
+                measurementCancellationCount = measurementCancellationCount,
             )
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        measurementForeground = true
+    }
+
+    override fun onStop() {
+        measurementForeground = false
+        measurementCancellationCount++
+        super.onStop()
     }
 
     override fun onNewIntent(intent: Intent) {

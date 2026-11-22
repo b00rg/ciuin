@@ -50,6 +50,9 @@ class NoiseGrid:
         energy = np.where(road_ok, 10 ** (np.where(road_ok, r, 0) / 10), 0.0)
         energy += np.where(road_ok & rail_ok, 10 ** (np.where(rail_ok, q, 0) / 10), 0.0)
         self.db = np.where(road_ok, 10 * np.log10(np.maximum(energy, 1e-12)), np.nan)
+        # Separate sources (same cells as self.db), for the app's road-vs-rail breakdown
+        self.road = np.where(road_ok, r, np.nan)
+        self.rail = np.where(road_ok & rail_ok, q, np.nan)
         self.res = abs(self.transform.a)
 
     def to_pixel(self, lat: float, lon: float) -> tuple[float, float]:

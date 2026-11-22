@@ -23,6 +23,12 @@ captures/
 *.keystore
 *.jks
 
+# iOS
+xcuserdata/
+*.xcuserstate
+iosApp/build/
+DerivedData/
+
 # OS
 .DS_Store
 Thumbs.db

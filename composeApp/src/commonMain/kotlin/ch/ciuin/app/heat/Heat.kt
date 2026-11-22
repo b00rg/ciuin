@@ -7,10 +7,14 @@ import ch.ciuin.shared.model.HeatPoint
 import ch.ciuin.shared.model.Place
 import ch.ciuin.shared.model.SoundClass
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.floor
 import kotlin.math.ln
+import kotlin.math.log10
 import kotlin.math.pow
+import kotlin.math.round
+import kotlin.math.sqrt
 
 /** One value at a point, in normalised Web Mercator coords (x, y in [0, 1], same as MapState). */
 data class HeatSample(val x: Double, val y: Double, val value: Double)
@@ -52,21 +56,89 @@ fun cellLevel(zoom: Double, lat: Double, dataResM: Double): Int {
 }
 
 /** Averages samples into a 2^level × 2^level grid; only non-empty cells are returned. */
-fun aggregate(samples: List<HeatSample>, level: Int): List<HeatCell> {
+/**
+ * How to average a category's raw values. Decibels are logarithmic, so Sound averages sound *energy*
+ * (50 dB and 70 dB average to ~67 dB, not 60): a loud street isn't hidden by quiet courtyards next to it.
+ * Everything else is a plain mean.
+ */
+class Averaging(val toLinear: (Double) -> Double, val fromLinear: (Double) -> Double) {
+    fun mean(values: List<Double>): Double? =
+        if (values.isEmpty()) null else fromLinear(values.sumOf(toLinear) / values.size)
+
+    companion object {
+        val PLAIN = Averaging({ it }, { it })
+        val DECIBELS = Averaging({ 10.0.pow(it / 10) }, { 10 * log10(it) })
+
+        fun of(category: Category) = if (category == Category.SOUND) DECIBELS else PLAIN
+    }
+}
+
+fun aggregate(samples: List<HeatSample>, level: Int, averaging: Averaging = Averaging.PLAIN): List<HeatCell> {
     val size = 1.0 / 2.0.pow(level)
     val sums = HashMap<Long, DoubleArray>() // key -> [sum, count]
     for (s in samples) {
         val cx = floor(s.x / size).toLong()
         val cy = floor(s.y / size).toLong()
         val acc = sums.getOrPut((cx shl 32) or (cy and 0xFFFFFFFFL)) { DoubleArray(2) }
-        acc[0] += s.value
+        acc[0] += averaging.toLinear(s.value)
         acc[1] += 1.0
     }
     return sums.map { (key, acc) ->
         val cx = key shr 32
         val cy = key and 0xFFFFFFFFL
-        HeatCell(cx * size, cy * size, size, acc[0] / acc[1], acc[1].toInt())
+        HeatCell(cx * size, cy * size, size, averaging.fromLinear(acc[0] / acc[1]), acc[1].toInt())
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Hexagonal bins (the honeycomb look popularised by Uber's H3 / deck.gl hexagon layer; own implementation)
+
+/** One hexagon: centre ([x], [y]) and circumradius [radius] in normalised coords; [mean] of the values inside. */
+data class HexCell(val x: Double, val y: Double, val radius: Double, val mean: Double, val count: Int)
+
+private val SQRT3 = sqrt(3.0)
+
+/** Circumradius of a hexagon with the same area as a square cell at [level]. */
+fun hexRadius(level: Int): Double = (1.0 / 2.0.pow(level)) * sqrt(2.0 / (3.0 * SQRT3))
+
+/**
+ * Bins samples into pointy-top hexagons of circumradius [radius] (axial coordinates, cube rounding)
+ * and averages each bin. Only non-empty hexagons are returned.
+ */
+fun aggregateHex(samples: List<HeatSample>, radius: Double, averaging: Averaging = Averaging.PLAIN): List<HexCell> {
+    val sums = HashMap<Long, DoubleArray>() // key -> [sum, count]
+    for (s in samples) {
+        val (q, r) = hexAt(s.x, s.y, radius)
+        val acc = sums.getOrPut((q.toLong() shl 32) or (r.toLong() and 0xFFFFFFFFL)) { DoubleArray(2) }
+        acc[0] += averaging.toLinear(s.value)
+        acc[1] += 1.0
+    }
+    return sums.map { (key, acc) ->
+        val q = (key shr 32).toInt()
+        val r = key.toInt()
+        HexCell(
+            x = radius * SQRT3 * (q + r / 2.0),
+            y = radius * 1.5 * r,
+            radius = radius,
+            mean = averaging.fromLinear(acc[0] / acc[1]),
+            count = acc[1].toInt(),
+        )
+    }
+}
+
+/** Axial (q, r) of the pointy-top hexagon containing (x, y). */
+internal fun hexAt(x: Double, y: Double, radius: Double): Pair<Int, Int> {
+    val qf = (SQRT3 / 3 * x - y / 3) / radius
+    val rf = (2.0 / 3 * y) / radius
+    val sf = -qf - rf
+    var q = round(qf)
+    var r = round(rf)
+    val s = round(sf)
+    val dq = abs(q - qf)
+    val dr = abs(r - rf)
+    val ds = abs(s - sf)
+    if (dq > dr && dq > ds) q = -r - s else if (dr > ds) r = -q - s
+    return q.toInt() to r.toInt()
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -110,7 +182,7 @@ fun summarise(
     val placesIn = places.filter { inView(it.lat, it.lon) }
     val gridIn = if (category == Category.SOUND) grid.filter { inView(it.lat, it.lon) } else emptyList()
     val samples = samplesFor(category, placesIn, gridIn, personalScores)
-    val mean = samples.takeIf { it.isNotEmpty() }?.let { s -> s.sumOf { it.value } / s.size }
+    val mean = Averaging.of(category).mean(samples.map { it.value })
 
     val sections = buildList {
         when (category) {

@@ -38,7 +38,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,7 +49,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.LinkAnnotation
@@ -61,12 +59,14 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.unit.dp
 import ch.ciuin.app.heat.AreaSummary
+import ch.ciuin.app.heat.Averaging
 import ch.ciuin.app.heat.ViewBounds
-import ch.ciuin.app.heat.aggregate
+import ch.ciuin.app.heat.aggregateHex
 import ch.ciuin.app.heat.cellLevel
+import ch.ciuin.app.heat.hexRadius
 import ch.ciuin.app.heat.samplesFor
 import ch.ciuin.app.heat.summarise
-import ch.ciuin.app.map.HeatRect
+import ch.ciuin.app.map.HeatHex
 import ch.ciuin.app.map.MapMarker
 import ch.ciuin.app.map.MapState
 import ch.ciuin.app.map.MapView
@@ -99,14 +99,14 @@ private const val CITY_ZOOM = 14.0
 /** Below this zoom the area panel describes the whole city rather than what's on screen. */
 private const val CITY_OVERVIEW_ZOOM = 13.0
 
-/** In heatmap mode, individual place markers appear from this zoom on. */
-private const val MARKERS_WITH_HEAT_ZOOM = 16.0
+/** Place markers appear from this zoom on: street level, where the city centre's dots stop crowding. */
+private const val MARKERS_ZOOM = 18.0
 
 /** Used for cell sizing when the grid doesn't say (and when there's no grid: places are ~this dense). */
 private const val DEFAULT_RES_M = 50.0
 
 /**
- * Main map. Heatmap (default) or markers, coloured for the selected [Category];
+ * Main map: a heatmap for the selected [Category], with place markers once zoomed in to street level;
  * the bottom panel summarises the city or the area on screen.
  */
 @Composable
@@ -126,7 +126,7 @@ internal fun MapScreen(
     quietPlaceRoute: QuietPlaceRoute? = null,
     onClearQuietPlaceRoute: () -> Unit = {},
     quietPlaceRouteRequest: Int = 0,
-    onMeasure: (Place) -> Unit = {},
+    onMeasure: ((Place) -> Unit)? = null,
     refreshMs: Long = 2_000,
     walkingRoute: WalkingRoute? = null,
     walkingRouteLoading: Boolean = false,
@@ -147,7 +147,8 @@ internal fun MapScreen(
         while (true) {
             try {
                 // Parse off the main thread: the full Lausanne list is ~1 MB of JSON.
-                places = withContext(Dispatchers.Default) { api.places(BBox.LAUSANNE) }
+                val fresh = withContext(Dispatchers.Default) { api.places(BBox.LAUSANNE) }
+                if (fresh != places) places = fresh // unchanged poll: don't rebuild the heatmap
                 stats = withContext(Dispatchers.Default) { api.stats() }
                 // FallbackPlacesApi never throws; it answers from offline data and flags itself offline.
                 offline = (api as? FallbackPlacesApi)?.online?.value == false
@@ -187,7 +188,7 @@ internal fun MapScreen(
             }
         }
     }
-    val showMarkers = !heatOn || mapState.zoom >= MARKERS_WITH_HEAT_ZOOM
+    val showMarkers = !heatOn || mapState.zoom >= MARKERS_ZOOM
     val markers = remember(places, category, personalScores, showMarkers) {
         if (!showMarkers) emptyList()
         else places.map { place ->
@@ -198,9 +199,11 @@ internal fun MapScreen(
 
     val samples = remember(category, places, grid, personalScores) { samplesFor(category, places, grid, personalScores) }
     val level = cellLevel(mapState.zoom, CITY_LAT, gridResM)
-    val heat = remember(category, samples, level, heatOn) {
+    val heat = remember(samples, level, category, heatOn) {
         if (!heatOn) emptyList()
-        else aggregate(samples, level).map { HeatRect(it.x, it.y, it.size, heatColor(category.heat(it.mean))) }
+        else aggregateHex(samples, hexRadius(level), Averaging.of(category)).map {
+            HeatHex(it.x, it.y, it.radius, heatBand(category.heat(it.mean)).color())
+        }
     }
     val routeOverlay = remember(quietPlaceRoute, walkingRoute) {
         quietPlaceRoute?.let { projectQuietPlaceRoute(it, walkingRoute) }
@@ -291,10 +294,10 @@ internal fun MapScreen(
                 val centre = Offset(viewport.width / 2, viewport.height / 2)
                 SmallFloatingActionButton(onClick = { mapState.zoomAt(2.0, centre, viewport, tilePx) }) { Text("+") }
                 SmallFloatingActionButton(onClick = { mapState.zoomAt(0.5, centre, viewport, tilePx) }) { Text("−") }
-                SmallFloatingActionButton(onClick = { mapState.centerOn(CITY_LAT, CITY_LON, CITY_ZOOM) }) { Text("⌂") }
+                SmallFloatingActionButton(onClick = { mapState.centerOn(CITY_LAT, CITY_LON, CITY_ZOOM) }) { Text("⌂", fontFamily = symbolFontFamily) }
             }
 
-            // Bottom: place card, or area summary (heatmap) / legend (markers); then attribution (required by OSM)
+            // Bottom: place card or area summary; then attribution (required by OSM)
             Column(
                 Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -317,7 +320,7 @@ internal fun MapScreen(
                         PlaceCard(
                             selected,
                             category,
-                            onMeasure = { onMeasure(selected) },
+                            onMeasure = onMeasure?.let { { it(selected) } },
                             onClose = { selectedId = null },
                             modifier = Modifier.heightIn(max = placeCardHeight),
                         ) {
@@ -326,8 +329,7 @@ internal fun MapScreen(
                     quietPlaceRoute != null -> Unit
                     heatOn ->
                         AreaPanel(category, summary, if (cityView) "$CITY_NAME overall" else "This area")
-                    else ->
-                        Legend(category, Modifier.align(Alignment.Start))
+                    else -> Unit
                 }
                 Spacer(Modifier.size(6.dp))
                 Text(
@@ -433,12 +435,10 @@ private fun CategoryChips(selected: Category, onSelect: (Category) -> Unit, heat
     Row(
         Modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
         for (c in Category.entries) {
             FilterChip(selected = c == selected, onClick = { onSelect(c) }, label = { Text(c.title) }, colors = colors)
         }
-        VerticalDivider(Modifier.height(24.dp))
         FilterChip(selected = heatOn, onClick = onHeatToggle, label = { Text("Heatmap") }, colors = colors)
     }
 }
@@ -470,7 +470,7 @@ private fun AreaPanel(category: Category, summary: AreaSummary, title: String) {
                     Text(if (expanded) "Hide" else "Details", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 }
             }
-            GradientKey(category)
+            BandKey(category)
             if (hasDetails && expanded) {
                 if (summary.sections.isEmpty()) {
                     Text(
@@ -495,7 +495,7 @@ private fun headline(category: Category, s: AreaSummary): String {
     return when (category) {
         Category.SOUND -> "Average ${mean.roundToInt()} dB · $levelName"
         Category.LIGHT -> "Average ${mean.roundToInt()} lux · $levelName (${s.sampleCount} measured places)"
-        Category.CROWD -> "About ${mean.roundToInt()} people on average · $levelName (${s.sampleCount} places)"
+        Category.CROWD -> "$levelName · about ${mean.roundToInt()} nearby devices on average (${s.sampleCount} places)"
         Category.PERSONAL -> "Average predicted overwhelm ${(mean * 100).roundToInt()}% · ${s.sampleCount} places"
         // An average of yes/limited/no reads badly ("mostly limited" at 65% yes), so state the share instead.
         Category.ACCESS -> {
@@ -505,17 +505,17 @@ private fun headline(category: Category, s: AreaSummary): String {
     }
 }
 
+/** Key for the three heatmap bands, in the same colours as the map. */
 @Composable
-private fun GradientKey(category: Category) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(category.levelName(Level.LOW), style = MaterialTheme.typography.labelSmall)
-        Spacer(Modifier.size(6.dp))
-        Box(
-            Modifier.weight(1f).height(8.dp).clip(RoundedCornerShape(4.dp))
-                .background(Brush.horizontalGradient(listOf(LEVEL_LOW, LEVEL_MEDIUM, LEVEL_HIGH))),
-        )
-        Spacer(Modifier.size(6.dp))
-        Text(category.levelName(Level.HIGH), style = MaterialTheme.typography.labelSmall)
+private fun BandKey(category: Category) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        for (level in Level.entries) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(width = 18.dp, height = 10.dp).clip(RoundedCornerShape(3.dp)).background(level.color()))
+                Spacer(Modifier.size(4.dp))
+                Text(category.levelName(level), style = MaterialTheme.typography.labelMedium)
+            }
+        }
     }
 }
 
@@ -541,29 +541,6 @@ private fun ShareBar(label: String, fraction: Double) {
 }
 
 @Composable
-private fun Legend(category: Category, modifier: Modifier = Modifier) {
-    Surface(modifier, color = Color.White.copy(alpha = 0.92f), shape = RoundedCornerShape(12.dp), shadowElevation = 2.dp) {
-        Row(
-            Modifier.padding(horizontal = 10.dp, vertical = 6.dp).horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            for (level in listOf(Level.LOW, Level.MEDIUM, Level.HIGH, null)) {
-                LegendItem(level.color(), category.levelName(level))
-            }
-        }
-    }
-}
-
-@Composable
-private fun LegendItem(color: Color, label: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Dot(color, 10)
-        Spacer(Modifier.size(4.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium)
-    }
-}
-
-@Composable
 private fun Dot(color: Color, sizeDp: Int) = Box(Modifier.size(sizeDp.dp).background(color, CircleShape))
 
 /** Minimal place detail: every category at a glance. The full Place detail screen may move to Siddhi after 19:00. */
@@ -571,7 +548,7 @@ private fun Dot(color: Color, sizeDp: Int) = Box(Modifier.size(sizeDp.dp).backgr
 private fun PlaceCard(
     place: Place,
     current: Category,
-    onMeasure: () -> Unit,
+    onMeasure: (() -> Unit)?,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     personalFeedback: @Composable () -> Unit,
@@ -621,7 +598,7 @@ private fun PlaceCard(
 
             Spacer(Modifier.size(4.dp))
             personalFeedback()
-            Button(onClick = onMeasure) { Text("Measure here") }
+            if (onMeasure != null) Button(onClick = onMeasure) { Text("Measure here") }
         }
     }
 }

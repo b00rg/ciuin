@@ -9,6 +9,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -25,7 +26,7 @@ class ContractJsonTest {
           "db_mean": 62.4, "db_peak": 78.1,
           "sound_classes": {"speech_crowd": 0.71, "music": 0.12, "traffic": 0.08, "siren": 0.0, "construction": 0.0, "alarm_beep": 0.0, "dog": 0.0, "machinery_hum": 0.03, "other": 0.06},
           "lux_mean": 340, "flicker_index": 0.04,
-          "people_count": 7
+          "people_count": 7, "nearby_devices": 12
         }
     """.trimIndent()
 
@@ -37,11 +38,13 @@ class ContractJsonTest {
         assertEquals(0.71, f.sound(SoundClass.SPEECH_CROWD))
         assertEquals(0.03, f.sound(SoundClass.MACHINERY_HUM))
         // Exactly the 9 classes, no strays like "quiet".
-        assertEquals(SoundClass.entries.map { it.label }.toSet(), f.soundClasses.keys)
-        assertEquals(1.0, f.soundClasses.values.sum(), 1e-9)
+        val soundClasses = assertNotNull(f.soundClasses)
+        assertEquals(SoundClass.entries.map { it.label }.toSet(), soundClasses.keys)
+        assertEquals(1.0, soundClasses.values.sum(), 1e-9)
         assertEquals(340.0, f.luxMean)
         assertEquals(0.04, f.flickerIndex)
         assertEquals(7, f.peopleCount)
+        assertEquals(12, f.nearbyDevices)
         assertRoundTrip(featureJson, f)
     }
 
@@ -77,6 +80,24 @@ class ContractJsonTest {
         assertEquals(100.0, m.flickerHz)
         assertEquals("audio-student-s", m.modelVariant)
         assertEquals(7, m.features.peopleCount)
+        assertRoundTrip(src, m)
+    }
+
+    @Test
+    fun partialMeasurementPreservesAvailabilityAndId() {
+        val src = """
+            {
+              "place_id": "osm:node/123456", "lat": 46.5191, "lon": 6.5668,
+              "timestamp": "2026-11-21T14:05:00Z", "duration_s": 30,
+              "features": {"db_mean": null, "db_peak": null, "sound_classes": null, "lux_mean": 0,
+                           "flicker_index": null, "people_count": null, "nearby_devices": 0},
+              "flicker_hz": null, "model_variant": "none", "device": "android",
+              "measurement_id": "b5fe6af6-c207-4f90-8f30-4c90dc6cd71d"
+            }
+        """.trimIndent()
+        val m = json.decodeFromString<Measurement>(src)
+        assertEquals(FeatureVector(luxMean = 0.0, nearbyDevices = 0), m.features)
+        assertEquals("b5fe6af6-c207-4f90-8f30-4c90dc6cd71d", m.measurementId)
         assertRoundTrip(src, m)
     }
 

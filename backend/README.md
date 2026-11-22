@@ -30,7 +30,12 @@ On first start the database (`ciuin.db`, gitignored) is created and seeded from 
 - Check: `curl http://localhost:8000/health` → `{"status":"ok"}`
 - API docs: http://localhost:8000/docs
 - Different DB file: set `CIUIN_DB=/path/to/file.db`
-- Schema changed? `python db.py --reset` (measurements are lost)
+
+Existing databases receive new columns on startup and retain prior measurements.
+In `POST /measurements`, missing readings are null and each per-place mean uses the
+measurements that have that reading. Send all nine sound labels when classification is
+available. Reuse the optional `measurement_id` with the same payload to retry an upload
+without counting it twice.
 
 ## Reaching it from phones
 

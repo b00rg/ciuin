@@ -76,7 +76,8 @@ app = FastAPI(
 
 
 def get_conn() -> Iterator[sqlite3.Connection]:
-    with closing(db.connect()) as conn:
+    # FastAPI may create, use, and close this request's connection on different workers.
+    with closing(db.connect(check_same_thread=False)) as conn:
         yield conn
 
 
@@ -265,20 +266,36 @@ def nearby(
     status_code=status.HTTP_201_CREATED,
     tags=["measurements"],
     summary="Post one measurement",
-    responses={422: {"description": "A field outside the contract, or sound_classes isn't exactly the 9 classes"}},
+    responses={
+        409: {"description": "A different measurement already used this measurement_id"},
+        422: {"description": "Invalid measurement aggregates or sound class labels"},
+    },
 )
 def post_measurement(conn: Conn, m: Measurement) -> MeasurementResult:
     """Store one Measurement and recompute that place's mean features and scores.
 
-    A measurement for an unknown `place_id` is still stored (counts in `/stats` and `/coverage`),
-    and `place` comes back null. **Note:** "Try it out" writes to the real database."""
-    conn.execute(
+    Repeat the same `measurement_id` and payload to retry safely. A measurement for an unknown
+    `place_id` is still stored (counts in `/stats` and `/coverage`), and `place` comes back null.
+    **Note:** "Try it out" writes to the real database."""
+    inserted = conn.execute(
         """INSERT INTO measurements (place_id, lat, lon, timestamp, duration_s, features, flicker_hz,
-                                     model_variant, device) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                     model_variant, device, measurement_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(measurement_id) DO NOTHING""",
         (m.place_id, m.lat, m.lon, m.timestamp, m.duration_s, m.features.model_dump_json(), m.flicker_hz,
-         m.model_variant, m.device),
+         m.model_variant, m.device, m.measurement_id),
     )
-    recompute_place(conn, m.place_id)
+    if inserted.rowcount:
+        recompute_place(conn, m.place_id)
+    else:
+        row = conn.execute(
+            """SELECT place_id, lat, lon, timestamp, duration_s, features, flicker_hz, model_variant, device,
+                      measurement_id FROM measurements WHERE measurement_id = ?""",
+            (m.measurement_id,),
+        ).fetchone()
+        stored = dict(row)
+        stored["features"] = json.loads(stored["features"])
+        if Measurement.model_validate(stored) != m:
+            raise HTTPException(409, "measurement_id already belongs to a different measurement")
     conn.commit()
     row = conn.execute("SELECT * FROM places WHERE place_id = ?", (m.place_id,)).fetchone()
     return MeasurementResult(stored=True, place=to_place(row) if row else None)
@@ -288,7 +305,7 @@ HEATMAP_CELL_M = 50
 # 50 m in degrees at Lausanne's latitude (46.5° N); used to bin measurements into heatmap cells
 CELL_DLAT = HEATMAP_CELL_M / 111_320
 CELL_DLON = HEATMAP_CELL_M / (111_320 * math.cos(math.radians(46.5)))
-MEASURED_DIMS = {"light": "lux_mean", "flicker": "flicker_index", "crowd": "people_count"}
+MEASURED_DIMS = {"light": "lux_mean", "flicker": "flicker_index", "crowd": "nearby_devices"}
 _noise_grid_cache: dict[str, object] = {}
 
 
@@ -319,7 +336,7 @@ def heatmap(
     * `dim=noise`: outdoor road+rail noise in dB(A) from sonBASE (`source: "sonbase"`), day or night.
       Lausanne only (data/processed/heatmap_lausanne_noise.geojson).
     * `dim=light|flicker|crowd`: mean of the **measurements** in each cell (`source: "measured"`, plus `n`):
-      lux, flicker index, people count. Empty until phones measure; works anywhere, not just Lausanne.
+      lux, flicker index, nearby Bluetooth devices. Empty until phones measure; works anywhere, not just Lausanne.
     """
     min_lon, min_lat, max_lon, max_lat = parse_bbox(bbox)
     inside = lambda lon, lat: min_lon <= lon <= max_lon and min_lat <= lat <= max_lat  # noqa: E731
@@ -329,9 +346,16 @@ def heatmap(
         key = f"noise_{period}_db"
         for f in _noise_grid():
             lon, lat = f["geometry"]["coordinates"][:2]
-            v = f["properties"].get(key)
+            props = f["properties"]
+            v = props.get(key)
             if v is not None and inside(lon, lat):
-                features.append(_cell_feature(lon, lat, {"value": v, "source": "sonbase"}))
+                features.append(_cell_feature(lon, lat, {
+                    "value": v,
+                    # road and rail separately, for the app's road-vs-rail breakdown (null = no data)
+                    "road_db": props.get(f"road_{period}_db"),
+                    "rail_db": props.get(f"rail_{period}_db"),
+                    "source": "sonbase",
+                }))
     else:
         field = MEASURED_DIMS[dim]
         cells: dict[tuple[int, int], list[float]] = {}
@@ -340,8 +364,10 @@ def heatmap(
             (min_lat, max_lat, min_lon, max_lon),
         )
         for r in rows:
-            key_ = (math.floor(r["lat"] / CELL_DLAT), math.floor(r["lon"] / CELL_DLON))
-            cells.setdefault(key_, []).append(float(json.loads(r["features"])[field]))
+            value = json.loads(r["features"]).get(field)
+            if value is not None:
+                key_ = (math.floor(r["lat"] / CELL_DLAT), math.floor(r["lon"] / CELL_DLON))
+                cells.setdefault(key_, []).append(float(value))
         for (i, j), vals in cells.items():
             lat, lon = (i + 0.5) * CELL_DLAT, (j + 0.5) * CELL_DLON
             features.append(_cell_feature(
@@ -349,7 +375,8 @@ def heatmap(
                 {"value": round(sum(vals) / len(vals), 3), "source": "measured", "n": len(vals)},
             ))
 
-    return {"type": "FeatureCollection", "dim": dim, "period": period, "cell_m": HEATMAP_CELL_M, "features": features}
+    return {"type": "FeatureCollection", "dim": dim, "period": period, "cell_m": HEATMAP_CELL_M,
+            "res_m": HEATMAP_CELL_M, "features": features}
 
 
 @app.get("/stats", response_model=Stats, tags=["map layers"], summary="Counts for the gap badge")

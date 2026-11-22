@@ -1,10 +1,10 @@
 # Ciúin: Sensory Map
 
-Kotlin Multiplatform app (Android + Desktop) that maps how loud, bright, flickery and crowded places are. Plan and contracts: [`Claude/todo.md`](Claude/todo.md). Third-party material: [`REUSED.md`](REUSED.md).
+Kotlin Multiplatform app (Android + Desktop + iOS) that maps how loud, bright, flickery and crowded places are. Plan and contracts: [`Claude/todo.md`](Claude/todo.md). Third-party material: [`REUSED.md`](REUSED.md).
 
 | Folder | What |
 |---|---|
-| `composeApp/` | Compose Multiplatform UI (Android + Desktop) |
+| `composeApp/` | Compose Multiplatform UI (Android + Desktop + iOS) |
 | `shared/` | KMP library: contracts (`commonMain`), platform code, tests |
 | `backend/` | FastAPI server |
 | `data/` | Data pipeline scripts; `raw/` is local only, `processed/` is committed |
@@ -28,6 +28,7 @@ The team uses macOS (Emma, Paramveer) and Windows (Siddhi, Christine). Commands 
 ```sh
 ./gradlew :composeApp:run              # desktop window (Windows: gradlew.bat or .\gradlew)
 ./gradlew :composeApp:installDebug     # Android, with an emulator or phone connected
+open iosApp/iosApp.xcodeproj           # iOS on macOS: select a simulator and run iosApp
 ./gradlew :shared:desktopTest          # contract tests
 ```
 The first build downloads Gradle and dependencies (a few minutes).
@@ -37,6 +38,7 @@ The first build downloads Gradle and dependencies (a few minutes).
 |---|---|---|
 | Desktop | `http://localhost:8000` | `CIUIN_API_URL=https://….trycloudflare.com ./gradlew :composeApp:run` |
 | Android | `http://10.0.2.2:8000` (the laptop, seen from the emulator) | `./gradlew :composeApp:installDebug -Pciuin.apiUrl=https://….trycloudflare.com` (real phones need the tunnel URL) |
+| iOS Simulator | `http://localhost:8000` | Set `CIUIN_API_URL` in the Xcode scheme’s Run environment or override the build setting |
 
 Use `fake` as the URL to run on the 5 hard-coded places without a backend. When the backend is unreachable, the map falls back to the sample places and shows an offline badge.
 

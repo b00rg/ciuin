@@ -54,6 +54,14 @@ def main() -> int:
     r_off = int(round(((y0) % CELL_M) / day.res)) % k
     d_med, d_n = block_median(day.db[r_off:, c_off:], k)
     n_med, _ = block_median(night.db[r_off:, c_off:], k)
+    # road and rail separately (Christine's road-vs-rail breakdown); rail is NaN where there's none
+    sources = {
+        (period, src): block_median(getattr(g, src)[r_off:, c_off:], k)[0]
+        for period, g in (("day", day), ("night", night)) for src in ("road", "rail")
+    }
+
+    def val(a: np.ndarray, r: int, c: int) -> float | None:
+        return round(float(a[r, c]), 1) if np.isfinite(a[r, c]) else None
 
     rows, cols = np.nonzero((d_n >= MIN_VALID) & np.isfinite(d_med))
     # cell centres in LV95 -> WGS84
@@ -73,6 +81,8 @@ def main() -> int:
             "properties": {
                 "noise_day_db": round(float(d_med[r, c]), 1),
                 "noise_night_db": round(float(nv), 1) if np.isfinite(nv) else None,
+                **{f"{src}_{period}_db": val(sources[(period, src)], r, c)
+                   for period in ("day", "night") for src in ("road", "rail")},
             },
         })
 
@@ -80,6 +90,7 @@ def main() -> int:
         "type": "FeatureCollection",
         "name": "heatmap_lausanne_noise",
         "cell_m": CELL_M,
+        "res_m": CELL_M,
         "crs_note": "cells are 50 m squares on the Swiss LV95 grid; points are cell centres in WGS84",
         "attribution": "noise: sonBASE © FOEN/BAFU",
         "features": features,

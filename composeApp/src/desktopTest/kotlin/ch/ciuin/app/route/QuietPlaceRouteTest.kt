@@ -17,7 +17,7 @@ import kotlin.test.assertTrue
 
 class QuietPlaceRouteTest {
     private val origin = RoutePoint(0.0, 0.0)
-    private val score: (FeatureVector) -> Double = { it.dbMean / 100.0 }
+    private val score: (FeatureVector) -> Double = { requireNotNull(it.dbMean) / 100.0 }
 
     @Test
     fun picksTheLowestScoreInsideTheRadiusUsingMeasuredFeaturesWhenAvailable() = runBlocking {

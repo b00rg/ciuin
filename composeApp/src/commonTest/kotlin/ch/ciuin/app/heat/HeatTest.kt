@@ -68,6 +68,33 @@ class HeatTest {
     }
 
     @Test
+    fun hexBinsGroupNearbyPointsAndCentreRoundTrips() {
+        val r = hexRadius(15)
+        val hexes = aggregateHex(
+            listOf(HeatSample(0.5, 0.5, 40.0), HeatSample(0.5 + r * 0.1, 0.5, 60.0), HeatSample(0.5 + r * 4, 0.5, 70.0)),
+            r,
+        )
+        assertEquals(2, hexes.size)
+        val pair = hexes.first { it.count == 2 }
+        assertEquals(50.0, pair.mean)
+        // A hexagon's own centre falls back into that same hexagon.
+        assertEquals(hexAt(0.5, 0.5, r), hexAt(pair.x, pair.y, r))
+        // Every point lies within one circumradius of its hexagon's centre.
+        val dx = 0.5 - pair.x
+        val dy = 0.5 - pair.y
+        assertTrue(kotlin.math.sqrt(dx * dx + dy * dy) <= r)
+    }
+
+    @Test
+    fun soundAveragesEnergyNotDecibels() {
+        // 50 dB + 70 dB: energy mean ≈ 67 dB (a plain mean would say 60).
+        assertEquals(67.0, Averaging.DECIBELS.mean(listOf(50.0, 70.0))!!, 0.1)
+        val cell = aggregate(listOf(HeatSample(0.1, 0.1, 50.0), HeatSample(0.1, 0.1, 70.0)), 10, Averaging.of(Category.SOUND)).single()
+        assertEquals(67.0, cell.mean, 0.1)
+        assertEquals(60.0, Averaging.of(Category.CROWD).mean(listOf(50.0, 70.0)))
+    }
+
+    @Test
     fun noDataGivesNullMean() {
         val s = summarise(Category.LIGHT, listOf(place("a", 46.52, 6.63, baseline = 50.0)), emptyList(), null)
         assertNull(s.mean)
