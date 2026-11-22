@@ -13,6 +13,9 @@ Everything not written during the event (pretrained models, datasets, libraries,
 | IES flicker index definition | Method | [U.S. Department of Energy review, §2.3](https://www.energy.gov/sites/default/files/2022-08/ssl-miller-etal-2022-LRT-flicker-review-tlm-stimulus-response.pdf) | Estimate the ratio of luminance area above the mean to total luminance area. The app reuses its own Stage 0 FFT implementation. |
 | YAMNet (pretrained, frozen) | Model | Google, Apache 2.0; https://www.kaggle.com/models/google/yamnet, trained on AudioSet | Teacher: audio embeddings, with our own classifier head trained on top |
 | YAMNet log-mel frontend parameters | Design (no code) | Google, Apache 2.0 | Window/hop/mel settings of the in-graph spectrogram, so student inputs match the teacher's |
+| PANNs CNN14 pretrained weights (`Cnn14_mAP=0.431.pth`, frozen) | Model | Kong, Cao, Iqbal, Wang, Wang, Plumbley (2020), "PANNs: Large-Scale Pretrained Audio Neural Networks for Audio Pattern Recognition"; https://zenodo.org/records/3987831, **CC BY 4.0** (attribution required), trained on AudioSet | Teacher: 2048-d audio embeddings (alone, or concatenated with YAMNet's), with our own classifier head on top; the students are distilled from it |
+| `panns_inference`, PANNs reference code | Library | Qiuqiang Kong, MIT (https://github.com/qiuqiangkong/panns_inference, https://github.com/qiuqiangkong/audioset_tagging_cnn) | Loading CNN14 and its log-mel frontend in the GPU teacher job |
+| PyTorch | Library | BSD-3 | Running CNN14 (GPU teacher embeddings, the fine-tune attempt) |
 | Kotlin Multiplatform, Compose Multiplatform | Library | JetBrains, Apache 2.0 | App UI and shared code |
 | Ktor client, kotlinx.serialization, kotlinx.coroutines | Library | JetBrains, Apache 2.0 | Networking, JSON, concurrency |
 | FastAPI, Uvicorn | Library | MIT / BSD-3 | Backend |
@@ -32,9 +35,11 @@ Everything not written during the event (pretrained models, datasets, libraries,
 | OpenStreetMap raster tiles (tile.openstreetmap.org) | Data / service | © OpenStreetMap contributors, ODbL; OSMF tile usage policy | Map background |
 | ESC-50 | Dataset | https://github.com/karolpiczak/ESC-50, CC BY-NC 3.0 | Audio classifier training/eval (fold 4 val, fold 5 test) |
 | UrbanSound8K | Dataset | https://zenodo.org/record/1203745, CC BY-NC 4.0 | Audio classifier training/eval (fold 8 val, folds 9–10 test) |
-| MUSAN | Dataset | https://www.openslr.org/17/, CC BY 4.0 | Downloaded for speech/music data and augmentation noise; not yet in the trained models (it arrived after the Handoff 2 training started) |
+| MUSAN | Dataset | https://www.openslr.org/17/, CC BY 4.0 | Speech and music training data (teacher and students), and its noise recordings as augmentation background noise for the GPU-trained students. Not in the Handoff 2 models |
 | FSD50K (alarm, siren, crowd subset) | Dataset | https://zenodo.org/record/4060432, CC BY 4.0 (clips CC0 / CC BY / CC BY-NC / CC Sampling+, per clip in its metadata) | Extra `alarm_beep`, `siren` and `speech_crowd` training/eval data (teacher and the Handoff 2 students) |
 | DEMAND (PCAFETER, PRESTO, PSTATION, SPSQUARE) | Dataset | https://zenodo.org/record/1227121, CC BY 4.0 | Real crowd ambience for `speech_crowd`; augmentation noise; ambience for tuning and replaying the cascade |
+| Kaggle-hosted copies of the datasets above: `mmoreaux/environmental-sound-classification-50` (ESC-50), `chrisfilo/urbansound8k`, `yousirui1/fsd50k`, `chrisfilo/demand`, `dogrose/musan-dataset` | Dataset mirrors | Re-uploads by Kaggle users; the original licences above apply | Inputs to the GPU training jobs (the original files, not modified) |
+| Kaggle Notebooks (GPU: T4 / P100) | Service | Kaggle (Google), free tier | Running the teacher-embedding and student-training jobs |
 
 ## Built during the event
 

@@ -23,6 +23,7 @@ silent windows skipped), from the clip index (ml/build_index.py).
 from __future__ import annotations
 
 import io
+import os
 import json
 import sqlite3
 import sys
@@ -48,11 +49,13 @@ INDEX = REPO / "data" / "processed" / "audio_index.sqlite"
 CACHE = REPO / "data" / "cache"
 YAMNET_DIR = CACHE / "models" / "yamnet"
 YAMNET_URL = "https://www.kaggle.com/api/v1/models/google/yamnet/tensorFlow2/yamnet/1/download"
-EMB_DIR = CACHE / "teacher"
+# Teacher backbone: YAMNet (default, TF) or PANNs CNN14 (CIUIN_TEACHER=panns, PyTorch; stronger, GPU job).
+BACKBONE = os.environ.get("CIUIN_TEACHER", "yamnet")
+EMB_DIR = CACHE / ("teacher" if BACKBONE == "yamnet" else f"teacher-{BACKBONE}")
 HEAD_PATH = EMB_DIR / "teacher_head.keras"
 RESULTS = ML / "export" / "results.json"
 
-EMB_DIM = 1024
+EMB_DIM = {"yamnet": 1024, "concat": 3072}.get(BACKBONE, 2048)  # concat = CNN14 2048 + YAMNet 1024
 MAX_WINDOWS = 24     # per clip; long MUSAN/DEMAND recordings get evenly spaced windows
 BATCH = 256
 SEED = 0
@@ -89,6 +92,61 @@ def yamnet_embedder():
     return lambda b: embed(b).numpy()
 
 
+def panns_embedder():
+    """PANNs CNN14 (AudioSet mAP 0.431) embeddings: [n, 15600] @ 16 kHz -> [n, 2048].
+
+    CNN14 expects 32 kHz, so each window is upsampled 2x (polyphase, as in
+    preprocess.resample). The checkpoint (~330 MB) downloads on first use.
+    """
+    import torch
+    from panns_inference import AudioTagging
+
+    from gpu_audio import fp32_frontend, upsample2
+
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    at = AudioTagging(checkpoint_path=None, device=device)
+    # Wrap the STFT / log-mel in fp32 *before* loading the fine-tuned weights: the checkpoint was
+    # saved from a wrapped model, so its keys are "spectrogram_extractor.m.*".
+    fp32_frontend(at.model)
+    if BACKBONE == "panns-ft":  # fine-tuned by ml/teacher_finetune.py
+        ckpt = CACHE / "models" / "cnn14_ft.pth"
+        state = torch.load(ckpt, map_location=device)
+        at.model.fc_audioset = torch.nn.Linear(at.model.fc_audioset.in_features,
+                                               state["fc_audioset.weight"].shape[0]).to(device)
+        at.model.load_state_dict(state)
+    at.model.eval()
+
+    torch.backends.cudnn.benchmark = True
+
+    def embed(batch: np.ndarray) -> np.ndarray:
+        with torch.no_grad(), torch.autocast(device, enabled=device == "cuda"):
+            x = upsample2(torch.from_numpy(batch.astype(np.float32)).to(device))
+            out = at.model(x, None)
+        return out["embedding"].float().cpu().numpy()
+
+    return embed
+
+
+def backbone_embedder():
+    return yamnet_embedder() if BACKBONE == "yamnet" else panns_embedder()
+
+
+def backbone_params() -> int:
+    if BACKBONE == "concat":
+        return 80_753_615 + 3_751_369
+    if BACKBONE == "yamnet":
+        return yamnet_params()
+    return 80_753_615  # CNN14 (Kong et al. 2020)
+
+
+def backbone_mb() -> float:
+    if BACKBONE == "concat":
+        return 327.4 + 17.0
+    if BACKBONE == "yamnet":
+        return sum(f.stat().st_size for f in YAMNET_DIR.rglob("*") if f.is_file()) / 1e6
+    return 327.4  # Cnn14_mAP=0.431.pth
+
+
 def yamnet_params() -> int:
     import tensorflow as tf
 
@@ -106,6 +164,8 @@ def index_clips() -> list[dict]:
         "SELECT dataset, path, start_s, end_s, class_index, split FROM clips "
         "WHERE use = 'classify' ORDER BY dataset, path, start_s")]
     db.close()
+    if os.environ.get("CIUIN_SMOKE"):  # quick end-to-end test: every 40th clip
+        rows = rows[::40]
     return rows
 
 
@@ -133,6 +193,47 @@ def clip_windows(clip: dict) -> tuple[list[int], np.ndarray]:
     return starts, w
 
 
+WIN_CACHE = CACHE / "windows16k"
+
+
+def _decode(clip: dict):
+    starts, w = clip_windows(clip)
+    return starts, w.astype(np.float32)   # exact: int16 / float16 shift a few % of embeddings
+
+
+def decode(clips: list[dict]) -> None:
+    """Decode + resample every window once, in separate processes (all CPU cores), to
+    data/cache/windows16k/<dataset>.npz. embed() then reads windows from here, so several
+    backbones can embed without decoding the audio again (on Kaggle that was ~25 min each)."""
+    from multiprocessing import Pool
+
+    WIN_CACHE.mkdir(parents=True, exist_ok=True)
+    by_dataset = defaultdict(list)
+    for c in clips:
+        by_dataset[c["dataset"]].append(c)
+    with Pool(os.cpu_count()) as pool:
+        for dataset, items in by_dataset.items():
+            keys = np.array([f"{c['path']}@{c['start_s']:.3f}" for c in items])
+            out = WIN_CACHE / f"{dataset}.npz"
+            if out.exists():
+                with np.load(out) as old:
+                    if np.array_equal(old["keys"], keys):
+                        print(f"[decode] {dataset}: cached", flush=True)
+                        continue
+            t0 = time.time()
+            clip_of, win_start, wins = [], [], []
+            for ci, (starts, w) in enumerate(pool.imap(_decode, items, chunksize=16)):
+                clip_of += [ci] * len(starts)
+                win_start += list(starts)
+                wins.append(w)
+                if (ci + 1) % 2000 == 0:
+                    print(f"[decode] {dataset}: {ci + 1}/{len(items)} clips", flush=True)
+            np.savez(out, keys=keys, clip=np.array(clip_of, np.int32), win_start=np.array(win_start, np.int32),
+                     win=np.concatenate(wins))
+            print(f"[decode] {dataset}: {len(items)} clips, {len(clip_of)} windows in {time.time() - t0:.0f}s",
+                  flush=True)
+
+
 def embed(clips: list[dict]) -> None:
     EMB_DIR.mkdir(parents=True, exist_ok=True)
     by_dataset = defaultdict(list)
@@ -149,7 +250,20 @@ def embed(clips: list[dict]) -> None:
                     print(f"[embed] {dataset}: {len(keys)} clips cached")
                     continue
         if embedder is None:
-            embedder = yamnet_embedder()
+            embedder = backbone_embedder()
+
+        cached = WIN_CACHE / f"{dataset}.npz"
+        if cached.exists():
+            with np.load(cached) as wc:
+                if np.array_equal(wc["keys"], keys):
+                    t0 = time.time()
+                    win = wc["win"]
+                    embs = [embedder(win[i:i + 1024].astype(np.float32)).astype(np.float16)
+                            for i in range(0, len(win), 1024)]
+                    np.savez(path, keys=keys, clip=wc["clip"], win_start=wc["win_start"], emb=np.concatenate(embs))
+                    print(f"[embed] {dataset}: {len(keys)} clips, {len(win)} windows from the decode cache "
+                          f"in {time.time() - t0:.0f}s", flush=True)
+                    continue
 
         t0 = time.time()
         clip_of, win_start, embs = [], [], []
@@ -282,9 +396,11 @@ def train(clips: list[dict], epochs: int = 60, patience: int = 8) -> dict:
 
 def write_results(scores: dict, head, n_yamnet_params: int) -> None:
     results = json.loads(RESULTS.read_text()) if RESULTS.exists() else {}
-    yamnet_mb = sum(f.stat().st_size for f in YAMNET_DIR.rglob("*") if f.is_file()) / 1e6
+    yamnet_mb = backbone_mb()
+    name = {"yamnet": "YAMNet", "panns": "PANNs CNN14", "panns-ft": "PANNs CNN14 fine-tuned on our 9 classes",
+            "concat": "PANNs CNN14 + YAMNet (concatenated)"}[BACKBONE]
     results["teacher"] = {
-        "model": "YAMNet embeddings (frozen, AudioSet-pretrained) + MLP head 1024-512-9",
+        "model": f"{name} embeddings (frozen, AudioSet-pretrained) + MLP head {EMB_DIM}-512-9",
         "params": int(n_yamnet_params + head.count_params()),
         "size_mb": round(yamnet_mb + HEAD_PATH.stat().st_size / 1e6, 1),
         "accuracy": scores["test"]["accuracy"],
@@ -305,11 +421,14 @@ def main() -> int:
         print(f"error: {INDEX} not found; run ml/build_index.py first")
         return 1
     clips = index_clips()
+    if step == "decode":
+        decode(clips)
+        return 0
     if step in ("all", "embed"):
         embed(clips)
     if step in ("all", "train"):
         scores, head = train(clips)
-        write_results(scores, head, yamnet_params())
+        write_results(scores, head, backbone_params())
         t = scores["test"]
         print(f"\nteacher test: accuracy {t['accuracy']:.4f}, macro-F1 {t['macro_f1']:.4f} ({t['n_clips']} clips)")
         print("per class F1:", t["per_class_f1"])
