@@ -50,7 +50,7 @@ class PlaceIndex(places: List<Place>) {
 fun searchPlaces(places: List<Place>, query: String, origin: RoutePoint? = null, limit: Int = 10): List<Place> =
     if (query.isBlank() || limit <= 0) emptyList() else PlaceIndex(places).searchPlaces(query, origin, limit)
 
-private val separators = Regex("[^\\p{L}\\p{N}]+")
+private val separators = Regex("[^\\p{L}\\p{Nd}\\p{Nl}\\p{No}]+")
 
 /** A space marks word starts even in names with apostrophes or hyphens. */
 private fun fold(value: String): String = decomposeUnicode(value.lowercase())

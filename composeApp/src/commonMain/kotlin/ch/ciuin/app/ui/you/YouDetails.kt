@@ -130,7 +130,10 @@ internal fun OnThisPhoneScreen(
         personal.state.session?.let { session ->
             val count = session.exampleCount
             val countText = if (count == 1) "1 saved tap" else "$count saved taps"
-            LinkRow("Your sheep: $countText", "Reset", onReset, actionEnabled = personal.canResetLearnedSettings)
+            Column {
+                SectionLabel("Personal model", bottomPadding = 0.dp)
+                LinkRow("Your sheep: $countText", "Reset", onReset, actionEnabled = personal.canResetLearnedSettings)
+            }
         }
     }
 }

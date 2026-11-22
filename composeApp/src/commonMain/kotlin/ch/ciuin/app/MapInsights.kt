@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import ch.ciuin.app.insight.AreaInsight
 import ch.ciuin.app.insight.MeasuredInsight
 import ch.ciuin.app.insight.SoundInsight
+import ch.ciuin.app.insight.SoundSources
 import ch.ciuin.app.insight.walkingMinutes
 import ch.ciuin.app.route.QuietSpot
 import ch.ciuin.app.ui.characters.Sheep
@@ -66,8 +67,17 @@ internal fun MapInsights(
     when (category) {
         Category.PERSONAL -> {
             val personal = insight.personal
+            val sound = personal.meanDb?.let { mean ->
+                val source = when (personal.soundSources) {
+                    SoundSources.Baseline -> "outdoor estimate"
+                    SoundSources.Measurements -> "measured"
+                    SoundSources.Both -> "measurements and estimates"
+                    null -> null
+                }
+                listOfNotNull(dbText(mean), source).joinToString(" · ")
+            }
             val readings = listOfNotNull(
-                personal.meanDb?.let(::dbText),
+                sound,
                 personal.lightLevel?.let { Category.LIGHT.levelName(it).lowercase() + " light" },
                 personal.crowdLevel?.let { Category.CROWD.levelName(it).lowercase() + " crowd" },
             ).joinToString(" · ")
@@ -78,11 +88,13 @@ internal fun MapInsights(
                 Level.Loud -> "May be too much"
                 Level.NoData -> "No prediction here yet"
             }
+            val label = if (level == Level.NoData) "Around you" else "Around you · personal model"
             if (offline) {
                 TitleBlock(
-                    title, eyebrow = "Around you · offline",
-                    subtitle = if (canListen) "Listening and alerts still work without a connection."
-                    else readings.ifEmpty { null },
+                    title, eyebrow = "$label · offline",
+                    subtitle = readings.ifEmpty {
+                        if (canListen) "Listening and alerts still work without a connection." else null
+                    },
                 )
             } else {
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -93,7 +105,7 @@ internal fun MapInsights(
                         )
                     }
                     TitleBlock(
-                        title, Modifier.weight(1f), eyebrow = "Around you",
+                        title, Modifier.weight(1f), eyebrow = label,
                         subtitle = readings.ifEmpty { "Tap a place to see what's known." },
                     )
                 }

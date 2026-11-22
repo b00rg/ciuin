@@ -54,6 +54,13 @@ class PlaceSearchTest {
         }
     }
 
+    @Test
+    fun preservesUnicodeNumbersWhenFoldingPlaceNames() {
+        val index = PlaceIndex(listOf(place("station", "Café–Ⅳ ٢ ①")))
+
+        assertEquals(listOf("station"), index.searchPlaces("cafe ⅳ ٢ ①").map { it.placeId })
+    }
+
     private fun place(id: String, name: String, lon: Double = 0.0, category: String = "restaurant") =
         Place(id, name, 0.0, lon, category)
 }

@@ -23,7 +23,10 @@ data class PersonalInsight(
     val meanDb: Double?,
     val lightLevel: Level?,
     val crowdLevel: Level?,
+    val soundSources: SoundSources? = null,
 )
+
+enum class SoundSources { Baseline, Measurements, Both }
 
 data class SoundInsight(
     val noise: RatedMean?,
@@ -67,6 +70,13 @@ fun areaInsight(
     }
 
     val sound = summarise(Category.SOUND, placesIn, gridIn, null, noisePeriod = noisePeriod)
+    val hasMeasuredSound = noisePeriod == NoisePeriod.DAY && placesIn.any {
+        it.measured?.features?.dbMean?.isFinite() == true
+    }
+    val hasBaselineSound = gridIn.any { it.combinedDb?.isFinite() == true } || placesIn.any { place ->
+        if (noisePeriod == NoisePeriod.NIGHT) place.baselineNoiseNightDb?.isFinite() == true
+        else place.measured?.features?.dbMean == null && place.baselineNoiseDb?.isFinite() == true
+    }
     val light = measured(Category.LIGHT, lightGrid)
     val crowd = measured(Category.CROWD, crowdGrid)
     val access = summarise(Category.ACCESS, placesIn, emptyList(), null)
@@ -77,6 +87,12 @@ fun areaInsight(
             meanDb = sound.mean,
             lightLevel = (light as? MeasuredInsight.Data)?.level,
             crowdLevel = (crowd as? MeasuredInsight.Data)?.level,
+            soundSources = when {
+                hasBaselineSound && hasMeasuredSound -> SoundSources.Both
+                hasBaselineSound -> SoundSources.Baseline
+                hasMeasuredSound -> SoundSources.Measurements
+                else -> null
+            },
         ),
         sound = SoundInsight(
             noise = sound.mean?.let { RatedMean(it, Category.SOUND.levelOf(it)) },
