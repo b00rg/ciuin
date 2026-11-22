@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Sage, the app's calm accent, behind the sheep. Same as assets/app-icon/ciuin-app-icon.svg. -->
+    <color name="ic_launcher_background">#9EB0AC</color>
+</resources>

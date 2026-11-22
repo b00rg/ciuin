@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		0F3C85BE5D6430316BC6CA16 /* MeasurementDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = F155E2325DF0842E39BDEE63 /* MeasurementDevices.swift */; };
 		2114EB24ABFDED3DA0A759C9 /* Roboto-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = CA7E45B4FF9D12A3A6B8F5C3 /* Roboto-Regular.ttf */; };
+		22EA1CB33A17DCC6FC82406D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F543015C899423D4B01CEB2E /* Assets.xcassets */; };
 		307C2654CD5972A25FB7FD87 /* iOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 668CECA83ACC03A83C85A623 /* iOSApp.swift */; };
 		56B0305B5D3847FC6B326502 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE8509E5A49E4A5CAAEB3ADB /* ContentView.swift */; };
 		5FD86738425C27AB25A149BE /* NotoSansSymbols-House.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 3DB959E0211656DD27DF9BF0 /* NotoSansSymbols-House.ttf */; };
@@ -38,6 +39,7 @@
 		CE8509E5A49E4A5CAAEB3ADB /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		EB5A6C2E7D9462A72A90D930 /* MicrophoneMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneMeasurement.swift; sourceTree = "<group>"; };
 		F155E2325DF0842E39BDEE63 /* MeasurementDevices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MeasurementDevices.swift; sourceTree = "<group>"; };
+		F543015C899423D4B01CEB2E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		FFED63D135F7554D104A4FA7 /* CameraMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraMeasurement.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -56,6 +58,7 @@
 		1DB4B685CAEE8BEFEBBAEF94 /* iosApp */ = {
 			isa = PBXGroup;
 			children = (
+				F543015C899423D4B01CEB2E /* Assets.xcassets */,
 				FFED63D135F7554D104A4FA7 /* CameraMeasurement.swift */,
 				CE8509E5A49E4A5CAAEB3ADB /* ContentView.swift */,
 				668CECA83ACC03A83C85A623 /* iOSApp.swift */,
@@ -178,6 +181,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				22EA1CB33A17DCC6FC82406D /* Assets.xcassets in Resources */,
 				5FD86738425C27AB25A149BE /* NotoSansSymbols-House.ttf in Resources */,
 				C961365EC8F3D18DD6ED77CE /* Roboto-Medium.ttf in Resources */,
 				2114EB24ABFDED3DA0A759C9 /* Roboto-Regular.ttf in Resources */,
