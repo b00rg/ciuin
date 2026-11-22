@@ -1,5 +1,6 @@
 package ch.ciuin.app.ui.you
 
+import ch.ciuin.app.ui.components.Wordmark
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
 import ch.ciuin.app.ui.components.SegmentedControl
@@ -150,6 +151,15 @@ private fun YouScreen(
                     SettingsRow("What is shared", "Readings are sent, taps stay here", { onOpen(YouPage.WhatIsShared) })
                     SettingsRow("On this phone", "Sound model and what it learned", { onOpen(YouPage.OnThisPhone) })
                     DestructiveRow("Reset what the sheep learned", onReset, enabled = environment.personalModel.canResetLearnedSettings)
+                }
+                // A quiet sign-off: the name and what it means.
+                Column(
+                    Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Wordmark()
+                    Text("Irish for quiet", style = CiuinType.Caption, color = CiuinColors.SecondaryText)
                 }
             }
         }

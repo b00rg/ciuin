@@ -221,7 +221,7 @@ internal fun Onboarding5() = Screen {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             NumberedStep(1, "Tap any place to see how it feels.")
             NumberedStep(2, "Tell the sheep when it's too much.")
-            NumberedStep(3, "Measure a place and a duck joins in.")
+            NumberedStep(3, "Measure a place to help others find calm.")
         }
     }
     Footer {
@@ -239,7 +239,7 @@ internal fun Globe() = Screen {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             StatTile("2,873", "places", Modifier.weight(1f))
             StatTile("148", "readings", Modifier.weight(1f))
-            StatTile("143", "tags", Modifier.weight(1f))
+            StatTile("859", "quiet spots", Modifier.weight(1f))
         }
     }
     Footer { PrimaryButton("Explore near you", {}, Modifier.fillMaxWidth()) }
@@ -323,7 +323,7 @@ internal fun MapAccess() = MapScreen(
     top = { MapTop(selectedLayer = 3) },
     bottom = {
         MapBottom("© OpenStreetMap contributors") {
-            LayerHeaderReplica("This area · Access", { IconDisc(CiuinIcons.Wheelchair) }) {
+            LayerHeaderReplica(LayerCharacter.Access, "This area · Access") {
                 Text("63% wheelchair accessible", style = CiuinType.SheetTitle)
                 Text("From 521 tagged places", style = CiuinType.BodySmall, color = CiuinColors.SecondaryText)
             }
@@ -561,7 +561,7 @@ internal fun MeasureReview() = Screen {
 internal fun MeasureShared() = Screen {
     Content(top = 16.dp, gap = 24.dp) {
         SharedScene()
-        Copy("Shared. Thanks for adding to the map.", "Café du Grütli now has 5 measurements, and your map is up to date.")
+        Copy("Shared with Ciúin. Thanks for adding to the map.", "Café du Grütli now has 5 measurements, and your map is up to date.")
         SummaryTile("57 dB · 82 lux · 3 people")
     }
     Footer(gap = 10.dp) {

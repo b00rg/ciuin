@@ -367,18 +367,22 @@ private fun DrawScope.drawTiles(state: MapState, cache: TileCache, tilePx: Float
                 drawImage(img, dstOffset = dstOffset, dstSize = dstSize, colorFilter = tileColor)
                 continue
             }
-            // While loading, stretch the matching quarter of the parent tile if we have it.
-            if (tz > 0) {
-                val parent = cache.peek(TileKey(tz - 1, wx / 2, ty / 2)) ?: continue
-                val half = parent.width / 2
+            // While loading, stretch the matching part of the nearest loaded ancestor tile (up to 8 levels up), so
+            // a fast zoom (the globe fly-in) shows a soft map instead of blank paper.
+            for (up in 1..minOf(8, tz)) {
+                val ancestor = cache.peek(TileKey(tz - up, wx shr up, ty shr up)) ?: continue
+                val part = ancestor.width shr up
+                if (part < 1) break
+                val mask = (1 shl up) - 1
                 drawImage(
-                    parent,
-                    srcOffset = IntOffset((wx % 2) * half, (ty % 2) * half),
-                    srcSize = IntSize(half, half),
+                    ancestor,
+                    srcOffset = IntOffset((wx and mask) * part, (ty and mask) * part),
+                    srcSize = IntSize(part, part),
                     dstOffset = dstOffset,
                     dstSize = dstSize,
                     colorFilter = tileColor,
                 )
+                break
             }
         }
     }

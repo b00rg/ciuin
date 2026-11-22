@@ -224,7 +224,7 @@ fun summarise(
         val shares = SOUND_GROUPS.map { (label, classes) ->
             Share(label, measured.sumOf { m -> m.n * classes.sumOf { m.features.sound(it) } } / totalN)
         }.filter { it.fraction >= 0.01 }.sortedByDescending { it.fraction }.take(5)
-        if (shares.isEmpty()) null else BreakdownSection("Measured sound types (${measured.size} places)", shares)
+        if (shares.isEmpty()) null else BreakdownSection("Measured sound types (${measured.size} ${if (measured.size == 1) "place" else "places"})", shares)
     } else null
 
     val sections = buildList {
@@ -243,7 +243,7 @@ fun summarise(
             }
             Category.ACCESS -> {
                 if (access != null) {
-                    add(BreakdownSection("Wheelchair access (${samples.size} tagged places)", listOf(
+                    add(BreakdownSection("Wheelchair access (${samples.size} tagged ${if (samples.size == 1) "place" else "places"})", listOf(
                         Share("Accessible", access.accessible),
                         Share("Limited", access.limited),
                         Share("Not accessible", access.notAccessible),

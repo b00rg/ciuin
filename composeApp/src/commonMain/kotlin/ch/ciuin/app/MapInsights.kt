@@ -138,7 +138,7 @@ internal fun MapInsights(
         Category.ACCESS -> {
             val access = insight.access
             val shares = access.shares
-            LayerHeader("This area · Access", { IconDisc(CiuinIcons.Wheelchair) }) {
+            LayerHeader(LayerCharacter.Access, "This area · Access") {
                 LayerTitle(
                     title = shares?.let { "${percent(it.accessible)} wheelchair accessible" } ?: "No access tags here",
                     subtitle = shares?.let {
@@ -204,8 +204,15 @@ private fun SoundPanel(sound: SoundInsight, period: NoisePeriod, onPeriod: (Nois
 
 @Composable
 private fun SourceBar(label: String, db: Double) {
-    BarRow(label, Category.SOUND.heat(db).toFloat(), dbText(db), labelWidth = 48.dp, valueWidth = 48.dp, gap = 12.dp)
+    BarRow(label, sourceBarFraction(db), dbText(db), labelWidth = 48.dp, valueWidth = 48.dp, gap = 12.dp)
 }
+
+/**
+ * Bar length for a noise source on a plain dB scale, 20 dB (silent) to 80 dB (very loud). Not the map's
+ * level scale, which treats everything quieter than "quiet" as empty: a 27 dB railway would draw no bar.
+ * Any measured source keeps a sliver, so a quiet one never looks missing.
+ */
+internal fun sourceBarFraction(db: Double): Float = ((db - 20.0) / 60.0).coerceIn(0.04, 1.0).toFloat()
 
 @Composable
 private fun MeasuredPanel(

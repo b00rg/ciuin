@@ -200,7 +200,7 @@ internal fun MeasureSharedScreen(
     onMeasureAgain: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val title = if (stored) "Shared. Thanks for adding to the map." else "Queued until you're online."
+    val title = if (stored) "Shared with Ciúin. Thanks for adding to the map." else "Queued until you're online."
     val count = updatedPlace?.measured?.n?.takeIf { it > 0 }
     val detail = when {
         !stored -> "Keep Ciúin running so it can send this reading. If the app stops before sending, the reading is lost."
