@@ -107,7 +107,10 @@ internal fun soundLine(review: MeasurementReview): ReadingLine {
         dbfs != null -> ReadingLine(
             level = Level.NoData,
             title = "Sound · Local level",
-            subtitle = "Uncalibrated level stays here",
+            subtitle = listOfNotNull(
+                phrase?.let { "$it · ${review.measurement.modelVariant}" },
+                "Uncalibrated level stays here",
+            ).joinToString(" · "),
             value = "${whole(dbfs.mean)} dBFS",
             valueNote = "peak ${whole(dbfs.peak)}",
         )
