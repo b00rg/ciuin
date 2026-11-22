@@ -8,6 +8,7 @@ import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Build
+import ch.ciuin.app.core.ModelVariant
 import ch.ciuin.app.measure.AudioSample
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -20,7 +21,7 @@ import kotlinx.coroutines.withContext
 
 internal const val AUDIO_SAMPLE_RATE = 16_000
 
-internal class AndroidLiveListener(private val context: Context) {
+internal class AndroidLiveListener(private val context: Context, private val variant: ModelVariant) {
     suspend fun listen(onWindow: suspend (AudioSample) -> Unit) = withContext(Dispatchers.IO) {
         coroutineScope {
             val source = audioSource()
@@ -30,7 +31,7 @@ internal class AndroidLiveListener(private val context: Context) {
                 captureWindows(source) { if (windows.trySend(it).isFailure) it.fill(0f) }
             }
             try {
-                LiveAudioFeatures(context, source).use { extractor ->
+                LiveAudioFeatures(context, source, variant).use { extractor ->
                     for (window in windows) {
                         val features = try {
                             extractor.extract(window)

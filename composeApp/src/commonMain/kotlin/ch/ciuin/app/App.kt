@@ -12,6 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import ch.ciuin.app.core.AppEnvironment
 import ch.ciuin.app.measure.MeasurementCapture
 import ch.ciuin.app.measure.MeasurementDialog
 import ch.ciuin.app.personal.PersonalModelController
@@ -97,6 +98,61 @@ internal fun App(
                         personalSnackbar.showSnackbar(
                             if (stored) "Measurement uploaded" else "Measurement queued while offline",
                         )
+                    }
+                },
+            )
+        }
+    }
+}
+
+@Composable
+internal fun App(environment: AppEnvironment) {
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var measuring by remember { mutableStateOf<Place?>(null) }
+    val personal = environment.personalModel
+    val state = personal.state
+    val listening = environment.listening
+    val routes = environment.routes
+    val measurement = environment.measurement
+    LaunchedEffect(state.notice) {
+        val notice = state.notice ?: return@LaunchedEffect
+        snackbar.showSnackbar(notice.message)
+        personal.dismissNotice(notice)
+    }
+
+    MaterialTheme(typography = appTypography()) {
+        Surface(Modifier.fillMaxSize()) {
+            MapScreen(
+                api = environment.api,
+                personal = state.session,
+                personalSnackbar = snackbar,
+                personalBusy = state.busy,
+                liveListening = listening?.isListening ?: false,
+                liveScore = listening?.liveScore,
+                onLiveListeningChange = listening?.let { it::setListening },
+                liveListenerMessage = listening?.message,
+                quietPlaceRoute = routes.active,
+                onClearQuietPlaceRoute = routes::end,
+                quietPlaceRouteRequest = routes.requestCount,
+                walkingRoute = routes.walkingRoute,
+                walkingRouteLoading = routes.loading,
+                onSelectPreset = personal::selectPreset,
+                onFeedback = personal::recordFeedback,
+                onResetPersonal = personal::reset,
+                onRetryPersonal = personal::load,
+                onMeasure = measurement?.let { { place -> measuring = place } },
+            )
+        }
+        val place = measuring
+        if (place != null && measurement != null) {
+            MeasurementDialog(
+                place, measurement.capture, measurement.foreground, measurement.cancellationCount, measurement.legacyApi,
+                onDismiss = { measuring = null },
+                onComplete = { stored ->
+                    measuring = null
+                    scope.launch {
+                        snackbar.showSnackbar(if (stored) "Measurement uploaded" else "Measurement queued while offline")
                     }
                 },
             )

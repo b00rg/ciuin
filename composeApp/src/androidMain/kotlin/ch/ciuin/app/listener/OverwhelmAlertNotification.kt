@@ -12,7 +12,8 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import ch.ciuin.app.R
-import ch.ciuin.app.route.QuietPlaceRoute
+import ch.ciuin.app.core.ActiveAlert
+import ch.ciuin.app.core.withAlert
 import ch.ciuin.app.route.quietPlaceAlertIntent
 import kotlin.math.roundToInt
 
@@ -20,7 +21,7 @@ internal object OverwhelmAlertNotification {
     private const val ID = 2
     private const val CHANNEL_ID = "overwhelm_alerts"
 
-    fun show(context: Context, route: QuietPlaceRoute?, alertId: String): Boolean {
+    fun show(context: Context, alert: ActiveAlert): Boolean {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return false
@@ -40,15 +41,15 @@ internal object OverwhelmAlertNotification {
         )
         if (manager.getNotificationChannel(CHANNEL_ID)?.importance == NotificationManager.IMPORTANCE_NONE) return false
 
-        manager.notify(ID, build(context, route, alertId, feedbackSaved = null))
+        manager.notify(ID, build(context, alert, feedbackSaved = null))
         return true
     }
 
-    fun updateFeedback(context: Context, route: QuietPlaceRoute?, alertId: String, saved: Boolean) {
+    fun updateFeedback(context: Context, alert: ActiveAlert, saved: Boolean) {
         val manager = context.getSystemService(NotificationManager::class.java) ?: return
-        val notification = build(context, route, alertId, feedbackSaved = saved)
+        val notification = build(context, alert, feedbackSaved = saved)
         val alertIsVisible = manager.activeNotifications.any {
-            it.id == ID && it.tag == null && it.notification.extras?.getString(LiveListeningService.EXTRA_ALERT_ID) == alertId
+            it.id == ID && it.tag == null && it.notification.extras?.getString(LiveListeningService.EXTRA_ALERT_ID) == alert.id
         }
         if (alertIsVisible) manager.notify(ID, notification)
     }
@@ -57,13 +58,15 @@ internal object OverwhelmAlertNotification {
         context.getSystemService(NotificationManager::class.java)?.cancel(ID)
     }
 
-    private fun build(context: Context, route: QuietPlaceRoute?, alertId: String, feedbackSaved: Boolean?): Notification {
+    private fun build(context: Context, alert: ActiveAlert, feedbackSaved: Boolean?): Notification {
+        val route = alert.suggestion?.route
+        val alertId = alert.id
         // PendingIntent identity ignores extras, so the alert ID also belongs in its URI.
         val alertUri = Uri.Builder().scheme("ciuin").authority("overwhelm-alert").appendPath(alertId).build()
         val openApp = PendingIntent.getActivity(
             context,
             ID,
-            context.quietPlaceAlertIntent(route).setData(alertUri),
+            context.quietPlaceAlertIntent(route).setData(alertUri).withAlert(alert),
             PendingIntent.FLAG_IMMUTABLE,
         )
         val description = if (route == null) {

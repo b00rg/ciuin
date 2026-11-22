@@ -1,5 +1,6 @@
 package ch.ciuin.app.measure
 
+import ch.ciuin.app.route.RoutePoint
 import ch.ciuin.shared.camera.CameraFeatures
 import ch.ciuin.shared.camera.FlickerResult
 import ch.ciuin.shared.camera.LuminanceSample
@@ -45,15 +46,32 @@ internal data class MeasurementReview(
 
 internal data class AudioLevels(val mean: Double, val peak: Double)
 
-@OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
+internal data class MeasurementReadings(
+    val db: Double? = null,
+    val dbfs: Boolean = false,
+    val lux: Double? = null,
+    val nearbyDevices: Int? = null,
+)
+
 internal suspend fun measurePlace(
     place: Place,
     capture: MeasurementCapture,
     permissions: CapturePermissions,
+    onProgress: (MeasurementReadings) -> Unit = {},
+): MeasurementReview = measurePlace(place.placeId, RoutePoint(place.lat, place.lon), capture, permissions, onProgress)
+
+@OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
+internal suspend fun measurePlace(
+    placeId: String,
+    point: RoutePoint,
+    capture: MeasurementCapture,
+    permissions: CapturePermissions,
+    onProgress: (MeasurementReadings) -> Unit,
 ): MeasurementReview {
     val startedAt = Clock.System.now().toString()
     val luminance = mutableListOf<LuminanceSample>()
-    val strongest = mutableMapOf<Int, Int>() // device fingerprint -> strongest signal, in memory only
+    val nearby = mutableSetOf<Int>()
+    var readings = MeasurementReadings()
     var scanned = false
     val audio = mutableListOf<AudioSample>()
     var luxSum = 0.0
@@ -75,17 +93,34 @@ internal suspend fun measurePlace(
                     if (it.isFinite() && it >= 0) {
                         luxSum += it
                         luxCount++
+                        readings = readings.copy(lux = it)
+                        onProgress(readings)
                     }
                 }
             }
         }
         if (permissions.microphone) launch {
-            captureAvailable { capture.audio().collect { audio += it } }
+            captureAvailable {
+                capture.audio().collect { sample ->
+                    audio += sample
+                    if (sample.dbMean.isFinite()) {
+                        readings = readings.copy(db = sample.dbMean, dbfs = sample.dbfs)
+                        onProgress(readings)
+                    }
+                }
+            }
         }
         if (permissions.bluetooth && capture.canScanBluetooth) launch {
             captureAvailable {
                 scanned = true
-                capture.bluetooth().collect { s -> strongest[s.device] = maxOf(strongest[s.device] ?: Int.MIN_VALUE, s.rssi) }
+                readings = readings.copy(nearbyDevices = 0)
+                onProgress(readings)
+                capture.bluetooth().collect { sighting ->
+                    if (sighting.rssi >= NEARBY_RSSI_DBM && nearby.add(sighting.device)) {
+                        readings = readings.copy(nearbyDevices = nearby.size)
+                        onProgress(readings)
+                    }
+                }
             }
         }
         awaitCancellation()
@@ -101,13 +136,13 @@ internal suspend fun measurePlace(
             soundClasses = soundClasses(audio),
             luxMean = if (luxCount == 0) null else luxSum / luxCount,
             flickerIndex = flicker?.flickerIndex,
-            nearbyDevices = if (scanned) strongest.values.count { it >= NEARBY_RSSI_DBM } else null,
+            nearbyDevices = if (scanned) nearby.size else null,
         )
         MeasurementReview(
             measurement = Measurement(
-                placeId = place.placeId,
-                lat = place.lat,
-                lon = place.lon,
+                placeId = placeId,
+                lat = point.lat,
+                lon = point.lon,
                 timestamp = startedAt,
                 durationS = MEASUREMENT_SECONDS,
                 features = features,

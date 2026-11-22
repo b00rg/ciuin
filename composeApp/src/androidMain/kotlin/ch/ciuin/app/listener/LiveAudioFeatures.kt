@@ -3,6 +3,7 @@ package ch.ciuin.app.listener
 import android.content.Context
 import android.media.MediaRecorder
 import ch.ciuin.shared.audio.Stage0AudioAnalyzer
+import ch.ciuin.app.core.ModelVariant
 import ch.ciuin.app.measure.AudioSample
 import ch.ciuin.shared.model.SoundClass
 import org.tensorflow.lite.Interpreter
@@ -10,7 +11,7 @@ import java.nio.channels.FileChannel
 import kotlin.math.log10
 
 /** Extracts audio-only feature windows. Use one instance from a single consumer. */
-internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoCloseable {
+internal class LiveAudioFeatures(context: Context, audioSource: Int, private val variant: ModelVariant) : AutoCloseable {
     private val analyzer = Stage0AudioAnalyzer(AUDIO_SAMPLE_RATE)
     // Android CDD §7.5.3 microphone sensitivity at 1 kHz. The resulting levels are estimates.
     private val nominalSplOffset = when (audioSource) {
@@ -22,7 +23,7 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
     private val output = arrayOf(FloatArray(SoundClass.COUNT))
     // The emulator's arm64 runtime faults in XNNPACK. The built-in CPU kernels match the export.
     private val interpreter = try {
-        Interpreter(loadModel(context), Interpreter.Options().setUseXNNPACK(false))
+        Interpreter(loadModel(context, variant), Interpreter.Options().setUseXNNPACK(false))
     } catch (error: LinkageError) {
         throw IllegalStateException("Could not load the on-device audio runtime", error)
     }
@@ -46,13 +47,12 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
             modelWindow.fill(0f)
             emptyMap()
         }
-        return AudioSample(dbMean, dbPeak, soundClasses, "Student S")
+        return AudioSample(dbMean, dbPeak, soundClasses, "Student ${variant.name}")
     }
 
     override fun close() = interpreter.close()
 
     private companion object {
-        const val AUDIO_MODEL_ASSET = "audio-student-s.tflite"
         const val MODEL_WINDOW_SAMPLES = 15_600
         const val PEAK_WINDOW_SAMPLES = AUDIO_SAMPLE_RATE / 8 // 125 ms RMS
         const val SILENCE_POWER = 1e-6 // -60 dBFS
@@ -76,7 +76,9 @@ internal class LiveAudioFeatures(context: Context, audioSource: Int) : AutoClose
             return 10.0 * log10(peakToMean)
         }
 
-        fun loadModel(context: Context) = context.assets.openFd(AUDIO_MODEL_ASSET).use { asset ->
+        fun loadModel(context: Context, variant: ModelVariant) = context.assets.openFd(
+            "audio-student-${variant.name.lowercase()}.tflite",
+        ).use { asset ->
             asset.createInputStream().use { input ->
                 input.channel.map(FileChannel.MapMode.READ_ONLY, asset.startOffset, asset.declaredLength)
             }

@@ -12,15 +12,15 @@ private const val ROUTE_ENTRY = "ch.ciuin.app.QuietPlaceRouteEntry"
 internal fun Context.quietPlaceAlertIntent(route: QuietPlaceRoute?): Intent =
     Intent(this, MainActivity::class.java).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        if (route != null) {
-            setClassName(packageName, ROUTE_ENTRY)
-            action = ROUTE_ACTION
-            putExtra(ROUTE_EXTRA, route.toBundle())
-        }
+        setClassName(packageName, ROUTE_ENTRY)
+        action = ROUTE_ACTION
+        if (route != null) putExtra(ROUTE_EXTRA, route.toBundle())
     }
 
+internal fun Intent.isQuietPlaceAlert(): Boolean = action == ROUTE_ACTION && component?.className == ROUTE_ENTRY
+
 internal fun Intent.quietPlaceRoute(): QuietPlaceRoute? {
-    if (action != ROUTE_ACTION || component?.className != ROUTE_ENTRY) return null
+    if (!isQuietPlaceAlert()) return null
     return runCatching { extras?.quietPlaceRoute() }.getOrNull()
 }
 

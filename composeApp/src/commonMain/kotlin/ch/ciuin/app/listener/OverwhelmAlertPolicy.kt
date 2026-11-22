@@ -5,27 +5,31 @@ internal class OverwhelmAlertPolicy(
     private val threshold: Double,
     initialSuppressedUntilMillis: Long = Long.MIN_VALUE,
 ) {
-    private var wasAboveThreshold = false
+    private var aboveSince: Long? = null
+    var aboveLimitMillis: Long? = null
+        private set
     var suppressedUntilMillis = initialSuppressedUntilMillis
         private set
 
-    fun onScore(score: Double, nowMillis: Long): Boolean {
+    fun onScore(score: Double, nowMillis: Long, alertsEnabled: Boolean = true): Boolean {
         val aboveThreshold = score > threshold
-        val crossedThreshold = aboveThreshold && !wasAboveThreshold
-        wasAboveThreshold = aboveThreshold
+        val crossedThreshold = aboveThreshold && aboveSince == null
+        aboveSince = if (aboveThreshold) aboveSince ?: nowMillis else null
+        aboveLimitMillis = aboveSince?.let { nowMillis - it }
 
-        if (!crossedThreshold || nowMillis < suppressedUntilMillis) return false
+        if (!alertsEnabled || !crossedThreshold || nowMillis < suppressedUntilMillis) return false
 
         suppressedUntilMillis = nowMillis + ALERT_INTERVAL_MILLIS
         return true
     }
 
-    fun snooze(nowMillis: Long) {
-        suppressedUntilMillis = maxOf(suppressedUntilMillis, nowMillis + SNOOZE_DURATION_MILLIS)
+    fun snooze(nowMillis: Long, durationMillis: Long = SNOOZE_DURATION_MILLIS) {
+        suppressedUntilMillis = maxOf(suppressedUntilMillis, nowMillis + durationMillis)
     }
 
     fun resetCrossing() {
-        wasAboveThreshold = false
+        aboveSince = null
+        aboveLimitMillis = null
     }
 
     private companion object {
