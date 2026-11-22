@@ -41,6 +41,12 @@ import org.jetbrains.skia.EncodedImageFormat
  * The artboards include a 62 dp status bar and a home indicator that are device chrome, not app UI.
  * Pass the same insets to your screen (or leave that space empty) when you compare.
  *
+ * Paper exports its PNGs in Display P3, while these shots are sRGB. Convert an export before
+ * comparing pixel values, or every saturated colour will seem about 10 levels off:
+ * `sips -m "/System/Library/ColorSync/Profiles/sRGB Profile.icc" export.png --out export-srgb.png`.
+ * Compared that way, the replicas in `PaperScreens.kt` of the artboards without a map differ from
+ * Paper by about 1/255 on average, all of it at the edges of text.
+ *
  * Animations are driven by a virtual clock: `atMillis` is how far into the screen's life the frame
  * is taken (0 is the first frame), and `reduceMotion` turns the theme's Reduce motion flag on.
  * `density` is 2 unless you are comparing with a 1x export (the Foundations and Motion boards).
