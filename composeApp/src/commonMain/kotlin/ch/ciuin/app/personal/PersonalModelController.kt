@@ -65,11 +65,15 @@ internal class PersonalModelController(
         return window
     }
 
-    fun recordFeedback(placeFeatures: FeatureVector?, label: Int) {
+    fun recordFeedback(placeFeatures: FeatureVector?, label: Int, onSaved: ((Boolean) -> Unit)? = null) {
         val live = latestLiveWindow
-        val features = live?.features ?: placeFeatures ?: return
+        val features = live?.features ?: placeFeatures
+        if (features == null) {
+            onSaved?.invoke(false)
+            return
+        }
         val example = TrainingExample(features, label, live?.timestamp ?: timestamp())
-        save(FEEDBACK_FAILED, success = FEEDBACK_SAVED) { it.withFeedback(example) }
+        save(FEEDBACK_FAILED, success = FEEDBACK_SAVED, onSaved = onSaved) { it.withFeedback(example) }
     }
 
     /** Scores a result using its own readings even when the live listener is running. */
@@ -104,10 +108,17 @@ internal class PersonalModelController(
     private fun save(
         failure: String,
         success: String? = null,
+        onSaved: ((Boolean) -> Unit)? = null,
         change: (PersonalModelSession) -> PersonalModelSession,
     ) {
-        if (state.session == null || state.busy) return
-        scope.launch(start = CoroutineStart.UNDISPATCHED) { saveInOrder(failure, success, change) }
+        if (state.session == null || state.busy) {
+            onSaved?.invoke(false)
+            return
+        }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            val saved = saveInOrder(failure, success, change)
+            onSaved?.invoke(saved)
+        }
     }
 
     private suspend fun saveInOrder(

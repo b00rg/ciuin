@@ -105,7 +105,7 @@ internal class MapData {
 }
 
 @Composable
-internal fun rememberMapData(api: PlacesApi): MapData {
+internal fun rememberMapData(api: PlacesApi, showSound: Boolean): MapData {
     val data = remember(api) { MapData() }
     LaunchedEffect(data, data.retryCount) {
         do {
@@ -113,12 +113,20 @@ internal fun rememberMapData(api: PlacesApi): MapData {
             delay(2_000)
         } while (true)
     }
-    val period = data.noisePeriod
-    LaunchedEffect(data, period, data.retryCount) {
+    LaunchedEffect(data, data.retryCount) {
         do {
-            data.refreshNoise(api, period)
+            data.refreshNoise(api, NoisePeriod.DAY)
             delay(60_000)
         } while (true)
+    }
+    val showNight = showSound && data.noisePeriod == NoisePeriod.NIGHT
+    LaunchedEffect(data, showNight, data.retryCount) {
+        if (showNight) {
+            do {
+                data.refreshNoise(api, NoisePeriod.NIGHT)
+                delay(60_000)
+            } while (true)
+        }
     }
     return data
 }

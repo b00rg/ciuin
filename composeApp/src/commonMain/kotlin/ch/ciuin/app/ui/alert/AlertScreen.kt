@@ -94,7 +94,7 @@ internal fun AlertScreen(
                 .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(22.dp),
         ) {
-            AlertScene(pill)
+            AlertScene(pill, haptic = alert.hapticOnDisplay)
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("It's getting loud here.", Modifier.semantics { heading() }, style = CiuinType.ScreenTitle)
                 Text(body, style = CiuinType.Body, color = CiuinColors.SecondaryText)

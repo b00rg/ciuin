@@ -209,12 +209,13 @@ class LiveListeningService : Service() {
             if (activeService === this@LiveListeningService && app.settings.gentleAlerts) {
                 val alert = ActiveAlert(id, window.features.dbMean, aboveLimitMillis, window, suggestion)
                 displayedAlert = DisplayedAlert(alert)
-                app.alerts.show(alert)
-                try {
+                val notified = try {
                     OverwhelmAlertNotification.show(this@LiveListeningService, alert)
                 } catch (error: RuntimeException) {
                     Log.w(TAG, "Could not show overwhelm alert", error)
+                    false
                 }
+                app.alerts.show(alert.copy(hapticOnDisplay = !notified))
             }
         }
     }
@@ -241,6 +242,8 @@ class LiveListeningService : Service() {
             app.personalModel.onLiveWindow(null)
             app.liveDb = null
             app.isListening = false
+            val alertId = displayedAlert?.value?.id
+            if (alertId != null && app.alerts.active?.id == alertId) app.alerts.dismiss()
             displayedAlert = null
             OverwhelmAlertNotification.dismiss(this)
         }

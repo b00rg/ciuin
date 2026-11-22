@@ -22,6 +22,7 @@ internal data class ActiveAlert(
     val aboveLimitMillis: Long,
     val window: LiveWindow,
     val suggestion: QuietPlaceSuggestion? = null,
+    val hapticOnDisplay: Boolean = false,
 )
 
 /** Keeps the scored window tied to the alert even as live listening continues. */

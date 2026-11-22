@@ -26,6 +26,7 @@ import ch.ciuin.app.core.AppEnvironment
 import ch.ciuin.app.map.MapMarker
 import ch.ciuin.app.map.MapState
 import ch.ciuin.app.map.MapView
+import ch.ciuin.app.map.rememberMapTileCache
 import ch.ciuin.app.measure.MeasurementPhase
 import ch.ciuin.app.ui.alert.AlertScreen
 import ch.ciuin.app.ui.components.CiuinTab
@@ -48,6 +49,7 @@ internal fun App(environment: AppEnvironment) {
     val routes = environment.routes
     val snackbar = remember { SnackbarHostState() }
     val map = remember { MapState(LAUSANNE_LAT, LAUSANNE_LON, LAUSANNE_ZOOM) }
+    val mapTiles = rememberMapTileCache()
     var tab by rememberSaveable { mutableStateOf(CiuinTab.Map) }
     var showGlobe by rememberSaveable { mutableStateOf(true) }
     var searching by rememberSaveable { mutableStateOf(false) }
@@ -62,7 +64,8 @@ internal fun App(environment: AppEnvironment) {
         is MeasurementPhase.Done -> true
         else -> false
     }
-    val data = rememberMapData(environment.api)
+    var mapCategory by rememberSaveable { mutableStateOf(Category.PERSONAL) }
+    val data = rememberMapData(environment.api, showSound = mapCategory == Category.SOUND)
     val places = data.places
     val session = personal.state.session
     val scores = remember(places, session) {
@@ -163,6 +166,9 @@ internal fun App(environment: AppEnvironment) {
                         environment = environment,
                         data = data,
                         state = map,
+                        tiles = mapTiles,
+                        category = mapCategory,
+                        onCategory = { mapCategory = it },
                         personalScores = scores,
                         selected = places.firstOrNull { it.placeId == selectedPlaceId },
                         onSelectPlace = { selectedPlaceId = it?.placeId },

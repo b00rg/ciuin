@@ -85,7 +85,10 @@ class MainActivity : ComponentActivity() {
         if (alert == null && route == null) return@launch
         environment.settings.awaitLoaded()
         if (!environment.settings.gentleAlerts) return@launch
-        if (alert != null && environment.alerts.active?.id != alert.id) environment.alerts.show(alert)
-        route?.let(environment.routes::start)
+        if (alert != null) {
+            if (environment.alerts.active?.id != alert.id) environment.alerts.show(alert)
+        } else {
+            route?.let(environment.routes::start)
+        }
     }
 }

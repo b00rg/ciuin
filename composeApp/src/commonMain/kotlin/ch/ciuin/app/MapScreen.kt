@@ -18,7 +18,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -27,7 +30,6 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -52,6 +54,7 @@ import ch.ciuin.app.map.HeatHex
 import ch.ciuin.app.map.MapMarker
 import ch.ciuin.app.map.MapState
 import ch.ciuin.app.map.MapView
+import ch.ciuin.app.map.TileCache
 import ch.ciuin.app.map.latToY
 import ch.ciuin.app.map.lonToX
 import ch.ciuin.app.map.projectQuietPlaceRoute
@@ -98,6 +101,9 @@ internal fun MapScreen(
     environment: AppEnvironment,
     data: MapData,
     state: MapState,
+    tiles: TileCache,
+    category: Category,
+    onCategory: (Category) -> Unit,
     personalScores: Map<String, Double>,
     selected: Place?,
     onSelectPlace: (Place?) -> Unit,
@@ -106,7 +112,6 @@ internal fun MapScreen(
     showMessage: suspend (String) -> Unit,
     tabBar: @Composable () -> Unit,
 ) {
-    var category by rememberSaveable { mutableStateOf(Category.PERSONAL) }
     val period = data.noisePeriod
     val routes = environment.routes
     val route = routes.active
@@ -169,6 +174,7 @@ internal fun MapScreen(
         var routeHeaderPx by remember(routes.requestCount) { mutableIntStateOf(0) }
         var routeSheetPx by remember(routes.requestCount) { mutableIntStateOf(0) }
         val streetLevel = state.zoom >= PLACE_ZOOM
+        val overviewPins = state.zoom >= 13.0
         var bounds by remember(viewport, tilePx) { mutableStateOf(mapBounds(state, viewport, tilePx)) }
         LaunchedEffect(state, viewport, tilePx) {
             snapshotFlow { mapBounds(state, viewport, tilePx) }.collectLatest {
@@ -177,12 +183,12 @@ internal fun MapScreen(
             }
         }
         val visibleBounds = bounds
-        val markers = remember(places, selected, chosenLayer, personalScores, nearest, streetLevel, route, noise, visibleBounds) {
+        val markers = remember(places, selected, chosenLayer, personalScores, nearest, streetLevel, route, noise, visibleBounds, overviewPins) {
             val shown = when {
                 route != null -> listOfNotNull(byId[route.destinationId])
                 selected != null -> listOf(selected)
                 streetLevel -> places
-                visibleBounds == null -> emptyList()
+                !overviewPins -> emptyList()
                 else -> sequenceOf(nearest?.place).filterNotNull()
                     .plus(places.asSequence().filter { visibleBounds.containsLocation(it.lat, it.lon) }
                         .sortedBy { place ->
@@ -223,6 +229,7 @@ internal fun MapScreen(
             userLocation = userLocation,
             layerKey = chosenLayer to noise,
             reduceMotion = reduceMotion,
+            tileCache = tiles,
         )
         MapVeil(height = if (selected != null) topInset + 22.dp else topInset + 148.dp)
         if (route != null) {
@@ -242,7 +249,7 @@ internal fun MapScreen(
                         ListeningButton(listening.isListening, { listening.setListening(!listening.isListening) })
                     }
                 }
-                LayerChipRow(layers, categories.indexOf(category), { category = categories[it] }, Modifier.padding(top = 12.dp))
+                LayerChipRow(layers, categories.indexOf(category), { onCategory(categories[it]) }, Modifier.padding(top = 12.dp))
                 if (data.offline) {
                     OfflineBanner(
                         data::retry,
@@ -298,29 +305,37 @@ internal fun MapScreen(
                 Column(bottom.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                         AttributionPlate(attribution, Modifier.align(Alignment.BottomStart).padding(bottom = 8.dp))
-                        RoundIconButton(
-                            CiuinIcons.Gps01, "My location",
-                            onClick = {
-                                if (!locating) scope.launch {
-                                    locating = true
-                                    try {
-                                        val permission = environment.permissions.request(AppPermission.LOCATION)
-                                        val point = if (permission == PermissionStatus.GRANTED) {
-                                            withTimeoutOrNull(4_000) {
-                                                snapshotFlow { location.current }.filterNotNull().first()
+                        Row(
+                            Modifier.align(Alignment.BottomEnd).padding(bottom = 14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            MapControls(state, viewport, tilePx)
+                            RoundIconButton(
+                                CiuinIcons.Gps01, "My location",
+                                onClick = {
+                                    if (!locating) scope.launch {
+                                        locating = true
+                                        try {
+                                            val permission = environment.permissions.request(AppPermission.LOCATION)
+                                            val point = if (permission == PermissionStatus.GRANTED) {
+                                                withTimeoutOrNull(4_000) {
+                                                    snapshotFlow { location.current }.filterNotNull().first()
+                                                }
+                                            } else null
+                                            if (point == null) {
+                                                showMessage("Your location is unavailable")
+                                            } else {
+                                                state.centerOn(point.lat, point.lon, maxOf(state.zoom, LAUSANNE_ZOOM))
                                             }
-                                        } else null
-                                        if (point != null) state.centerOn(point.lat, point.lon, maxOf(state.zoom, LAUSANNE_ZOOM))
-                                        else showMessage("Your location is unavailable")
-                                    } finally {
-                                        locating = false
+                                        } finally {
+                                            locating = false
+                                        }
                                     }
-                                }
-                            },
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 14.dp),
-                            style = RoundIconButtonStyle.Floating,
-                            enabled = !locating,
-                        )
+                                },
+                                style = RoundIconButtonStyle.Floating,
+                                enabled = !locating,
+                            )
+                        }
                     }
                     BottomSheetSurface(gap = if (data.offline) 14.dp else 16.dp) {
                         Column(
@@ -376,9 +391,34 @@ private fun MapOverlay(
     }
 }
 
-private fun mapBounds(state: MapState, viewport: Size, tilePx: Float): ViewBounds? =
-    if (state.zoom < 13.0) null
-    else state.visibleBounds(viewport, tilePx).let { ViewBounds(it[0], it[1], it[2], it[3]) }
+@Composable
+private fun MapControls(state: MapState, viewport: Size, tilePx: Float) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        RoundIconButton(CiuinIcons.Maps, "Map controls", { open = true }, style = RoundIconButtonStyle.Floating)
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            shape = RoundedCornerShape(16.dp),
+            containerColor = CiuinColors.Ground,
+        ) {
+            val center = Offset(viewport.width / 2, viewport.height / 2)
+            DropdownMenuItem({ Text("Zoom in", style = CiuinType.Label) }, {
+                state.zoomAt(2.0, center, viewport, tilePx)
+            }, enabled = state.zoom < MapState.MAX_ZOOM)
+            DropdownMenuItem({ Text("Zoom out", style = CiuinType.Label) }, {
+                state.zoomAt(0.5, center, viewport, tilePx)
+            }, enabled = state.zoom > MapState.MIN_ZOOM)
+            DropdownMenuItem({ Text("Center on Lausanne", style = CiuinType.Label) }, {
+                state.centerOn(LAUSANNE_LAT, LAUSANNE_LON, LAUSANNE_ZOOM)
+                open = false
+            })
+        }
+    }
+}
+
+private fun mapBounds(state: MapState, viewport: Size, tilePx: Float): ViewBounds =
+    state.visibleBounds(viewport, tilePx).let { ViewBounds(it[0], it[1], it[2], it[3]) }
 
 private fun UiLevel.hexAlpha(offline: Boolean): Float = when (this) {
     UiLevel.Calm -> if (offline) CiuinColors.HexAlphaCalmSaved else CiuinColors.HexAlphaCalm

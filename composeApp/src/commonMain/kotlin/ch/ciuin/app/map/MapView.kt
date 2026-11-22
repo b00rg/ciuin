@@ -76,6 +76,14 @@ private const val TILE_PX = 256
 private const val MAX_TILE_ZOOM = 19
 private val tileColor = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(0.2f) })
 
+@Composable
+internal fun rememberMapTileCache(tileUrl: String = TileCache.OSM_TILES): TileCache {
+    val scope = rememberCoroutineScope()
+    val cache = remember(tileUrl) { TileCache(scope, tileUrl) }
+    DisposableEffect(cache) { onDispose { cache.close() } }
+    return cache
+}
+
 /**
  * Slippy map drawn on a Canvas: raster tiles + circle markers.
  * Drag / pinch to move and zoom, mouse wheel and double-tap to zoom, tap a marker to select it.
@@ -95,10 +103,9 @@ internal fun MapView(
     layerKey: Any? = null,
     reduceMotion: Boolean = false,
     interactive: Boolean = true,
+    tileCache: TileCache? = null,
 ) {
-    val scope = rememberCoroutineScope()
-    val cache = remember(tileUrl) { TileCache(scope, tileUrl) }
-    DisposableEffect(cache) { onDispose { cache.close() } }
+    val cache = tileCache ?: rememberMapTileCache(tileUrl)
 
     val density = LocalDensity.current
     // Draw tiles at 256 dp so they stay readable on high-density phone screens.

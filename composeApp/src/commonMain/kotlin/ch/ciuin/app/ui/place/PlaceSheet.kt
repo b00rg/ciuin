@@ -247,39 +247,40 @@ private fun FactChips(labels: List<String>) {
 private fun HereNow(place: Place, environment: AppEnvironment) {
     val personal = environment.personalModel
     val canLearn = personal.state.session != null && (place.personalFeatures != null || personal.liveScore != null)
-    var answered by remember(place.placeId) { mutableStateOf(false) }
-    if (!canLearn && !answered) return
+    var feedback by remember(place.placeId) { mutableStateOf(PlaceFeedback.Ready) }
+    if (!canLearn && feedback == PlaceFeedback.Ready) return
 
-    val notice = personal.state.notice?.message
-    val failed = answered && notice != null && notice.startsWith("Couldn't")
     Row(
         modifier = Modifier.heightIn(min = 44.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (answered && !failed) {
-            Text(
-                text = "Thanks. The sheep will remember this.",
-                modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
-                style = CiuinType.BodySmall,
-                color = CiuinColors.SecondaryText,
-            )
-        } else {
-            Text(
-                text = if (failed) notice else "Here now?",
-                modifier = Modifier.weight(1f).semantics { if (failed) liveRegion = LiveRegionMode.Polite },
-                style = CiuinType.BodySmall,
-                color = CiuinColors.SecondaryText,
-            )
+        Text(
+            text = when (feedback) {
+                PlaceFeedback.Ready -> "Here now?"
+                PlaceFeedback.Saving -> "Saving your feedback…"
+                PlaceFeedback.Saved -> "Thanks. The sheep will remember this."
+                PlaceFeedback.Failed -> "Couldn't save your feedback."
+            },
+            modifier = Modifier.weight(1f).semantics { liveRegion = LiveRegionMode.Polite },
+            style = CiuinType.BodySmall,
+            color = CiuinColors.SecondaryText,
+        )
+        if (feedback == PlaceFeedback.Ready || feedback == PlaceFeedback.Failed) {
             fun answer(label: Int) {
-                personal.recordFeedback(place.personalFeatures, label)
-                answered = true
+                feedback = PlaceFeedback.Saving
+                personal.recordFeedback(place.personalFeatures, label) { saved ->
+                    feedback = if (saved) PlaceFeedback.Saved else PlaceFeedback.Failed
+                }
             }
-            SecondaryButton("Too much", { answer(TOO_MUCH) }, size = SecondaryButtonSize.Small, enabled = !personal.state.busy)
-            SecondaryButton("This is fine", { answer(FINE) }, size = SecondaryButtonSize.Small, enabled = !personal.state.busy)
+            val enabled = canLearn && !personal.state.busy
+            SecondaryButton("Too much", { answer(TOO_MUCH) }, size = SecondaryButtonSize.Small, enabled = enabled)
+            SecondaryButton("This is fine", { answer(FINE) }, size = SecondaryButtonSize.Small, enabled = enabled)
         }
     }
 }
+
+private enum class PlaceFeedback { Ready, Saving, Saved, Failed }
 
 @Composable
 private fun Actions(onTakeMeThere: (() -> Unit)?, onMeasure: (() -> Unit)?) {

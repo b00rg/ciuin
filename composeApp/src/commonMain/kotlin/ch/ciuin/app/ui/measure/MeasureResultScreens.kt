@@ -190,7 +190,7 @@ internal fun MeasureSharedScreen(
     val detail = when {
         !stored -> "Keep Ciúin running so it can send this reading. If the app stops before sending, the reading is lost."
         updatedPlace != null && count != null -> "${updatedPlace.name} now has ${measurementCount(count)}, and your map is up to date."
-        else -> "Your measurement was added to the map."
+        else -> "Your reading was sent to Ciúin."
     }
     MeasureFrame(modifier) {
         MeasureContent(top = 16.dp, gap = 24.dp) {

@@ -143,10 +143,10 @@ fun AllSetScene(modifier: Modifier = Modifier, onHopEnd: () -> Unit = {}) {
  * @param status the words in the white pill at the top left, such as "Too much · 74 dB".
  */
 @Composable
-fun AlertScene(status: String, modifier: Modifier = Modifier, level: Level = Level.Loud) {
+fun AlertScene(status: String, modifier: Modifier = Modifier, level: Level = Level.Loud, haptic: Boolean = true) {
     Scene(210f, modifier, contentDescription = "The sheep's ears are up. $status") {
         Ground(top = 150f)
-        Sheep(SheepPose.Alert, Modifier.frame(82f, 32f, 178f), contentDescription = null)
+        Sheep(SheepPose.Alert, Modifier.frame(82f, 32f, 178f), contentDescription = null, haptic = haptic)
         LevelPill(level, status, Modifier.absoluteOffset(16.dp, 16.dp))
     }
 }
