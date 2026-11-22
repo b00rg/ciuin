@@ -55,6 +55,14 @@ class MeasurementControllerTest {
         assertEquals(MeasurementPhase.Done(true, null), controller.phase)
         assertEquals(1, settings.sharedMeasurements)
         assertNotNull(api.sent.single().measurementId)
+        // The You tab keeps what was sent: no place, the coarse spot, and the readings.
+        val kept = settings.measurementHistory.single()
+        assertEquals(null, kept.placeId)
+        assertEquals(46.521, kept.lat)
+        assertEquals(6.632, kept.lon)
+        assertEquals(api.sent.single().timestamp, kept.timestamp)
+        assertEquals(api.sent.single().features.dbMean, kept.dbMean)
+        assertEquals(api.sent.single().features.nearbyDevices, kept.nearbyDevices)
     }
 
     @Test

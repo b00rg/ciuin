@@ -1,5 +1,6 @@
 package ch.ciuin.app.ui.you
 
+import ch.ciuin.shared.model.Place
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -60,11 +61,18 @@ import ch.ciuin.app.ui.theme.CiuinMotion
 import ch.ciuin.app.ui.theme.CiuinType
 import ch.ciuin.app.ui.theme.LocalReduceMotion
 
-private enum class YouPage { Root, StartingPoint, OnThisPhone, WhatIsShared }
+private enum class YouPage { Root, StartingPoint, OnThisPhone, WhatIsShared, Measurements }
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-internal fun YouTab(environment: AppEnvironment, tabBar: @Composable () -> Unit, modifier: Modifier = Modifier) {
+internal fun YouTab(
+    environment: AppEnvironment,
+    tabBar: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    places: List<Place> = emptyList(),
+    onOpenPlace: (Place) -> Unit = {},
+    onOpenSpot: (lat: Double, lon: Double) -> Unit = { _, _ -> },
+) {
     val insets = WindowInsets.safeDrawing
     var page by rememberSaveable { mutableStateOf(YouPage.Root) }
     var resetOpen by rememberSaveable { mutableStateOf(false) }
@@ -89,6 +97,9 @@ internal fun YouTab(environment: AppEnvironment, tabBar: @Composable () -> Unit,
                 YouPage.StartingPoint -> StartingPointScreen(personal, insets, back)
                 YouPage.OnThisPhone -> OnThisPhoneScreen(environment, insets, back, openReset)
                 YouPage.WhatIsShared -> WhatIsSharedScreen(insets, back)
+                YouPage.Measurements -> YourMeasurementsScreen(
+                    environment.settings.measurementHistory, places, insets, back, onOpenPlace, onOpenSpot,
+                )
             }
         }
         ResetSheet(resetOpen, personal, insets, closeReset)
@@ -119,6 +130,16 @@ private fun YouScreen(
             ) {
                 Text("You", Modifier.semantics { heading() }, style = CiuinType.ScreenTitle)
                 Column {
+                    val measured = settings.measurementHistory.size
+                    SettingsRow(
+                        title = "Your measurements",
+                        subtitle = when (measured) {
+                            0 -> "Readings you share show up here"
+                            1 -> "1 reading shared"
+                            else -> "$measured readings shared"
+                        },
+                        onClick = { onOpen(YouPage.Measurements) },
+                    )
                     SettingsRow(
                         title = "Starting point",
                         subtitle = personal.session?.preset?.startingPointTitle,
@@ -220,8 +241,8 @@ private fun ResetSheet(
                         Text(title, Modifier.semantics { heading() }, style = CiuinType.PlaceTitle)
                         val detail = when (count) {
                             0 -> "This goes back to A bit of everything. Your ducks stay."
-                            1 -> "This clears your saved tap and goes back to A bit of everything. Your ducks stay."
-                            else -> "This clears your ${count} saved taps and goes back to A bit of everything. Your ducks stay."
+                            1 -> "Your sheep forgets your one answer and goes back to A bit of everything. Your ducks stay."
+                            else -> "Your sheep forgets your $count answers and goes back to A bit of everything. Your ducks stay."
                         }
                         Text(detail, style = CiuinType.Body, color = CiuinColors.SecondaryText)
                     }

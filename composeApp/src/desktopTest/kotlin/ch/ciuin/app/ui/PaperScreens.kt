@@ -1,5 +1,6 @@
 package ch.ciuin.app.ui
 
+import ch.ciuin.app.ui.you.learnedFromText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -481,8 +482,8 @@ internal fun PlaceSheet() = Box(Modifier.fillMaxSize().background(CiuinColors.Ma
             SecondaryButton("This is fine", {}, size = SecondaryButtonSize.Small)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            PrimaryButton("Take me there", {}, Modifier.weight(1f), leadingIcon = CiuinIcons.Navigation03)
-            SecondaryButton("Measure here", {}, Modifier.weight(1f))
+            PrimaryButton("Take me there", {}, Modifier.weight(1f), leadingIcon = CiuinIcons.Navigation03, compact = true)
+            SecondaryButton("Measure here", {}, Modifier.weight(1f), SecondaryButtonSize.Sheet)
         }
     }
 }
@@ -661,7 +662,7 @@ internal fun ResetSheet() = Box(Modifier.fillMaxSize().background(CiuinColors.Sc
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text("Reset what the sheep learned?", style = CiuinType.PlaceTitle)
             Text(
-                "This clears your 23 saved taps and goes back to A bit of everything. Your ducks stay.",
+                "Your sheep forgets your 23 answers and goes back to A bit of everything. Your ducks stay.",
                 style = CiuinType.Body,
                 color = CiuinColors.SecondaryText,
             )
@@ -708,7 +709,12 @@ internal fun Model() = Screen {
                 style = CiuinType.Caption,
             )
         }
-        LinkRow("Your sheep: 23 saved taps", "Reset", {})
+        LinkRow(learnedFromText(23), "Reset", {})
+        Text(
+            "Each time you tap Too much or This is fine, your sheep learns what bothers you.",
+            style = CiuinType.Caption,
+            color = CiuinColors.SecondaryText,
+        )
     }
 }
 

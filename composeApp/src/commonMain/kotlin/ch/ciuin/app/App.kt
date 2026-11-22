@@ -225,7 +225,20 @@ internal fun App(environment: AppEnvironment) {
                 }
                 tab == CiuinTab.You -> {
                     BackHandler { switchTab(CiuinTab.Map) }
-                    YouTab(environment, tabBar)
+                    YouTab(
+                        environment,
+                        tabBar,
+                        places = places,
+                        onOpenPlace = { place ->
+                            switchTab(CiuinTab.Map)
+                            map.centerOn(place.lat, place.lon, PLACE_ZOOM)
+                            selectedPlaceId = place.placeId
+                        },
+                        onOpenSpot = { lat, lon ->
+                            switchTab(CiuinTab.Map)
+                            map.centerOn(lat, lon, PLACE_ZOOM)
+                        },
+                    )
                 }
                 else -> {
                     BackHandler(enabled = selectedPlaceId != null || route != null, onBack = ::dismissMapOverlay)

@@ -129,10 +129,14 @@ internal fun OnThisPhoneScreen(
         ListeningToday(environment.listening?.todayStats)
         personal.state.session?.let { session ->
             val count = session.exampleCount
-            val countText = if (count == 1) "1 saved tap" else "$count saved taps"
             Column {
                 SectionLabel("Personal model", bottomPadding = 0.dp)
-                LinkRow("Your sheep: $countText", "Reset", onReset, actionEnabled = personal.canResetLearnedSettings)
+                LinkRow(learnedFromText(count), "Reset", onReset, actionEnabled = personal.canResetLearnedSettings)
+                Text(
+                    "Each time you tap Too much or This is fine, your sheep learns what bothers you.",
+                    style = CiuinType.Caption,
+                    color = CiuinColors.SecondaryText,
+                )
             }
         }
     }
@@ -216,4 +220,11 @@ internal fun WhatIsSharedScreen(insets: WindowInsets, onBack: () -> Unit) {
             )
         }
     }
+}
+
+/** How many of the user's own answers the personal model has learned from: "Learned from 23 of your answers". */
+internal fun learnedFromText(count: Int): String = when (count) {
+    0 -> "Nothing learned yet"
+    1 -> "Learned from 1 of your answers"
+    else -> "Learned from $count of your answers"
 }

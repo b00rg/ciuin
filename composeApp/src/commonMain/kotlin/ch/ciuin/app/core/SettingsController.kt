@@ -20,6 +20,25 @@ internal interface SettingsStorage {
 @Serializable
 internal data class RecentPlace(val placeId: String, val name: String)
 
+/**
+ * One measurement the user shared, kept on this phone so the You tab can list it. Only the numbers
+ * that were sent are kept; [placeId] is null for "Somewhere else", whose [lat] and [lon] are already
+ * coarsened to about 100 m before sending.
+ */
+@Serializable
+internal data class MeasurementRecord(
+    val placeId: String?,
+    val placeName: String?,
+    val lat: Double,
+    val lon: Double,
+    /** ISO-8601 UTC, as sent. */
+    val timestamp: String,
+    val dbMean: Double? = null,
+    val luxMean: Double? = null,
+    val nearbyDevices: Int? = null,
+    val flickerHz: Double? = null,
+)
+
 @Serializable
 internal data class AppSettings(
     val onboardingComplete: Boolean = false,
@@ -28,6 +47,8 @@ internal data class AppSettings(
     val reduceMotion: Boolean? = null,
     val recentPlaces: List<RecentPlace> = emptyList(),
     val sharedMeasurements: Int = 0,
+    /** Newest first, at most [MEASUREMENT_HISTORY_LIMIT]. */
+    val measurementHistory: List<MeasurementRecord> = emptyList(),
     val modelVariant: ModelVariant = ModelVariant.S,
 )
 
@@ -85,6 +106,7 @@ internal class SettingsController(
 
     val recentPlaces: List<RecentPlace> get() = state.recentPlaces
     val sharedMeasurements: Int get() = state.sharedMeasurements
+    val measurementHistory: List<MeasurementRecord> get() = state.measurementHistory
     val modelVariant: ModelVariant get() = state.modelVariant
 
     fun refreshSystemReduceMotion(value: Boolean) {
@@ -96,7 +118,14 @@ internal class SettingsController(
         update { copy(recentPlaces = (listOf(RecentPlace(placeId, name)) + recentPlaces).normalized()) }
     }
 
-    fun recordSharedMeasurement() = update { copy(sharedMeasurements = sharedMeasurements.inc()) }
+    /** Counts a shared measurement (a duck) and, when given, keeps its [record] for the You tab. */
+    fun recordSharedMeasurement(record: MeasurementRecord? = null) = update {
+        copy(
+            sharedMeasurements = sharedMeasurements.inc(),
+            measurementHistory = if (record == null) measurementHistory
+            else (listOf(record) + measurementHistory).take(MEASUREMENT_HISTORY_LIMIT),
+        )
+    }
 
     fun selectModel(variant: ModelVariant) = update { copy(modelVariant = variant) }
 
@@ -119,3 +148,6 @@ internal class SettingsController(
 
     private fun List<RecentPlace>.normalized() = distinctBy { it.placeId }.take(5)
 }
+
+/** How many shared measurements the phone keeps for the You tab; older ones drop off the end. */
+internal const val MEASUREMENT_HISTORY_LIMIT = 200

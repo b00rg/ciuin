@@ -183,12 +183,14 @@ private fun SoundPanel(sound: SoundInsight, period: NoisePeriod, onPeriod: (Nois
     }
     SegmentedControl(listOf("Day", "Night"), period.ordinal, { onPeriod(NoisePeriod.entries[it]) })
     LevelLegend(listOf(Level.Calm to "Quiet, under 50", Level.Moderate to "Moderate", Level.Loud to "Loud, over 65"))
-    if (sound.roadMeanDb != null || sound.railMeanDb != null) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Where it comes from", style = CiuinType.Label)
-            sound.roadMeanDb?.let { SourceBar("Road", it) }
-            sound.railMeanDb?.let { SourceBar("Rail", it) }
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Where it comes from", style = CiuinType.Label)
+        if (sound.roadMeanDb == null && sound.railMeanDb == null) {
+            // Say so rather than leave a gap: outside the noise data the section would otherwise vanish.
+            Text("No road or rail data here yet", style = CiuinType.BodySmall, color = CiuinColors.SecondaryText)
         }
+        sound.roadMeanDb?.let { SourceBar("Road", it) }
+        sound.railMeanDb?.let { SourceBar("Rail", it) }
     }
     sound.measuredSoundTypes?.let { soundTypes ->
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
